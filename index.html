@@ -254,11 +254,11 @@
   }
   .form-input, .form-textarea {
     width: 100%;
-    padding: 11px 12px;
+    padding: 10px 12px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     font-family: inherit;
-    font-size: 14px;
+    font-size: 16px; /* iOS Safari の自動ズーム回避 */
     background: var(--surface);
     color: var(--text);
     outline: none;
@@ -650,7 +650,7 @@
     border-radius: 6px;
     background: var(--surface);
     font-family: inherit;
-    font-size: 12px;
+    font-size: 16px; /* iOS Safari の自動ズーム回避 */
     color: var(--text);
     outline: none;
     min-width: 0;
@@ -744,7 +744,7 @@
     border-radius: var(--radius-sm);
     background: var(--surface);
     font-family: inherit;
-    font-size: 14px;
+    font-size: 16px; /* iOS Safari の自動ズーム回避 */
     color: var(--text);
     outline: none;
   }
@@ -892,7 +892,7 @@
     border-radius: var(--radius-sm);
     background: var(--surface);
     font-family: inherit;
-    font-size: 12px;
+    font-size: 16px; /* iOS Safari の自動ズーム回避 */
     color: var(--text);
     outline: none;
   }
@@ -2846,7 +2846,7 @@ function renderSyncSection() {
       <div class="form-group">
         <label class="form-label">Bin ID(他の端末と共有)</label>
         <div style="display:flex;gap:6px">
-          <input type="text" class="form-input" id="sync-bin-id" value="${escapeHtml(syncConfig.binId)}" readonly style="font-family:'JetBrains Mono',monospace;font-size:12px">
+          <input type="text" class="form-input" id="sync-bin-id" value="${escapeHtml(syncConfig.binId)}" readonly style="font-family:'JetBrains Mono',monospace">
           <button class="btn btn-outline btn-sm" onclick="copyBinId()">コピー</button>
         </div>
       </div>
