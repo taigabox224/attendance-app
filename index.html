@@ -297,6 +297,32 @@
   .back-link::before { content: '← '; }
   .back-link:hover { color: var(--text); }
 
+  /* イベント詳細上部のツールバー(戻る + 歯車) */
+  .detail-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .detail-toolbar .back-link { margin-bottom: 0; }
+  .gear-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--text-mute);
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+  }
+  .gear-btn:hover { background: var(--surface-soft); color: var(--text); }
+
   .event-hero {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1065,7 +1091,10 @@
 
   <!-- ========== ADMIN: Event Detail ========== -->
   <section id="screen-admin-detail" class="screen screen-hidden">
-    <button class="back-link" onclick="showScreen('admin-list')">一覧に戻る</button>
+    <div class="detail-toolbar">
+      <button class="back-link" onclick="showScreen('admin-list')">一覧に戻る</button>
+      <button class="gear-btn" onclick="openEventMenu()" title="このイベントの操作">⚙</button>
+    </div>
     <div id="admin-detail-content"></div>
   </section>
 
@@ -1184,6 +1213,23 @@
       <div style="display:flex;gap:8px;margin-top:18px">
         <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-profile')">キャンセル</button>
         <button class="btn btn-primary" style="flex:1" onclick="saveProfile()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-event-menu">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>イベントの操作</h2>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); openEditEventModal(state.currentEventId)">イベントを編集</button>
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); exportAttendeesCsv()">出欠CSVを書き出す</button>
+        <input type="file" id="attendee-csv-file" accept=".csv,text/csv" style="display:none" onchange="importAttendeesCsv(this)">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); document.getElementById('attendee-csv-file').click()">出欠CSVを読み込む</button>
+        <button class="btn btn-danger btn-full" style="margin-top:6px" onclick="closeModal('modal-event-menu'); deleteEvent()">このイベントを削除</button>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu')">閉じる</button>
       </div>
     </div>
   </div>
@@ -2010,19 +2056,14 @@ function renderAdminEventDetail() {
     </div>
 
     <div id="admin-attendee-list"></div>
-
-    <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-        <button class="btn btn-outline btn-sm" onclick="openEditEventModal('${ev.id}')">イベントを編集</button>
-        <button class="btn btn-outline btn-sm" onclick="exportAttendeesCsv()">出欠CSVを書き出す</button>
-        <input type="file" id="attendee-csv-file" accept=".csv,text/csv" style="display:none" onchange="importAttendeesCsv(this)">
-        <button class="btn btn-outline btn-sm" onclick="document.getElementById('attendee-csv-file').click()">出欠CSVを読み込む</button>
-      </div>
-      <button class="btn btn-danger btn-sm" onclick="deleteEvent()">このイベントを削除</button>
-    </div>
   `;
   $('admin-detail-content').innerHTML = html;
   renderAdminAttendeeList();
+}
+
+function openEventMenu() {
+  if (!state.currentEventId) return;
+  openModal('modal-event-menu');
 }
 
 function renderAdminAttendeeList() {
