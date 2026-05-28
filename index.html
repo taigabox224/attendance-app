@@ -662,6 +662,110 @@
     margin-bottom: 4px;
   }
   .bulk-actions .btn-sm { flex: 1; }
+
+  /* === User profile summary card === */
+  .profile-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 14px;
+  }
+  .profile-info { min-width: 0; flex: 1; }
+  .profile-name { font-weight: 500; font-size: 14px; }
+  .profile-meta {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--text);
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .profile-meta .placeholder { color: var(--text-soft); font-style: italic; }
+  .profile-meta .sep { color: var(--text-soft); }
+  .profile-hint { font-size: 11px; color: var(--accent); margin-top: 4px; }
+
+  /* === Admin user list === */
+  .admin-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    margin-bottom: 14px;
+  }
+  .admin-tab {
+    flex: 1;
+    padding: 8px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-mute);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .admin-tab.active {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+  }
+  .user-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+  }
+  .user-row .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-mute);
+    flex: 0 0 auto;
+  }
+  .user-row .info { min-width: 0; flex: 1; }
+  .user-row .name { font-size: 14px; font-weight: 500; }
+  .user-row .meta {
+    font-size: 11px;
+    color: var(--text-mute);
+    margin-top: 2px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .user-row .meta .placeholder { color: var(--text-soft); font-style: italic; }
+  .filter-selects {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .filter-selects select {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+  }
 </style>
 </head>
 <body>
@@ -685,11 +789,29 @@
 
   <!-- ========== ADMIN: Event List ========== -->
   <section id="screen-admin-list" class="screen">
+    <div class="admin-tabs">
+      <button class="admin-tab active" onclick="showScreen('admin-list')">イベント</button>
+      <button class="admin-tab" onclick="showScreen('admin-users')">ユーザー</button>
+    </div>
     <div class="screen-header">
       <h1 class="screen-title">イベント一覧</h1>
       <p class="screen-sub">管理しているイベントを表示しています</p>
     </div>
     <div id="admin-event-list"></div>
+  </section>
+
+  <!-- ========== ADMIN: User List ========== -->
+  <section id="screen-admin-users" class="screen screen-hidden">
+    <div class="admin-tabs">
+      <button class="admin-tab" onclick="showScreen('admin-list')">イベント</button>
+      <button class="admin-tab active" onclick="showScreen('admin-users')">ユーザー</button>
+    </div>
+    <div class="screen-header">
+      <h1 class="screen-title">ユーザー一覧</h1>
+      <p class="screen-sub">登録ユーザーを所属・役職で絞り込みできます</p>
+    </div>
+    <div id="admin-user-filter"></div>
+    <div id="admin-user-list"></div>
   </section>
 
   <!-- ========== ADMIN: Event Detail ========== -->
@@ -704,6 +826,7 @@
       <h1 class="screen-title">あなたのイベント</h1>
       <p class="screen-sub">招待されているイベントの一覧です</p>
     </div>
+    <div id="user-profile-card"></div>
     <div id="user-event-list"></div>
   </section>
 
@@ -784,6 +907,32 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="modal-profile">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>プロフィール編集</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
+        所属と役職を登録できます。どちらも任意です。
+      </p>
+      <div class="form-group">
+        <label class="form-label">お名前</label>
+        <div id="profile-name-display" style="font-size:14px;padding:10px 12px;background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-mute)"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">所属</label>
+        <select class="form-input" id="profile-department"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">役職</label>
+        <select class="form-input" id="profile-title"></select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-profile')">キャンセル</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveProfile()">保存</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="modal-qr">
     <div class="modal">
       <div class="modal-handle"></div>
@@ -815,6 +964,10 @@ let state = {
   currentEventId: null,
 };
 
+// 所属・役職の選択肢(プロフィール編集と一覧フィルタで共用)
+const DEPARTMENTS = ['営業部', '開発部', '人事部', '経理部', 'マーケティング部', '総務部', '製造部'];
+const TITLES = ['部長', '課長', '係長', '主任', '一般'];
+
 const SEED = () => {
   const SEED_NAMES = [
     '佐藤 ゆき', '鈴木 健', '高橋 まり', '伊藤 拓真', '渡辺 莉子',
@@ -828,20 +981,44 @@ const SEED = () => {
     '岡本 大和', '松田 凪', '中川 朝陽', '原田 さき', '小野 海',
     '田村 心春', '竹内 蓮', '金子 椿', '和田 智也', '中山 ひかり',
   ];
-  const users = [{ id: 'u_admin', name: '田中 管理者', role: 'admin' }];
+  const users = [{ id: 'u_admin', name: '田中 管理者', role: 'admin', department: null, title: null }];
   SEED_NAMES.forEach((name, i) => {
-    users.push({ id: 'u_' + String(i + 1).padStart(3, '0'), name, role: 'user' });
+    // 所属はぐるぐる、役職は1/5の確率で付与(残りは"一般"扱いで未設定null)
+    const department = DEPARTMENTS[i % DEPARTMENTS.length];
+    let title = null;
+    if (i % 17 === 0) title = '部長';
+    else if (i % 11 === 0) title = '課長';
+    else if (i % 7 === 0) title = '係長';
+    else if (i % 5 === 0) title = '主任';
+    users.push({
+      id: 'u_' + String(i + 1).padStart(3, '0'),
+      name, role: 'user',
+      department, title,
+    });
   });
 
   const now = new Date();
+  const past = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 3); // 3日後開催
   const future = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 7);
   const future2 = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14);
+
+  // 期限切れイベント: 開催は3日後、回答期限は昨日(=既に締切)
+  const closedAttendees = users
+    .filter(u => u.role === 'user')
+    .slice(0, 40)
+    .map((u, i) => {
+      // 期限切れなので回答済が多めの構成: yes 60%, no 25%, pending 15%
+      const m = i % 20;
+      let status = 'yes';
+      if (m < 3) status = 'pending';
+      else if (m < 8) status = 'no';
+      return { userId: u.id, status, checkedInAt: null };
+    });
 
   // 春の懇親会: 全員(50名)招待、ステータス散らす
   const partyAttendees = users
     .filter(u => u.role === 'user')
     .map((u, i) => {
-      // ざっくり: 半分yes, 1/5 pending, 1/5 no, 1/10 checked
       const m = i % 10;
       let status = 'yes';
       if (m === 0) status = 'checked';
@@ -865,6 +1042,16 @@ const SEED = () => {
     }));
 
   const events = [
+    {
+      id: 'e_000',
+      title: '新人歓迎会',
+      date: past.toISOString(),
+      responseDeadline: new Date(now.getTime() - 1000 * 60 * 60 * 24).toISOString(), // 昨日で締切
+      location: '本社 多目的ホール',
+      description: '会場の予約都合により、回答期限を過ぎての変更はできません。',
+      createdBy: 'u_admin',
+      attendees: closedAttendees,
+    },
     {
       id: 'e_001',
       title: '春の懇親会',
@@ -961,12 +1148,17 @@ function statusBadge(status) {
 // Screen routing
 // =================================================
 function showScreen(name) {
-  ['admin-list','admin-detail','user-list','user-detail'].forEach(n => {
+  ['admin-list','admin-users','admin-detail','user-list','user-detail'].forEach(n => {
     const el = $('screen-' + n);
     if (el) el.classList.add('screen-hidden');
   });
   const target = $('screen-' + name);
   if (target) target.classList.remove('screen-hidden');
+  // ユーザー一覧画面を開いたタイミングで描画(検索/フィルタの状態はモジュール変数に保持)
+  if (name === 'admin-users') renderAdminUserList();
+  // FABはイベント一覧の時だけ(ユーザー一覧やイベント詳細では非表示)
+  const fab = $('fab');
+  if (fab) fab.style.display = (isAdmin() && name === 'admin-list') ? 'flex' : 'none';
   window.scrollTo(0, 0);
 }
 
@@ -998,6 +1190,93 @@ function renderAll() {
       showScreen('user-list');
     }
   }
+}
+
+// =================================================
+// ADMIN: User list
+// =================================================
+let adminUserFilter = { query: '', department: '', title: '' };
+
+function getFilteredAdminUsers() {
+  const q = adminUserFilter.query.trim().toLowerCase();
+  return state.users
+    .filter(u => u.role === 'user')
+    .filter(u => !q || u.name.toLowerCase().includes(q))
+    .filter(u => !adminUserFilter.department || u.department === adminUserFilter.department)
+    .filter(u => !adminUserFilter.title || u.title === adminUserFilter.title);
+}
+
+function renderAdminUserList() {
+  const totalUsers = state.users.filter(u => u.role === 'user').length;
+  const filterTarget = $('admin-user-filter');
+  if (filterTarget) {
+    filterTarget.innerHTML = `
+      <input class="search-input" type="search" placeholder="名前で検索"
+             value="${escapeHtml(adminUserFilter.query)}"
+             oninput="onAdminUserSearch(this.value)">
+      <div class="filter-selects">
+        <select onchange="setAdminUserFilter('department', this.value)">
+          <option value="">所属(全て)</option>
+          ${DEPARTMENTS.map(d => `<option value="${escapeHtml(d)}" ${adminUserFilter.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
+        </select>
+        <select onchange="setAdminUserFilter('title', this.value)">
+          <option value="">役職(全て)</option>
+          ${TITLES.map(t => `<option value="${escapeHtml(t)}" ${adminUserFilter.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--text-mute)">
+        <span id="admin-user-count">${totalUsers} 件</span>
+        <button class="btn btn-outline btn-sm" onclick="resetAdminUserFilter()">フィルタをリセット</button>
+      </div>
+    `;
+  }
+  renderAdminUserRows();
+}
+
+function renderAdminUserRows() {
+  const target = $('admin-user-list');
+  if (!target) return;
+  const users = getFilteredAdminUsers();
+  const totalUsers = state.users.filter(u => u.role === 'user').length;
+  const countEl = $('admin-user-count');
+  if (countEl) {
+    countEl.textContent = users.length === totalUsers ? `${totalUsers} 件` : `${users.length} / ${totalUsers} 件`;
+  }
+  if (!users.length) {
+    target.innerHTML = `
+      <div class="empty-state" style="padding:32px 0">
+        <div class="hint">条件に一致するユーザはいません</div>
+      </div>`;
+    return;
+  }
+  target.innerHTML = users.map(u => `
+    <div class="user-row">
+      <div class="avatar">${initial(u.name)}</div>
+      <div class="info">
+        <div class="name">${escapeHtml(u.name)}</div>
+        <div class="meta">
+          <span class="${u.department ? '' : 'placeholder'}">${escapeHtml(u.department || '所属未設定')}</span>
+          <span>·</span>
+          <span class="${u.title ? '' : 'placeholder'}">${escapeHtml(u.title || '役職未設定')}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function onAdminUserSearch(v) {
+  adminUserFilter.query = v;
+  renderAdminUserRows();
+}
+
+function setAdminUserFilter(key, value) {
+  adminUserFilter[key] = value;
+  renderAdminUserRows();
+}
+
+function resetAdminUserFilter() {
+  adminUserFilter = { query: '', department: '', title: '' };
+  renderAdminUserList();
 }
 
 // =================================================
@@ -1323,6 +1602,7 @@ async function saveNewEvent() {
 // USER: Event list
 // =================================================
 function renderUserEventList() {
+  renderUserProfileCard();
   const me = currentUser();
   const myEvents = state.events.filter(ev => ev.attendees.some(a => a.userId === me.id));
   const list = $('user-event-list');
@@ -1348,6 +1628,53 @@ function renderUserEventList() {
         ${statusBadge(a.status)}
       </div>`;
   }).join('');
+}
+
+function renderUserProfileCard() {
+  const target = $('user-profile-card');
+  if (!target) return;
+  const me = currentUser();
+  if (!me) { target.innerHTML = ''; return; }
+  const dept = me.department || '未設定';
+  const title = me.title || '未設定';
+  const empty = !me.department && !me.title;
+  target.innerHTML = `
+    <div class="profile-card">
+      <div class="profile-info">
+        <div class="profile-name">${escapeHtml(me.name)}</div>
+        <div class="profile-meta">
+          <span class="${me.department ? '' : 'placeholder'}">${escapeHtml(dept)}</span>
+          <span class="sep">·</span>
+          <span class="${me.title ? '' : 'placeholder'}">${escapeHtml(title)}</span>
+        </div>
+        ${empty ? '<div class="profile-hint">所属と役職を登録できます</div>' : ''}
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="openProfileModal()">編集</button>
+    </div>
+  `;
+}
+
+function openProfileModal() {
+  const me = currentUser();
+  if (!me) return;
+  $('profile-name-display').textContent = me.name;
+  const dept = $('profile-department');
+  dept.innerHTML = `<option value="">(未設定)</option>` +
+    DEPARTMENTS.map(d => `<option value="${escapeHtml(d)}" ${me.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('');
+  const title = $('profile-title');
+  title.innerHTML = `<option value="">(未設定)</option>` +
+    TITLES.map(t => `<option value="${escapeHtml(t)}" ${me.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+  openModal('modal-profile');
+}
+
+async function saveProfile() {
+  const me = currentUser();
+  if (!me) return;
+  me.department = $('profile-department').value || null;
+  me.title = $('profile-title').value || null;
+  await saveState();
+  closeModal('modal-profile');
+  renderUserProfileCard();
 }
 
 function openUserEventDetail(eventId) {
