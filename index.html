@@ -1,0 +1,1305 @@
+<!-- 出欠記録アプリ プロトタイプ -->
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #F4F1EA;
+    --surface: #FFFFFF;
+    --surface-soft: #FBF9F4;
+    --border: #E5DFD2;
+    --border-soft: #EFEAE0;
+    --text: #1A1A1A;
+    --text-mute: #6E6760;
+    --text-soft: #9B948B;
+    --accent: #C7522A;
+    --accent-soft: #F4DCD0;
+    --success: #4F7A4D;
+    --success-soft: #DDE8DC;
+    --danger: #B84A3E;
+    --danger-soft: #F0D5D1;
+    --warning: #B8893E;
+    --warning-soft: #F0E2C9;
+    --shadow-sm: 0 1px 2px rgba(20, 15, 5, 0.04);
+    --shadow-md: 0 4px 14px rgba(20, 15, 5, 0.08);
+    --shadow-lg: 0 12px 32px rgba(20, 15, 5, 0.12);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --radius-lg: 22px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    font-family: 'Noto Sans JP', sans-serif;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  .app-frame {
+    max-width: 440px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--bg);
+    position: relative;
+    padding-bottom: 100px;
+  }
+
+  /* === Top bar (role switcher) === */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .topbar .brand {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 18px;
+    letter-spacing: 0.02em;
+  }
+  .topbar .brand .accent { color: var(--accent); font-style: italic; }
+
+  .role-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    padding: 6px 12px 6px 6px;
+    border-radius: 100px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .role-pill:hover { background: var(--bg); }
+  .role-pill .avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 500;
+  }
+  .role-pill .label .name { font-weight: 500; }
+  .role-pill .label .role { color: var(--text-mute); font-size: 10px; line-height: 1; }
+
+  /* === Section wrapper === */
+  .screen { padding: 20px 18px 0; }
+  .screen-hidden { display: none; }
+
+  .screen-header {
+    margin-bottom: 18px;
+  }
+  .screen-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 26px;
+    font-weight: 500;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .screen-sub {
+    font-size: 13px;
+    color: var(--text-mute);
+  }
+
+  /* === Cards === */
+  .event-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .event-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  .event-card .date-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .event-card .date-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-mute);
+    background: var(--surface-soft);
+    border: 1px solid var(--border-soft);
+    padding: 3px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+  }
+  .event-card .title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .event-card .meta {
+    font-size: 12px;
+    color: var(--text-mute);
+    display: flex;
+    gap: 12px;
+  }
+  .event-card .meta span::before {
+    content: '· ';
+    color: var(--text-soft);
+    margin-right: 2px;
+  }
+  .event-card .meta span:first-child::before { content: ''; margin: 0; }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 10px;
+  }
+  .status-badge::before {
+    content: '';
+    display: block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .badge-pending { background: var(--surface-soft); color: var(--text-mute); border: 1px solid var(--border); }
+  .badge-pending::before { background: var(--text-soft); }
+  .badge-yes { background: var(--success-soft); color: var(--success); }
+  .badge-yes::before { background: var(--success); }
+  .badge-no { background: var(--danger-soft); color: var(--danger); }
+  .badge-no::before { background: var(--danger); }
+  .badge-checked { background: var(--accent-soft); color: var(--accent); }
+  .badge-checked::before { background: var(--accent); }
+
+  /* === Buttons === */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 18px;
+    border-radius: var(--radius-sm);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: none;
+    color: var(--text);
+  }
+  .btn-primary {
+    background: var(--text);
+    color: var(--surface);
+  }
+  .btn-primary:hover { background: #000; }
+  .btn-accent {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-accent:hover { background: #B0451F; }
+  .btn-outline {
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .btn-outline:hover { background: var(--surface-soft); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-mute);
+  }
+  .btn-ghost:hover { color: var(--text); }
+  .btn-full { width: 100%; }
+  .btn-sm { padding: 7px 12px; font-size: 12px; }
+  .btn-danger { color: var(--danger); border-color: var(--danger-soft); background: var(--surface); }
+
+  /* === Floating action === */
+  .fab {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    display: flex;
+    gap: 8px;
+  }
+  .fab .btn {
+    box-shadow: var(--shadow-lg);
+    padding: 13px 22px;
+  }
+
+  /* === Forms === */
+  .form-group { margin-bottom: 14px; }
+  .form-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-mute);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .form-input, .form-textarea {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 14px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus, .form-textarea:focus { border-color: var(--text); }
+  .form-textarea { resize: vertical; min-height: 70px; }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .checkbox-row:hover { background: var(--surface-soft); }
+  .checkbox-row input { width: 16px; height: 16px; accent-color: var(--text); }
+  .checkbox-row .name { font-size: 14px; }
+
+  /* === Event detail === */
+  .back-link {
+    background: none;
+    border: none;
+    color: var(--text-mute);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 14px;
+    font-family: inherit;
+  }
+  .back-link::before { content: '← '; }
+  .back-link:hover { color: var(--text); }
+
+  .event-hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .event-hero .date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .event-hero .title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1.25;
+    margin-bottom: 12px;
+  }
+  .event-hero .info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-mute);
+    margin-bottom: 4px;
+  }
+  .event-hero .info-row .ico { font-size: 12px; opacity: 0.6; }
+
+  /* === Attendee list === */
+  .section-label {
+    font-size: 12px;
+    color: var(--text-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+    margin-top: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .section-label .count {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-size: 10px;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .attendee-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .attendee-row .left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .attendee-row .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 500;
+    flex-shrink: 0;
+  }
+  .attendee-row .name {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .attendee-row .actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .status-btn {
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text-mute);
+  }
+  .status-btn.active.yes { background: var(--success-soft); color: var(--success); border-color: var(--success-soft); }
+  .status-btn.active.no { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft); }
+  .status-btn.active.checked { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+
+  /* === Modal === */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 12, 8, 0.45);
+    z-index: 100;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    width: 100%;
+    max-width: 440px;
+    padding: 22px 18px 26px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 100px;
+    margin: -8px auto 18px;
+  }
+  .modal h2 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+
+  /* === QR === */
+  .qr-display {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-align: center;
+    margin: 14px 0;
+  }
+  .qr-display .qr-box {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    display: inline-block;
+    margin-bottom: 14px;
+  }
+  .qr-display .qr-code img,
+  .qr-display .qr-code canvas {
+    display: block;
+  }
+  .qr-display .qr-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-mute);
+    letter-spacing: 0.05em;
+  }
+  .qr-display .qr-hint {
+    font-size: 13px;
+    color: var(--text-mute);
+    margin-top: 4px;
+  }
+
+  /* === Scanner === */
+  #scanner-region {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #111;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  #scanner-region video { width: 100% !important; height: 100% !important; object-fit: cover; }
+  .scanner-fallback {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-mute);
+    font-size: 13px;
+    background: var(--surface-soft);
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+  }
+  .scan-result {
+    background: var(--success-soft);
+    color: var(--success);
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+  .scan-result.error {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  /* === User self-RSVP === */
+  .rsvp-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .rsvp-card .label {
+    font-size: 12px;
+    color: var(--text-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+  .rsvp-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .rsvp-btn {
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text);
+    transition: all 0.15s;
+  }
+  .rsvp-btn:hover { background: var(--surface-soft); }
+  .rsvp-btn.active-yes { background: var(--success); color: white; border-color: var(--success); }
+  .rsvp-btn.active-no { background: var(--danger); color: white; border-color: var(--danger); }
+
+  /* === Empty === */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-mute);
+  }
+  .empty-state .glyph {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 36px;
+    color: var(--border);
+    margin-bottom: 8px;
+  }
+  .empty-state .hint { font-size: 13px; }
+
+  /* Notice */
+  .notice {
+    background: var(--warning-soft);
+    color: var(--warning);
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    margin-bottom: 14px;
+    border: 1px solid rgba(184, 137, 62, 0.2);
+  }
+
+  /* Demo banner */
+  .demo-banner {
+    background: var(--text);
+    color: var(--bg);
+    padding: 8px 14px;
+    font-size: 11px;
+    text-align: center;
+    letter-spacing: 0.04em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .demo-banner span { opacity: 0.6; }
+
+  /* Inline grid for user list */
+  .user-grid { display: grid; gap: 6px; margin-top: 10px; }
+</style>
+
+<div class="app-frame">
+  <div class="demo-banner">
+    PROTOTYPE <span>· デモ用 (データはブラウザに保存)</span>
+  </div>
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand">出欠 <span class="accent">記録</span></div>
+    <button class="role-pill" id="role-switch-btn">
+      <div class="avatar" id="topbar-avatar">A</div>
+      <div class="label">
+        <div class="name" id="topbar-name">管理者</div>
+        <div class="role" id="topbar-role">admin</div>
+      </div>
+    </button>
+  </header>
+
+  <!-- ========== ADMIN: Event List ========== -->
+  <section id="screen-admin-list" class="screen">
+    <div class="screen-header">
+      <h1 class="screen-title">イベント一覧</h1>
+      <p class="screen-sub">管理しているイベントを表示しています</p>
+    </div>
+    <div id="admin-event-list"></div>
+  </section>
+
+  <!-- ========== ADMIN: Event Detail ========== -->
+  <section id="screen-admin-detail" class="screen screen-hidden">
+    <button class="back-link" onclick="showScreen('admin-list')">一覧に戻る</button>
+    <div id="admin-detail-content"></div>
+  </section>
+
+  <!-- ========== USER: Event List ========== -->
+  <section id="screen-user-list" class="screen screen-hidden">
+    <div class="screen-header">
+      <h1 class="screen-title">あなたのイベント</h1>
+      <p class="screen-sub">招待されているイベントの一覧です</p>
+    </div>
+    <div id="user-event-list"></div>
+  </section>
+
+  <!-- ========== USER: Event Detail ========== -->
+  <section id="screen-user-detail" class="screen screen-hidden">
+    <button class="back-link" onclick="showScreen('user-list')">一覧に戻る</button>
+    <div id="user-detail-content"></div>
+  </section>
+
+  <!-- FAB for admin -->
+  <div class="fab" id="fab" style="display:none">
+    <button class="btn btn-primary" onclick="openCreateEventModal()">+ イベント作成</button>
+  </div>
+
+  <!-- Modals -->
+  <div class="modal-overlay" id="modal-role">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>ロール / ユーザー切替</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
+        デモ用にアカウントを切り替えられます
+      </p>
+      <div id="role-user-list"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-create-event">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>イベントを作成</h2>
+      <div class="form-group">
+        <label class="form-label">タイトル</label>
+        <input type="text" class="form-input" id="new-event-title" placeholder="例: 春の懇親会">
+      </div>
+      <div class="form-group">
+        <label class="form-label">日時</label>
+        <input type="datetime-local" class="form-input" id="new-event-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">場所</label>
+        <input type="text" class="form-input" id="new-event-location" placeholder="例: 本社 大会議室">
+      </div>
+      <div class="form-group">
+        <label class="form-label">説明 (任意)</label>
+        <textarea class="form-textarea" id="new-event-description" placeholder="持ち物、注意事項など"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">参加者を選択</label>
+        <div id="new-event-attendees"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-create-event')">キャンセル</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveNewEvent()">作成</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-scanner">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>QRコードをスキャン</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:12px">
+        参加者のQRコードをカメラで読み取ってください
+      </p>
+      <div id="scanner-region"></div>
+      <div id="scanner-fallback-box"></div>
+      <div id="scan-result-box"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-outline btn-full" onclick="closeScanner()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-qr">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2 id="qr-title">受付用QRコード</h2>
+      <div class="qr-display">
+        <div class="qr-box">
+          <div class="qr-code" id="qr-code-target"></div>
+        </div>
+        <div class="qr-label" id="qr-token-label"></div>
+        <p class="qr-hint">当日、受付でこの画面を提示してください</p>
+      </div>
+      <button class="btn btn-outline btn-full" onclick="closeModal('modal-qr')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+// =================================================
+// State
+// =================================================
+let state = {
+  users: [],
+  events: [],
+  currentUserId: null,
+  currentEventId: null,
+};
+
+const SEED = () => {
+  const users = [
+    { id: 'u_admin', name: '田中 管理者', role: 'admin' },
+    { id: 'u_001', name: '佐藤 ゆき', role: 'user' },
+    { id: 'u_002', name: '鈴木 健', role: 'user' },
+    { id: 'u_003', name: '高橋 まり', role: 'user' },
+    { id: 'u_004', name: '伊藤 拓真', role: 'user' },
+  ];
+  const now = new Date();
+  const future = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 7);
+  const future2 = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14);
+  const events = [
+    {
+      id: 'e_001',
+      title: '春の懇親会',
+      date: future.toISOString(),
+      location: '本社 大会議室',
+      description: '軽食をご用意します。お気軽にご参加ください。',
+      createdBy: 'u_admin',
+      attendees: [
+        { userId: 'u_001', status: 'yes', checkedInAt: null },
+        { userId: 'u_002', status: 'pending', checkedInAt: null },
+        { userId: 'u_003', status: 'no', checkedInAt: null },
+        { userId: 'u_004', status: 'pending', checkedInAt: null },
+      ],
+    },
+    {
+      id: 'e_002',
+      title: '月次定例ミーティング',
+      date: future2.toISOString(),
+      location: 'オンライン',
+      description: '',
+      createdBy: 'u_admin',
+      attendees: [
+        { userId: 'u_001', status: 'pending', checkedInAt: null },
+        { userId: 'u_002', status: 'yes', checkedInAt: null },
+      ],
+    },
+  ];
+  return { users, events, currentUserId: 'u_admin', currentEventId: null };
+};
+
+// =================================================
+// Persistence (Claude artifacts storage)
+// =================================================
+async function loadState() {
+  try {
+    const result = await window.storage.get('attendance_app_state', true);
+    if (result && result.value) {
+      state = JSON.parse(result.value);
+      return;
+    }
+  } catch (e) { /* not found, continue */ }
+  state = SEED();
+  await saveState();
+}
+async function saveState() {
+  try {
+    await window.storage.set('attendance_app_state', JSON.stringify(state), true);
+  } catch (e) { console.warn('save failed', e); }
+}
+
+// =================================================
+// Helpers
+// =================================================
+const $ = id => document.getElementById(id);
+const fmtDate = iso => {
+  const d = new Date(iso);
+  const days = ['日','月','火','水','木','金','土'];
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${d.getFullYear()}.${mm}.${dd}(${days[d.getDay()]}) ${hh}:${mi}`;
+};
+const fmtDateShort = iso => {
+  const d = new Date(iso);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${mm}/${dd}`;
+};
+const escapeHtml = s => (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const initial = name => (name || '?').trim().charAt(0);
+const userById = id => state.users.find(u => u.id === id);
+const currentUser = () => userById(state.currentUserId);
+const isAdmin = () => currentUser()?.role === 'admin';
+
+const STATUS_LABEL = {
+  pending: '未回答',
+  yes: '出席',
+  no: '欠席',
+  checked: '受付済',
+};
+
+function statusBadge(status) {
+  const cls = {
+    pending: 'badge-pending',
+    yes: 'badge-yes',
+    no: 'badge-no',
+    checked: 'badge-checked',
+  }[status] || 'badge-pending';
+  return `<span class="status-badge ${cls}">${STATUS_LABEL[status]}</span>`;
+}
+
+// =================================================
+// Screen routing
+// =================================================
+function showScreen(name) {
+  ['admin-list','admin-detail','user-list','user-detail'].forEach(n => {
+    const el = $('screen-' + n);
+    if (el) el.classList.add('screen-hidden');
+  });
+  const target = $('screen-' + name);
+  if (target) target.classList.remove('screen-hidden');
+  window.scrollTo(0, 0);
+}
+
+function renderRoleSwitcher() {
+  const u = currentUser();
+  $('topbar-avatar').textContent = initial(u.name);
+  $('topbar-avatar').style.background = u.role === 'admin' ? 'var(--text)' : 'var(--accent)';
+  $('topbar-name').textContent = u.name;
+  $('topbar-role').textContent = u.role;
+  $('fab').style.display = isAdmin() ? 'flex' : 'none';
+}
+
+function renderAll() {
+  renderRoleSwitcher();
+  if (isAdmin()) {
+    renderAdminEventList();
+    if (state.currentEventId) {
+      renderAdminEventDetail();
+      showScreen('admin-detail');
+    } else {
+      showScreen('admin-list');
+    }
+  } else {
+    renderUserEventList();
+    if (state.currentEventId) {
+      renderUserEventDetail();
+      showScreen('user-detail');
+    } else {
+      showScreen('user-list');
+    }
+  }
+}
+
+// =================================================
+// ADMIN: Event list
+// =================================================
+function renderAdminEventList() {
+  const list = $('admin-event-list');
+  if (!state.events.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="glyph">○</div>
+        <div class="hint">まだイベントがありません<br>右下のボタンから作成できます</div>
+      </div>`;
+    return;
+  }
+  list.innerHTML = state.events.map(ev => {
+    const total = ev.attendees.length;
+    const yesCount = ev.attendees.filter(a => a.status === 'yes').length;
+    const checkedCount = ev.attendees.filter(a => a.status === 'checked').length;
+    return `
+      <div class="event-card" onclick="openAdminEventDetail('${ev.id}')">
+        <div class="date-row">
+          <span class="date-tag">${fmtDate(ev.date)}</span>
+        </div>
+        <div class="title">${escapeHtml(ev.title)}</div>
+        <div class="meta">
+          <span>${escapeHtml(ev.location || '場所未定')}</span>
+          <span>参加予定 ${yesCount}/${total}</span>
+          ${checkedCount > 0 ? `<span>受付済 ${checkedCount}</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openAdminEventDetail(eventId) {
+  state.currentEventId = eventId;
+  renderAdminEventDetail();
+  showScreen('admin-detail');
+}
+
+function renderAdminEventDetail() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const total = ev.attendees.length;
+  const yesCount = ev.attendees.filter(a => a.status === 'yes').length;
+  const checkedCount = ev.attendees.filter(a => a.status === 'checked').length;
+  const noCount = ev.attendees.filter(a => a.status === 'no').length;
+  const pendingCount = ev.attendees.filter(a => a.status === 'pending').length;
+
+  const html = `
+    <div class="event-hero">
+      <div class="date">${fmtDate(ev.date)}</div>
+      <div class="title">${escapeHtml(ev.title)}</div>
+      <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
+      ${ev.description ? `<div class="info-row"><span class="ico">📝</span>${escapeHtml(ev.description)}</div>` : ''}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px">
+      <div style="background:var(--success-soft);color:var(--success);padding:10px;border-radius:var(--radius-sm);text-align:center">
+        <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono'">${yesCount}</div>
+        <div style="font-size:10px">出席</div>
+      </div>
+      <div style="background:var(--accent-soft);color:var(--accent);padding:10px;border-radius:var(--radius-sm);text-align:center">
+        <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono'">${checkedCount}</div>
+        <div style="font-size:10px">受付済</div>
+      </div>
+      <div style="background:var(--danger-soft);color:var(--danger);padding:10px;border-radius:var(--radius-sm);text-align:center">
+        <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono'">${noCount}</div>
+        <div style="font-size:10px">欠席</div>
+      </div>
+      <div style="background:var(--surface-soft);color:var(--text-mute);padding:10px;border-radius:var(--radius-sm);text-align:center;border:1px solid var(--border)">
+        <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono'">${pendingCount}</div>
+        <div style="font-size:10px">未回答</div>
+      </div>
+    </div>
+
+    <button class="btn btn-accent btn-full" style="margin:14px 0" onclick="openScanner()">
+      📷 QRコードをスキャン
+    </button>
+
+    <div class="section-label">
+      参加者リスト <span class="count">${total}</span>
+    </div>
+    ${ev.attendees.map(a => {
+      const u = userById(a.userId);
+      if (!u) return '';
+      return `
+        <div class="attendee-row">
+          <div class="left">
+            <div class="avatar">${initial(u.name)}</div>
+            <div style="min-width:0">
+              <div class="name">${escapeHtml(u.name)}</div>
+              <div style="margin-top:2px">${statusBadge(a.status)}</div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="status-btn ${a.status === 'yes' ? 'active yes' : ''}" onclick="setStatus('${a.userId}','yes')">出</button>
+            <button class="status-btn ${a.status === 'checked' ? 'active checked' : ''}" onclick="setStatus('${a.userId}','checked')">済</button>
+            <button class="status-btn ${a.status === 'no' ? 'active no' : ''}" onclick="setStatus('${a.userId}','no')">欠</button>
+          </div>
+        </div>`;
+    }).join('')}
+
+    <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">
+      <button class="btn btn-danger btn-sm" onclick="deleteEvent()">このイベントを削除</button>
+    </div>
+  `;
+  $('admin-detail-content').innerHTML = html;
+}
+
+async function setStatus(userId, status) {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const att = ev.attendees.find(a => a.userId === userId);
+  if (!att) return;
+  att.status = status;
+  if (status === 'checked' && !att.checkedInAt) att.checkedInAt = new Date().toISOString();
+  if (status !== 'checked') att.checkedInAt = null;
+  await saveState();
+  renderAdminEventDetail();
+}
+
+async function deleteEvent() {
+  if (!confirm('このイベントを削除しますか?')) return;
+  state.events = state.events.filter(e => e.id !== state.currentEventId);
+  state.currentEventId = null;
+  await saveState();
+  renderAll();
+}
+
+// =================================================
+// ADMIN: Create event modal
+// =================================================
+function openCreateEventModal() {
+  $('new-event-title').value = '';
+  $('new-event-location').value = '';
+  $('new-event-description').value = '';
+  const tomorrow = new Date(Date.now() + 1000 * 60 * 60 * 24);
+  tomorrow.setHours(19, 0, 0, 0);
+  const iso = tomorrow.toISOString().slice(0, 16);
+  $('new-event-date').value = iso;
+  const userList = state.users.filter(u => u.role === 'user');
+  $('new-event-attendees').innerHTML = userList.map(u => `
+    <label class="checkbox-row">
+      <input type="checkbox" value="${u.id}" checked>
+      <div class="name">${escapeHtml(u.name)}</div>
+    </label>
+  `).join('');
+  openModal('modal-create-event');
+}
+
+async function saveNewEvent() {
+  const title = $('new-event-title').value.trim();
+  const date = $('new-event-date').value;
+  const location = $('new-event-location').value.trim();
+  const description = $('new-event-description').value.trim();
+  if (!title || !date) {
+    alert('タイトルと日時は必須です');
+    return;
+  }
+  const checked = Array.from($('new-event-attendees').querySelectorAll('input:checked'));
+  const attendees = checked.map(c => ({ userId: c.value, status: 'pending', checkedInAt: null }));
+  const newEvent = {
+    id: 'e_' + Date.now(),
+    title, date: new Date(date).toISOString(), location, description,
+    createdBy: state.currentUserId,
+    attendees,
+  };
+  state.events.unshift(newEvent);
+  await saveState();
+  closeModal('modal-create-event');
+  renderAdminEventList();
+}
+
+// =================================================
+// USER: Event list
+// =================================================
+function renderUserEventList() {
+  const me = currentUser();
+  const myEvents = state.events.filter(ev => ev.attendees.some(a => a.userId === me.id));
+  const list = $('user-event-list');
+  if (!myEvents.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="glyph">○</div>
+        <div class="hint">招待されているイベントはありません</div>
+      </div>`;
+    return;
+  }
+  list.innerHTML = myEvents.map(ev => {
+    const a = ev.attendees.find(x => x.userId === me.id);
+    return `
+      <div class="event-card" onclick="openUserEventDetail('${ev.id}')">
+        <div class="date-row">
+          <span class="date-tag">${fmtDate(ev.date)}</span>
+        </div>
+        <div class="title">${escapeHtml(ev.title)}</div>
+        <div class="meta"><span>${escapeHtml(ev.location || '場所未定')}</span></div>
+        ${statusBadge(a.status)}
+      </div>`;
+  }).join('');
+}
+
+function openUserEventDetail(eventId) {
+  state.currentEventId = eventId;
+  renderUserEventDetail();
+  showScreen('user-detail');
+}
+
+function renderUserEventDetail() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const me = currentUser();
+  const att = ev.attendees.find(a => a.userId === me.id);
+  if (!att) return;
+
+  const html = `
+    <div class="event-hero">
+      <div class="date">${fmtDate(ev.date)}</div>
+      <div class="title">${escapeHtml(ev.title)}</div>
+      <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
+      ${ev.description ? `<div class="info-row"><span class="ico">📝</span>${escapeHtml(ev.description)}</div>` : ''}
+    </div>
+
+    <div class="rsvp-card">
+      <div class="label">出欠の回答</div>
+      <div class="rsvp-buttons">
+        <button class="rsvp-btn ${att.status === 'yes' || att.status === 'checked' ? 'active-yes' : ''}" onclick="setMyRsvp('yes')">
+          出席する
+        </button>
+        <button class="rsvp-btn ${att.status === 'no' ? 'active-no' : ''}" onclick="setMyRsvp('no')">
+          欠席する
+        </button>
+      </div>
+      <div style="font-size:12px;color:var(--text-mute);margin-top:10px;text-align:center">
+        現在の回答: ${statusBadge(att.status)}
+      </div>
+    </div>
+
+    ${(att.status === 'yes' || att.status === 'checked') ? `
+      <button class="btn btn-accent btn-full" onclick="showMyQR()">
+        ${att.status === 'checked' ? '✓ 受付済 (QRを再表示)' : '📱 受付用QRコードを表示'}
+      </button>
+      <p style="font-size:11px;color:var(--text-mute);text-align:center;margin-top:8px">
+        当日、このQRコードを受付で提示してください
+      </p>
+    ` : ''}
+  `;
+  $('user-detail-content').innerHTML = html;
+}
+
+async function setMyRsvp(answer) {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const att = ev.attendees.find(a => a.userId === state.currentUserId);
+  if (!att) return;
+  // Don't allow downgrading from 'checked'
+  if (att.status === 'checked' && answer === 'no') {
+    if (!confirm('既に受付済みです。欠席に変更しますか?')) return;
+  }
+  att.status = answer;
+  if (answer !== 'checked') att.checkedInAt = null;
+  await saveState();
+  renderUserEventDetail();
+}
+
+function showMyQR() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  const me = currentUser();
+  const token = `attend:${ev.id}:${me.id}`;
+  $('qr-title').textContent = ev.title + ' - 受付用QR';
+  $('qr-code-target').innerHTML = '';
+  new QRCode($('qr-code-target'), {
+    text: token,
+    width: 200,
+    height: 200,
+    colorDark: '#1A1A1A',
+    colorLight: '#FFFFFF',
+  });
+  $('qr-token-label').textContent = me.name;
+  openModal('modal-qr');
+}
+
+// =================================================
+// Scanner
+// =================================================
+let html5QrScanner = null;
+async function openScanner() {
+  $('scan-result-box').innerHTML = '';
+  $('scanner-fallback-box').innerHTML = '';
+  openModal('modal-scanner');
+
+  // Wait for modal to render
+  await new Promise(r => setTimeout(r, 100));
+
+  try {
+    html5QrScanner = new Html5Qrcode('scanner-region');
+    await html5QrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      onScanSuccess,
+      () => {}
+    );
+  } catch (err) {
+    console.warn('camera unavailable', err);
+    showScannerFallback();
+  }
+}
+
+function showScannerFallback() {
+  $('scanner-region').style.display = 'none';
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  const candidates = ev ? ev.attendees.filter(a => a.status === 'yes' || a.status === 'pending') : [];
+  $('scanner-fallback-box').innerHTML = `
+    <div class="scanner-fallback">
+      カメラが使えない環境のようです。<br>
+      下のボタンで参加者をタップしてチェックインできます (デモ用)
+    </div>
+    <div class="user-grid">
+      ${candidates.map(a => {
+        const u = userById(a.userId);
+        return `<button class="btn btn-outline" style="justify-content:flex-start;padding:10px 14px"
+          onclick="onScanSuccess('attend:${ev.id}:${u.id}')">
+          <span style="display:inline-block;width:24px;height:24px;background:var(--accent);color:white;border-radius:50%;text-align:center;line-height:24px;font-size:11px;margin-right:8px">${initial(u.name)}</span>
+          ${escapeHtml(u.name)}
+        </button>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+async function onScanSuccess(decoded) {
+  const match = /^attend:([^:]+):([^:]+)$/.exec(decoded);
+  if (!match) {
+    $('scan-result-box').innerHTML = `<div class="scan-result error">無効なQRコードです</div>`;
+    return;
+  }
+  const [, eventId, userId] = match;
+  const ev = state.events.find(e => e.id === eventId);
+  if (!ev) {
+    $('scan-result-box').innerHTML = `<div class="scan-result error">該当するイベントが見つかりません</div>`;
+    return;
+  }
+  const att = ev.attendees.find(a => a.userId === userId);
+  if (!att) {
+    $('scan-result-box').innerHTML = `<div class="scan-result error">このユーザーは参加者リストにいません</div>`;
+    return;
+  }
+  const u = userById(userId);
+  if (att.status === 'checked') {
+    $('scan-result-box').innerHTML = `<div class="scan-result error">${escapeHtml(u.name)} さんは既に受付済です</div>`;
+    return;
+  }
+  att.status = 'checked';
+  att.checkedInAt = new Date().toISOString();
+  await saveState();
+  $('scan-result-box').innerHTML = `<div class="scan-result">✓ ${escapeHtml(u.name)} さんを受付しました</div>`;
+
+  // refresh fallback list if shown
+  if ($('scanner-region').style.display === 'none') {
+    setTimeout(() => {
+      if ($('modal-scanner').classList.contains('show')) showScannerFallback();
+    }, 800);
+  }
+  // refresh detail view in background
+  renderAdminEventDetail();
+}
+
+function closeScanner() {
+  if (html5QrScanner) {
+    html5QrScanner.stop().catch(() => {});
+    html5QrScanner = null;
+  }
+  $('scanner-region').style.display = 'block';
+  closeModal('modal-scanner');
+}
+
+// =================================================
+// Modals
+// =================================================
+function openModal(id) { $(id).classList.add('show'); }
+function closeModal(id) { $(id).classList.remove('show'); }
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => {
+    if (e.target === o) {
+      if (o.id === 'modal-scanner') closeScanner();
+      else o.classList.remove('show');
+    }
+  });
+});
+
+// =================================================
+// Role switcher
+// =================================================
+$('role-switch-btn').addEventListener('click', () => {
+  $('role-user-list').innerHTML = state.users.map(u => `
+    <div class="attendee-row" style="cursor:pointer" onclick="switchUser('${u.id}')">
+      <div class="left">
+        <div class="avatar" style="background:${u.role === 'admin' ? 'var(--text)' : 'var(--accent)'};color:white">${initial(u.name)}</div>
+        <div>
+          <div class="name">${escapeHtml(u.name)}</div>
+          <div style="font-size:11px;color:var(--text-mute);font-family:'JetBrains Mono'">${u.role}</div>
+        </div>
+      </div>
+      ${state.currentUserId === u.id ? '<div style="color:var(--accent);font-size:13px">●</div>' : ''}
+    </div>
+  `).join('');
+  openModal('modal-role');
+});
+
+async function switchUser(userId) {
+  state.currentUserId = userId;
+  state.currentEventId = null;
+  await saveState();
+  closeModal('modal-role');
+  renderAll();
+}
+
+// Reset (utility - tap brand name 3x to reset)
+let brandTaps = 0;
+document.querySelector('.brand').addEventListener('click', async () => {
+  brandTaps++;
+  if (brandTaps >= 3) {
+    if (confirm('全データを初期状態に戻しますか?')) {
+      state = SEED();
+      await saveState();
+      renderAll();
+    }
+    brandTaps = 0;
+  }
+  setTimeout(() => { brandTaps = 0; }, 1500);
+});
+
+// =================================================
+// Init
+// =================================================
+(async function init() {
+  await loadState();
+  renderAll();
+})();
+</script>
