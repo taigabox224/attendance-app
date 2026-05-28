@@ -1,4 +1,10 @@
 <!-- 出欠記録アプリ プロトタイプ -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>出欠記録</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -573,7 +579,74 @@
 
   /* Inline grid for user list */
   .user-grid { display: grid; gap: 6px; margin-top: 10px; }
+
+  /* === Search + filter (for large attendee lists) === */
+  .filter-bar {
+    position: sticky;
+    top: 56px;
+    z-index: 20;
+    background: var(--bg);
+    padding: 10px 0 8px;
+    margin-bottom: 6px;
+  }
+  .search-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .filter-chips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    margin-top: 8px;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    font-size: 12px;
+    color: var(--text-mute);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .chip:hover { background: var(--surface-soft); }
+  .chip.active {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--surface);
+  }
+  .chip .num {
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: 4px;
+    opacity: 0.7;
+  }
+  .chip.active .num { opacity: 1; }
+
+  /* Bulk select buttons in invite modal */
+  .bulk-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+  }
+  .bulk-actions .btn-sm { flex: 1; }
 </style>
+</head>
+<body>
 
 <div class="app-frame">
   <div class="demo-banner">
@@ -718,16 +791,54 @@ let state = {
 };
 
 const SEED = () => {
-  const users = [
-    { id: 'u_admin', name: '田中 管理者', role: 'admin' },
-    { id: 'u_001', name: '佐藤 ゆき', role: 'user' },
-    { id: 'u_002', name: '鈴木 健', role: 'user' },
-    { id: 'u_003', name: '高橋 まり', role: 'user' },
-    { id: 'u_004', name: '伊藤 拓真', role: 'user' },
+  const SEED_NAMES = [
+    '佐藤 ゆき', '鈴木 健', '高橋 まり', '伊藤 拓真', '渡辺 莉子',
+    '山本 大輔', '中村 さくら', '小林 涼太', '加藤 美月', '吉田 拓也',
+    '山田 はるか', '佐々木 翔', '山口 結衣', '松本 健太', '井上 千夏',
+    '木村 蓮', '林 葵', '清水 直樹', '斎藤 紗英', '森 颯太',
+    '池田 麻衣', '橋本 隼人', '阿部 千尋', '石川 駿', '山崎 美咲',
+    '中島 太一', '前田 七海', '藤田 陸', '岡田 楓', '長谷川 翼',
+    '近藤 真央', '石井 凛', '坂本 拓海', '遠藤 詩織', '青木 海斗',
+    '藤井 美優', '西村 蒼', '福田 杏奈', '太田 悠真', '三浦 結菜',
+    '岡本 大和', '松田 凪', '中川 朝陽', '原田 さき', '小野 海',
+    '田村 心春', '竹内 蓮', '金子 椿', '和田 智也', '中山 ひかり',
   ];
+  const users = [{ id: 'u_admin', name: '田中 管理者', role: 'admin' }];
+  SEED_NAMES.forEach((name, i) => {
+    users.push({ id: 'u_' + String(i + 1).padStart(3, '0'), name, role: 'user' });
+  });
+
   const now = new Date();
   const future = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 7);
   const future2 = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14);
+
+  // 春の懇親会: 全員(50名)招待、ステータス散らす
+  const partyAttendees = users
+    .filter(u => u.role === 'user')
+    .map((u, i) => {
+      // ざっくり: 半分yes, 1/5 pending, 1/5 no, 1/10 checked
+      const m = i % 10;
+      let status = 'yes';
+      if (m === 0) status = 'checked';
+      else if (m === 1 || m === 2) status = 'pending';
+      else if (m === 3 || m === 4) status = 'no';
+      return {
+        userId: u.id,
+        status,
+        checkedInAt: status === 'checked' ? new Date(now.getTime() - 1000 * 60 * 30).toISOString() : null,
+      };
+    });
+
+  // 月次定例: 30人だけ招待
+  const meetingAttendees = users
+    .filter(u => u.role === 'user')
+    .slice(0, 30)
+    .map((u, i) => ({
+      userId: u.id,
+      status: i % 3 === 0 ? 'yes' : (i % 3 === 1 ? 'pending' : 'no'),
+      checkedInAt: null,
+    }));
+
   const events = [
     {
       id: 'e_001',
@@ -736,12 +847,7 @@ const SEED = () => {
       location: '本社 大会議室',
       description: '軽食をご用意します。お気軽にご参加ください。',
       createdBy: 'u_admin',
-      attendees: [
-        { userId: 'u_001', status: 'yes', checkedInAt: null },
-        { userId: 'u_002', status: 'pending', checkedInAt: null },
-        { userId: 'u_003', status: 'no', checkedInAt: null },
-        { userId: 'u_004', status: 'pending', checkedInAt: null },
-      ],
+      attendees: partyAttendees,
     },
     {
       id: 'e_002',
@@ -750,10 +856,7 @@ const SEED = () => {
       location: 'オンライン',
       description: '',
       createdBy: 'u_admin',
-      attendees: [
-        { userId: 'u_001', status: 'pending', checkedInAt: null },
-        { userId: 'u_002', status: 'yes', checkedInAt: null },
-      ],
+      attendees: meetingAttendees,
     },
   ];
   return { users, events, currentUserId: 'u_admin', currentEventId: null };
@@ -896,10 +999,25 @@ function renderAdminEventList() {
   }).join('');
 }
 
+let adminFilter = { status: 'all', query: '' };
+
 function openAdminEventDetail(eventId) {
   state.currentEventId = eventId;
+  adminFilter = { status: 'all', query: '' };
   renderAdminEventDetail();
   showScreen('admin-detail');
+}
+
+function getFilteredAttendees(ev) {
+  const q = adminFilter.query.trim().toLowerCase();
+  return ev.attendees.filter(a => {
+    if (adminFilter.status !== 'all' && a.status !== adminFilter.status) return false;
+    if (q) {
+      const u = userById(a.userId);
+      if (!u || !u.name.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 }
 
 function renderAdminEventDetail() {
@@ -910,6 +1028,11 @@ function renderAdminEventDetail() {
   const checkedCount = ev.attendees.filter(a => a.status === 'checked').length;
   const noCount = ev.attendees.filter(a => a.status === 'no').length;
   const pendingCount = ev.attendees.filter(a => a.status === 'pending').length;
+
+  const chip = (key, label, n) => `
+    <button class="chip ${adminFilter.status === key ? 'active' : ''}" onclick="setAdminFilterStatus('${key}')">
+      ${label}<span class="num">${n}</span>
+    </button>`;
 
   const html = `
     <div class="event-hero">
@@ -943,33 +1066,77 @@ function renderAdminEventDetail() {
     </button>
 
     <div class="section-label">
-      参加者リスト <span class="count">${total}</span>
+      参加者リスト <span class="count" id="admin-attendee-count">${total}</span>
     </div>
-    ${ev.attendees.map(a => {
-      const u = userById(a.userId);
-      if (!u) return '';
-      return `
-        <div class="attendee-row">
-          <div class="left">
-            <div class="avatar">${initial(u.name)}</div>
-            <div style="min-width:0">
-              <div class="name">${escapeHtml(u.name)}</div>
-              <div style="margin-top:2px">${statusBadge(a.status)}</div>
-            </div>
-          </div>
-          <div class="actions">
-            <button class="status-btn ${a.status === 'yes' ? 'active yes' : ''}" onclick="setStatus('${a.userId}','yes')">出</button>
-            <button class="status-btn ${a.status === 'checked' ? 'active checked' : ''}" onclick="setStatus('${a.userId}','checked')">済</button>
-            <button class="status-btn ${a.status === 'no' ? 'active no' : ''}" onclick="setStatus('${a.userId}','no')">欠</button>
-          </div>
-        </div>`;
-    }).join('')}
+
+    <div class="filter-bar">
+      <input class="search-input" type="search" placeholder="名前で検索"
+             value="${escapeHtml(adminFilter.query)}"
+             oninput="onAdminSearch(this.value)">
+      <div class="filter-chips">
+        ${chip('all', '全て', total)}
+        ${chip('yes', '出席', yesCount)}
+        ${chip('checked', '受付済', checkedCount)}
+        ${chip('pending', '未回答', pendingCount)}
+        ${chip('no', '欠席', noCount)}
+      </div>
+    </div>
+
+    <div id="admin-attendee-list"></div>
 
     <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">
       <button class="btn btn-danger btn-sm" onclick="deleteEvent()">このイベントを削除</button>
     </div>
   `;
   $('admin-detail-content').innerHTML = html;
+  renderAdminAttendeeList();
+}
+
+function renderAdminAttendeeList() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const target = $('admin-attendee-list');
+  if (!target) return;
+  const filtered = getFilteredAttendees(ev);
+  const countEl = $('admin-attendee-count');
+  if (countEl) countEl.textContent = filtered.length === ev.attendees.length ? ev.attendees.length : `${filtered.length}/${ev.attendees.length}`;
+
+  if (!filtered.length) {
+    target.innerHTML = `
+      <div class="empty-state" style="padding:32px 0">
+        <div class="hint">該当する参加者はいません</div>
+      </div>`;
+    return;
+  }
+  target.innerHTML = filtered.map(a => {
+    const u = userById(a.userId);
+    if (!u) return '';
+    return `
+      <div class="attendee-row">
+        <div class="left">
+          <div class="avatar">${initial(u.name)}</div>
+          <div style="min-width:0">
+            <div class="name">${escapeHtml(u.name)}</div>
+            <div style="margin-top:2px">${statusBadge(a.status)}</div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="status-btn ${a.status === 'yes' ? 'active yes' : ''}" onclick="setStatus('${a.userId}','yes')">出</button>
+          <button class="status-btn ${a.status === 'checked' ? 'active checked' : ''}" onclick="setStatus('${a.userId}','checked')">済</button>
+          <button class="status-btn ${a.status === 'no' ? 'active no' : ''}" onclick="setStatus('${a.userId}','no')">欠</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function onAdminSearch(v) {
+  adminFilter.query = v;
+  renderAdminAttendeeList();
+}
+
+function setAdminFilterStatus(s) {
+  adminFilter.status = s;
+  renderAdminEventDetail();
 }
 
 async function setStatus(userId, status) {
@@ -995,6 +1162,9 @@ async function deleteEvent() {
 // =================================================
 // ADMIN: Create event modal
 // =================================================
+let inviteSelection = new Set();
+let inviteQuery = '';
+
 function openCreateEventModal() {
   $('new-event-title').value = '';
   $('new-event-location').value = '';
@@ -1003,14 +1173,79 @@ function openCreateEventModal() {
   tomorrow.setHours(19, 0, 0, 0);
   const iso = tomorrow.toISOString().slice(0, 16);
   $('new-event-date').value = iso;
+
   const userList = state.users.filter(u => u.role === 'user');
-  $('new-event-attendees').innerHTML = userList.map(u => `
+  inviteSelection = new Set(userList.map(u => u.id));
+  inviteQuery = '';
+  renderInviteSection();
+  openModal('modal-create-event');
+}
+
+function getFilteredInviteUsers() {
+  const q = inviteQuery.trim().toLowerCase();
+  return state.users
+    .filter(u => u.role === 'user')
+    .filter(u => !q || u.name.toLowerCase().includes(q));
+}
+
+function renderInviteSection() {
+  const total = state.users.filter(u => u.role === 'user').length;
+  $('new-event-attendees').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-mute);margin-bottom:6px">
+      <span>選択中 <strong id="invite-count" style="color:var(--text);font-family:'JetBrains Mono'">${inviteSelection.size}</strong> / ${total}</span>
+    </div>
+    <input class="search-input" type="search" placeholder="名前で検索"
+           value="${escapeHtml(inviteQuery)}"
+           oninput="onInviteSearch(this.value)">
+    <div class="bulk-actions">
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectInvites(true)">表示中を全選択</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectInvites(false)">表示中を全解除</button>
+    </div>
+    <div id="invite-list" style="max-height:280px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
+  `;
+  renderInviteList();
+}
+
+function renderInviteList() {
+  const target = $('invite-list');
+  if (!target) return;
+  const users = getFilteredInviteUsers();
+  if (!users.length) {
+    target.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text-mute);font-size:13px">該当するユーザーはいません</div>';
+    return;
+  }
+  target.innerHTML = users.map(u => `
     <label class="checkbox-row">
-      <input type="checkbox" value="${u.id}" checked>
+      <input type="checkbox" value="${u.id}" ${inviteSelection.has(u.id) ? 'checked' : ''}
+             onchange="toggleInvite('${u.id}', this.checked)">
       <div class="name">${escapeHtml(u.name)}</div>
     </label>
   `).join('');
-  openModal('modal-create-event');
+}
+
+function onInviteSearch(v) {
+  inviteQuery = v;
+  renderInviteList();
+}
+
+function toggleInvite(id, checked) {
+  if (checked) inviteSelection.add(id);
+  else inviteSelection.delete(id);
+  updateInviteCount();
+}
+
+function bulkSelectInvites(select) {
+  getFilteredInviteUsers().forEach(u => {
+    if (select) inviteSelection.add(u.id);
+    else inviteSelection.delete(u.id);
+  });
+  renderInviteList();
+  updateInviteCount();
+}
+
+function updateInviteCount() {
+  const el = $('invite-count');
+  if (el) el.textContent = inviteSelection.size;
 }
 
 async function saveNewEvent() {
@@ -1022,8 +1257,9 @@ async function saveNewEvent() {
     alert('タイトルと日時は必須です');
     return;
   }
-  const checked = Array.from($('new-event-attendees').querySelectorAll('input:checked'));
-  const attendees = checked.map(c => ({ userId: c.value, status: 'pending', checkedInAt: null }));
+  const attendees = Array.from(inviteSelection).map(id => ({
+    userId: id, status: 'pending', checkedInAt: null
+  }));
   const newEvent = {
     id: 'e_' + Date.now(),
     title, date: new Date(date).toISOString(), location, description,
@@ -1303,3 +1539,5 @@ document.querySelector('.brand').addEventListener('click', async () => {
   renderAll();
 })();
 </script>
+</body>
+</html>
