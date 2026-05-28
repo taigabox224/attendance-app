@@ -760,22 +760,22 @@ const SEED = () => {
 };
 
 // =================================================
-// Persistence (Claude artifacts storage)
+// Persistence (localStorage)
 // =================================================
 async function loadState() {
   try {
-    const result = await window.storage.get('attendance_app_state', true);
-    if (result && result.value) {
-      state = JSON.parse(result.value);
+    const raw = localStorage.getItem('attendance_app_state');
+    if (raw) {
+      state = JSON.parse(raw);
       return;
     }
-  } catch (e) { /* not found, continue */ }
+  } catch (e) { /* parse failure, fall through to seed */ }
   state = SEED();
   await saveState();
 }
 async function saveState() {
   try {
-    await window.storage.set('attendance_app_state', JSON.stringify(state), true);
+    localStorage.setItem('attendance_app_state', JSON.stringify(state));
   } catch (e) { console.warn('save failed', e); }
 }
 
