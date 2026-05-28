@@ -865,6 +865,85 @@
     color: var(--text);
     outline: none;
   }
+
+  /* マスター編集モーダル */
+  .master-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 4px;
+  }
+  .master-row .label { flex: 1; font-size: 13px; }
+  .master-row .icon-btn {
+    width: 28px; height: 28px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-mute);
+  }
+  .master-row .icon-btn:hover { background: var(--surface); color: var(--text); }
+  .master-row .icon-btn.danger:hover { color: var(--danger); border-color: var(--danger-soft); }
+  .master-row .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* 参加者リストの追加フィルタ(所属の複数選択) */
+  .multiselect-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .multiselect-chips .chip { padding: 4px 10px; font-size: 11px; }
+  .filter-section-label {
+    font-size: 10px;
+    color: var(--text-mute);
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* QRスキャン成功トースト */
+  .scan-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--success);
+    color: white;
+    padding: 22px 28px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    z-index: 200;
+    text-align: center;
+    min-width: 220px;
+    animation: scanPop 0.25s ease;
+  }
+  .scan-toast.error { background: var(--danger); }
+  .scan-toast .icon {
+    font-size: 36px;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .scan-toast .name {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .scan-toast .sub {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-top: 6px;
+  }
+  @keyframes scanPop {
+    from { transform: translate(-50%, -50%) scale(0.85); opacity: 0; }
+    to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  }
 </style>
 </head>
 <body>
@@ -909,9 +988,12 @@
       <button class="admin-tab" onclick="showScreen('admin-list')">イベント</button>
       <button class="admin-tab active" onclick="showScreen('admin-users')">ユーザー</button>
     </div>
-    <div class="screen-header">
-      <h1 class="screen-title">ユーザー一覧</h1>
-      <p class="screen-sub">登録ユーザーを所属・役職で絞り込みできます</p>
+    <div class="screen-header header-row">
+      <div>
+        <h1 class="screen-title">ユーザー一覧</h1>
+        <p class="screen-sub">登録ユーザーを所属・役職で絞り込みできます</p>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="openMasterModal()">マスター編集</button>
     </div>
     <div id="admin-user-filter"></div>
     <div id="admin-user-list"></div>
@@ -1042,6 +1124,35 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="modal-master">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>マスター編集</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
+        所属・役職の選択肢を編集できます。削除しても既存ユーザの登録値は残ります(選択肢から外れるだけ)。
+      </p>
+      <div class="form-group">
+        <label class="form-label">所属</label>
+        <div id="master-departments"></div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <input type="text" class="form-input" id="master-department-new" placeholder="新しい所属名">
+          <button type="button" class="btn btn-outline btn-sm" onclick="addMaster('departments')">追加</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">役職</label>
+        <div id="master-titles"></div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <input type="text" class="form-input" id="master-title-new" placeholder="新しい役職名">
+          <button type="button" class="btn btn-outline btn-sm" onclick="addMaster('titles')">追加</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-master')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="modal-qr">
     <div class="modal">
       <div class="modal-handle"></div>
@@ -1073,9 +1184,11 @@ let state = {
   currentEventId: null,
 };
 
-// 所属・役職の選択肢(プロフィール編集と一覧フィルタで共用)
-const DEPARTMENTS = ['営業部', '開発部', '人事部', '経理部', 'マーケティング部', '総務部', '製造部'];
-const TITLES = ['部長', '課長', '係長', '主任', '一般'];
+// 所属・役職の初期値(マスターは state.departments / state.titles で管理し、管理者が編集可能)
+const DEFAULT_DEPARTMENTS = ['営業部', '開発部', '人事部', '経理部', 'マーケティング部', '総務部', '製造部'];
+const DEFAULT_TITLES = ['部長', '課長', '係長', '主任', '一般'];
+const getDepartments = () => state.departments || DEFAULT_DEPARTMENTS;
+const getTitles = () => state.titles || DEFAULT_TITLES;
 
 const SEED = () => {
   const SEED_NAMES = [
@@ -1093,7 +1206,7 @@ const SEED = () => {
   const users = [{ id: 'u_admin', name: '田中 管理者', role: 'admin', department: null, title: null }];
   SEED_NAMES.forEach((name, i) => {
     // 所属はぐるぐる、役職は1/5の確率で付与(残りは"一般"扱いで未設定null)
-    const department = DEPARTMENTS[i % DEPARTMENTS.length];
+    const department = DEFAULT_DEPARTMENTS[i % DEFAULT_DEPARTMENTS.length];
     let title = null;
     if (i % 17 === 0) title = '部長';
     else if (i % 11 === 0) title = '課長';
@@ -1190,7 +1303,12 @@ const SEED = () => {
       attendees: meetingAttendees,
     },
   ];
-  return { users, events, currentUserId: 'u_admin', currentEventId: null };
+  return {
+    users, events,
+    departments: [...DEFAULT_DEPARTMENTS],
+    titles: [...DEFAULT_TITLES],
+    currentUserId: 'u_admin', currentEventId: null,
+  };
 };
 
 // =================================================
@@ -1201,6 +1319,9 @@ async function loadState() {
     const raw = localStorage.getItem('attendance_app_state');
     if (raw) {
       state = JSON.parse(raw);
+      // 後方互換: 既存データに departments / titles が無ければデフォルトで埋める
+      if (!Array.isArray(state.departments)) state.departments = [...DEFAULT_DEPARTMENTS];
+      if (!Array.isArray(state.titles)) state.titles = [...DEFAULT_TITLES];
       return;
     }
   } catch (e) { /* parse failure, fall through to seed */ }
@@ -1330,11 +1451,11 @@ function renderAdminUserList() {
       <div class="filter-selects">
         <select onchange="setAdminUserFilter('department', this.value)">
           <option value="">所属(全て)</option>
-          ${DEPARTMENTS.map(d => `<option value="${escapeHtml(d)}" ${adminUserFilter.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
+          ${getDepartments().map(d => `<option value="${escapeHtml(d)}" ${adminUserFilter.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
         </select>
         <select onchange="setAdminUserFilter('title', this.value)">
           <option value="">役職(全て)</option>
-          ${TITLES.map(t => `<option value="${escapeHtml(t)}" ${adminUserFilter.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
+          ${getTitles().map(t => `<option value="${escapeHtml(t)}" ${adminUserFilter.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
         </select>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--text-mute)">
@@ -1513,25 +1634,54 @@ function renderAdminEventList() {
   }).join('');
 }
 
-let adminFilter = { status: 'all', query: '' };
+let adminFilter = { status: 'all', query: '', departments: [], title: '' };
+// removeMaster からも参照する別名(同じオブジェクトを指す)
+let adminAttendeeFilter = adminFilter;
 
 function openAdminEventDetail(eventId) {
   state.currentEventId = eventId;
-  adminFilter = { status: 'all', query: '' };
+  adminFilter = { status: 'all', query: '', departments: [], title: '' };
+  adminAttendeeFilter = adminFilter;
   renderAdminEventDetail();
   showScreen('admin-detail');
 }
 
 function getFilteredAttendees(ev) {
   const q = adminFilter.query.trim().toLowerCase();
+  const deptFilter = adminFilter.departments || [];
   return ev.attendees.filter(a => {
     if (adminFilter.status !== 'all' && a.status !== adminFilter.status) return false;
+    const u = userById(a.userId);
     if (q) {
-      const u = userById(a.userId);
       if (!u || !u.name.toLowerCase().includes(q)) return false;
+    }
+    if (deptFilter.length) {
+      if (!u || !deptFilter.includes(u.department)) return false;
+    }
+    if (adminFilter.title) {
+      if (!u || u.title !== adminFilter.title) return false;
     }
     return true;
   });
+}
+
+function toggleAdminFilterDept(d) {
+  const arr = adminFilter.departments || (adminFilter.departments = []);
+  const idx = arr.indexOf(d);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(d);
+  renderAdminEventDetail();
+}
+
+function setAdminFilterTitle(v) {
+  adminFilter.title = v;
+  renderAdminEventDetail();
+}
+
+function clearAdminAttendeeFilter() {
+  adminFilter = { status: 'all', query: '', departments: [], title: '' };
+  adminAttendeeFilter = adminFilter;
+  renderAdminEventDetail();
 }
 
 function renderAdminEventDetail() {
@@ -1614,6 +1764,28 @@ function renderAdminEventDetail() {
         ${chip('pending', '未回答', pendingCount)}
         ${chip('no', '欠席', noCount)}
       </div>
+      ${getDepartments().length ? `
+        <div class="filter-section-label">所属(複数選択可)</div>
+        <div class="multiselect-chips">
+          ${getDepartments().map(d => `
+            <button class="chip ${(adminFilter.departments || []).includes(d) ? 'active' : ''}" onclick="toggleAdminFilterDept('${escapeHtml(d).replace(/'/g, "\\'")}')">${escapeHtml(d)}</button>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${getTitles().length ? `
+        <div class="filter-section-label">役職</div>
+        <div class="filter-selects" style="margin-top:4px">
+          <select onchange="setAdminFilterTitle(this.value)">
+            <option value="">役職(全て)</option>
+            ${getTitles().map(t => `<option value="${escapeHtml(t)}" ${adminFilter.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
+          </select>
+        </div>
+      ` : ''}
+      ${((adminFilter.departments || []).length || adminFilter.title || adminFilter.status !== 'all' || adminFilter.query) ? `
+        <div style="margin-top:8px;text-align:right">
+          <button class="btn btn-outline btn-sm" onclick="clearAdminAttendeeFilter()">フィルタをリセット</button>
+        </div>
+      ` : ''}
     </div>
 
     <div id="admin-attendee-list"></div>
@@ -1653,6 +1825,7 @@ function renderAdminAttendeeList() {
           <div class="avatar">${initial(u.name)}</div>
           <div style="min-width:0">
             <div class="name">${escapeHtml(u.name)}</div>
+            ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
             <div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
               ${statusBadge(a.status)}
               ${hasAP ? `<span class="afterparty-mini-label">🍻</span>${statusBadge(af)}` : ''}
@@ -1692,6 +1865,12 @@ async function setStatus(userId, status) {
   if (!ev) return;
   const att = ev.attendees.find(a => a.userId === userId);
   if (!att) return;
+  if (att.status === status) return; // 同じステータスへの変更は何もしない
+  const u = userById(userId);
+  const name = u ? u.name : '';
+  const before = STATUS_LABEL[att.status] || att.status;
+  const after = STATUS_LABEL[status] || status;
+  if (!confirm(`${name} の出欠を変更します\n\n  ${before}  →  ${after}\n\nよろしいですか?`)) return;
   att.status = status;
   if (status === 'checked' && !att.checkedInAt) att.checkedInAt = new Date().toISOString();
   if (status !== 'checked') att.checkedInAt = null;
@@ -1704,6 +1883,14 @@ async function setAfterStatus(userId, status) {
   if (!ev || !ev.hasAfterparty) return;
   const att = ev.attendees.find(a => a.userId === userId);
   if (!att) return;
+  const current = att.afterStatus || 'pending';
+  if (current === status) return;
+  const u = userById(userId);
+  const name = u ? u.name : '';
+  const before = STATUS_LABEL[current] || current;
+  const after = STATUS_LABEL[status] || status;
+  const apTitle = ev.afterpartyTitle || '懇親会';
+  if (!confirm(`${name} の${apTitle}を変更します\n\n  ${before}  →  ${after}\n\nよろしいですか?`)) return;
   att.afterStatus = status;
   await saveState();
   renderAdminEventDetail();
@@ -1921,10 +2108,10 @@ function openProfileModal() {
   $('profile-name-display').textContent = me.name;
   const dept = $('profile-department');
   dept.innerHTML = `<option value="">(未設定)</option>` +
-    DEPARTMENTS.map(d => `<option value="${escapeHtml(d)}" ${me.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('');
+    getDepartments().map(d => `<option value="${escapeHtml(d)}" ${me.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('');
   const title = $('profile-title');
   title.innerHTML = `<option value="">(未設定)</option>` +
-    TITLES.map(t => `<option value="${escapeHtml(t)}" ${me.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+    getTitles().map(t => `<option value="${escapeHtml(t)}" ${me.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
   openModal('modal-profile');
 }
 
@@ -1936,6 +2123,79 @@ async function saveProfile() {
   await saveState();
   closeModal('modal-profile');
   renderUserProfileCard();
+}
+
+// =================================================
+// ADMIN: マスター(所属/役職)編集
+// =================================================
+function openMasterModal() {
+  renderMasterList('departments');
+  renderMasterList('titles');
+  openModal('modal-master');
+}
+
+function renderMasterList(kind) {
+  const target = $('master-' + kind);
+  if (!target) return;
+  const list = kind === 'departments' ? state.departments : state.titles;
+  if (!list.length) {
+    target.innerHTML = '<div style="font-size:12px;color:var(--text-mute);padding:8px">未登録</div>';
+    return;
+  }
+  target.innerHTML = list.map((v, i) => `
+    <div class="master-row">
+      <div class="label">${escapeHtml(v)}</div>
+      <button class="icon-btn" onclick="moveMaster('${kind}', ${i}, -1)" ${i === 0 ? 'disabled' : ''} title="上へ">↑</button>
+      <button class="icon-btn" onclick="moveMaster('${kind}', ${i}, 1)" ${i === list.length - 1 ? 'disabled' : ''} title="下へ">↓</button>
+      <button class="icon-btn danger" onclick="removeMaster('${kind}', ${i})" title="削除">✕</button>
+    </div>
+  `).join('');
+}
+
+async function addMaster(kind) {
+  const inputId = kind === 'departments' ? 'master-department-new' : 'master-title-new';
+  const input = $(inputId);
+  const v = input.value.trim();
+  if (!v) return;
+  const list = kind === 'departments' ? state.departments : state.titles;
+  if (list.includes(v)) {
+    alert('既に同じ名前が登録されています');
+    return;
+  }
+  list.push(v);
+  input.value = '';
+  await saveState();
+  renderMasterList(kind);
+  // 一覧フィルタも開いているなら再描画
+  if (!$('screen-admin-users').classList.contains('screen-hidden')) renderAdminUserList();
+}
+
+async function removeMaster(kind, index) {
+  const list = kind === 'departments' ? state.departments : state.titles;
+  const value = list[index];
+  if (!confirm(`「${value}」を選択肢から削除します。\n既に登録済のユーザの値は残り、選択肢からのみ消えます。\nよろしいですか?`)) return;
+  list.splice(index, 1);
+  // フィルタで選択中だったらクリア
+  if (kind === 'departments') {
+    adminUserFilter.department = '';
+    if (adminAttendeeFilter) adminAttendeeFilter.departments = (adminAttendeeFilter.departments || []).filter(d => d !== value);
+  } else {
+    adminUserFilter.title = '';
+    if (adminAttendeeFilter && adminAttendeeFilter.title === value) adminAttendeeFilter.title = '';
+  }
+  await saveState();
+  renderMasterList(kind);
+  if (!$('screen-admin-users').classList.contains('screen-hidden')) renderAdminUserList();
+}
+
+async function moveMaster(kind, index, dir) {
+  const list = kind === 'departments' ? state.departments : state.titles;
+  const newIndex = index + dir;
+  if (newIndex < 0 || newIndex >= list.length) return;
+  [list[index], list[newIndex]] = [list[newIndex], list[index]];
+  await saveState();
+  renderMasterList(kind);
+  if (!$('screen-admin-users').classList.contains('screen-hidden')) renderAdminUserList();
 }
 
 function openUserEventDetail(eventId) {
@@ -2076,6 +2336,8 @@ let html5QrScanner = null;
 async function openScanner() {
   $('scan-result-box').innerHTML = '';
   $('scanner-fallback-box').innerHTML = '';
+  lastScanToken = null;
+  lastScanTime = 0;
   openModal('modal-scanner');
 
   // Wait for modal to render
@@ -2117,31 +2379,63 @@ function showScannerFallback() {
   `;
 }
 
+// 連続スキャンで何度も同じ人を受付しないようクールダウン
+let lastScanToken = null;
+let lastScanTime = 0;
+
+function showScanToast({ ok, name, sub, error }) {
+  // 既存トーストを消す
+  const existing = document.getElementById('scan-toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'scan-toast';
+  el.className = 'scan-toast' + (ok ? '' : ' error');
+  el.innerHTML = ok
+    ? `<div class="icon">✓</div><div class="name">${escapeHtml(name)} さん</div><div class="sub">${escapeHtml(sub || '受付しました')}</div>`
+    : `<div class="icon">✕</div><div class="name">${escapeHtml(error || 'エラー')}</div>${name ? `<div class="sub">${escapeHtml(name)} さん</div>` : ''}`;
+  document.body.appendChild(el);
+  // バイブ(対応端末のみ)
+  if (navigator.vibrate) navigator.vibrate(ok ? 120 : [60, 50, 60]);
+  setTimeout(() => { if (el.parentNode) el.remove(); }, ok ? 1800 : 2200);
+}
+
 async function onScanSuccess(decoded) {
+  // 同じQRが連続スキャンされたらスキップ(2秒以内)
+  const now = Date.now();
+  if (decoded === lastScanToken && now - lastScanTime < 2000) return;
+  lastScanToken = decoded;
+  lastScanTime = now;
+
   const match = /^attend:([^:]+):([^:]+)$/.exec(decoded);
   if (!match) {
+    showScanToast({ ok: false, error: '無効なQRコードです' });
     $('scan-result-box').innerHTML = `<div class="scan-result error">無効なQRコードです</div>`;
     return;
   }
   const [, eventId, userId] = match;
   const ev = state.events.find(e => e.id === eventId);
   if (!ev) {
+    showScanToast({ ok: false, error: '該当するイベントが見つかりません' });
     $('scan-result-box').innerHTML = `<div class="scan-result error">該当するイベントが見つかりません</div>`;
     return;
   }
   const att = ev.attendees.find(a => a.userId === userId);
   if (!att) {
+    showScanToast({ ok: false, error: '参加者リストにいません' });
     $('scan-result-box').innerHTML = `<div class="scan-result error">このユーザーは参加者リストにいません</div>`;
     return;
   }
   const u = userById(userId);
   if (att.status === 'checked') {
+    showScanToast({ ok: false, name: u.name, error: '既に受付済です' });
     $('scan-result-box').innerHTML = `<div class="scan-result error">${escapeHtml(u.name)} さんは既に受付済です</div>`;
     return;
   }
   att.status = 'checked';
   att.checkedInAt = new Date().toISOString();
   await saveState();
+  const deptTitle = [u.department, u.title].filter(Boolean).join(' · ');
+  showScanToast({ ok: true, name: u.name, sub: deptTitle ? `${deptTitle} · 受付完了` : '受付完了' });
   $('scan-result-box').innerHTML = `<div class="scan-result">✓ ${escapeHtml(u.name)} さんを受付しました</div>`;
 
   // refresh fallback list if shown
