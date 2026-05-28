@@ -19,6 +19,9 @@
     --text-soft: #9B948B;
     --accent: #C7522A;
     --accent-soft: #F4DCD0;
+    --primary: #355282;
+    --primary-hover: #2A4570;
+    --primary-soft: #DEE6F0;
     --success: #4F7A4D;
     --success-soft: #DDE8DC;
     --danger: #B84A3E;
@@ -206,10 +209,12 @@
     color: var(--text);
   }
   .btn-primary {
-    background: var(--text);
-    color: var(--surface);
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
   }
-  .btn-primary:hover { background: #000; }
+  .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .btn-primary:disabled { background: var(--text-soft); border-color: var(--text-soft); cursor: not-allowed; }
   .btn-accent {
     background: var(--accent);
     color: white;
@@ -938,6 +943,14 @@
     line-height: 1.5;
     animation: scanPop 0.2s ease;
   }
+
+  .name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .name-row .name { font-weight: 500; }
 
   .badge-checked-in {
     display: inline-block;
@@ -2039,11 +2052,13 @@ function renderAdminAttendeeList() {
         <div class="left">
           <div class="avatar">${initial(u.name)}</div>
           <div style="min-width:0">
-            <div class="name">${escapeHtml(u.name)}</div>
+            <div class="name-row">
+              <span class="name">${escapeHtml(u.name)}</span>
+              ${checkedIn ? `<button class="badge-checked-in" onclick="toggleCheckedIn('${a.userId}')" title="受付済を取消">✓受付済</button>` : ''}
+            </div>
             ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
             <div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
               ${statusBadge(a.status)}
-              ${checkedIn ? `<button class="badge-checked-in" onclick="toggleCheckedIn('${a.userId}')" title="受付済を取消">✓受付済</button>` : ''}
               ${hasAP ? `<span class="afterparty-mini-label">🍻</span>${statusBadge(af)}` : ''}
             </div>
           </div>
