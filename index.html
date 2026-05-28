@@ -1237,22 +1237,22 @@
   <div class="modal-overlay" id="modal-data">
     <div class="modal">
       <div class="modal-handle"></div>
-      <h2>データの書き出し/読み込み</h2>
-      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
-        全データ(ユーザー・イベント・マスター)をJSONでバックアップ/別端末で同期できます。
-      </p>
-      <div class="form-group">
-        <label class="form-label">JSON ダウンロード</label>
-        <button class="btn btn-outline btn-full" onclick="exportStateJson()">JSONファイルを書き出す</button>
-      </div>
-      <div class="form-group">
-        <label class="form-label">JSON 読み込み</label>
-        <input type="file" id="data-import-file" accept="application/json,.json" style="display:none" onchange="importStateJson(this)">
-        <button class="btn btn-outline btn-full" onclick="document.getElementById('data-import-file').click()">JSONファイルを選択して上書き</button>
-        <div style="font-size:11px;color:var(--danger);margin-top:6px">
-          ⚠ 現在のデータは上書きされます。事前にダウンロードしておくと安心です。
+      <h2>データ同期 / バックアップ</h2>
+      <div id="sync-section"></div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:18px 0">
+      <details>
+        <summary style="font-size:13px;color:var(--text-mute);cursor:pointer;margin-bottom:10px">JSONで手動バックアップ</summary>
+        <div class="form-group" style="margin-top:8px">
+          <button class="btn btn-outline btn-full" onclick="exportStateJson()">JSONファイルを書き出す</button>
         </div>
-      </div>
+        <div class="form-group">
+          <input type="file" id="data-import-file" accept="application/json,.json" style="display:none" onchange="importStateJson(this)">
+          <button class="btn btn-outline btn-full" onclick="document.getElementById('data-import-file').click()">JSONファイルを選択して上書き</button>
+          <div style="font-size:11px;color:var(--danger);margin-top:6px">
+            ⚠ 読み込むと現在のデータは上書きされます
+          </div>
+        </div>
+      </details>
       <div style="display:flex;gap:8px;margin-top:18px">
         <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-data')">閉じる</button>
       </div>
@@ -1522,10 +1522,148 @@ async function loadState() {
   state = SEED();
   await saveState();
 }
-async function saveState() {
+async function saveState({ skipCloud = false } = {}) {
+  // ローカル保存ごとに updatedAt を更新(クラウド同期の競合解決に使用)
+  state.updatedAt = new Date().toISOString();
   try {
     localStorage.setItem('attendance_app_state', JSON.stringify(state));
   } catch (e) { console.warn('save failed', e); }
+  // クラウド自動同期: 失敗してもローカル動作は止めない
+  if (!skipCloud && syncConfig.autoSync && syncConfig.binId && syncConfig.masterKey) {
+    cloudPush().catch(e => {
+      console.warn('cloud push failed', e);
+      setSyncStatus('error', 'プッシュ失敗: ' + (e.message || e));
+    });
+  }
+}
+
+// =================================================
+// Cloud sync (jsonbin.io v3)
+// =================================================
+const SYNC_CONFIG_KEY = 'attendance_sync_config';
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b';
+let syncConfig = loadSyncConfig();
+let syncStatus = { kind: 'idle', message: '' };
+let cloudPollTimer = null;
+
+function loadSyncConfig() {
+  try {
+    const raw = localStorage.getItem(SYNC_CONFIG_KEY);
+    return raw ? JSON.parse(raw) : { autoSync: false };
+  } catch { return { autoSync: false }; }
+}
+function saveSyncConfig() {
+  try { localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(syncConfig)); } catch (e) { console.warn(e); }
+}
+function setSyncStatus(kind, message) {
+  syncStatus = { kind, message: message || '' };
+  if ($('sync-status')) renderSyncSection();
+}
+
+async function cloudCreate() {
+  if (!syncConfig.masterKey) throw new Error('Master Key が未設定です');
+  setSyncStatus('busy', '同期グループを作成中…');
+  state.updatedAt = new Date().toISOString();
+  const r = await fetch(JSONBIN_BASE, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': syncConfig.masterKey,
+      'X-Bin-Private': 'true',
+      'X-Bin-Name': 'attendance-app',
+    },
+    body: JSON.stringify({ state }),
+  });
+  if (!r.ok) throw new Error(`Create失敗: HTTP ${r.status}`);
+  const data = await r.json();
+  syncConfig.binId = (data.metadata && data.metadata.id) || data.id;
+  syncConfig.autoSync = true;
+  syncConfig.lastSyncAt = new Date().toISOString();
+  saveSyncConfig();
+  await saveState({ skipCloud: true }); // updatedAt保持しつつ再保存
+  setSyncStatus('ok', '同期グループを作成しました');
+  startCloudPolling();
+}
+
+async function cloudPush() {
+  if (!syncConfig.binId || !syncConfig.masterKey) return;
+  const r = await fetch(`${JSONBIN_BASE}/${syncConfig.binId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': syncConfig.masterKey,
+    },
+    body: JSON.stringify({ state }),
+  });
+  if (!r.ok) throw new Error(`Push失敗: HTTP ${r.status}`);
+  syncConfig.lastSyncAt = new Date().toISOString();
+  saveSyncConfig();
+  setSyncStatus('ok', '最終同期 ' + new Date().toLocaleTimeString());
+}
+
+async function cloudPull({ force = false } = {}) {
+  if (!syncConfig.binId || !syncConfig.masterKey) return;
+  const r = await fetch(`${JSONBIN_BASE}/${syncConfig.binId}/latest`, {
+    headers: { 'X-Master-Key': syncConfig.masterKey },
+  });
+  if (!r.ok) throw new Error(`Pull失敗: HTTP ${r.status}`);
+  const data = await r.json();
+  const remoteState = data.record && (data.record.state || data.record);
+  if (!remoteState || !Array.isArray(remoteState.users)) throw new Error('クラウドのデータ形式が不正です');
+  const localTs = state.updatedAt || '';
+  const remoteTs = remoteState.updatedAt || '';
+  let replaced = false;
+  if (force || remoteTs > localTs) {
+    state = remoteState;
+    if (!Array.isArray(state.departments)) state.departments = [...DEFAULT_DEPARTMENTS];
+    if (!Array.isArray(state.titles)) state.titles = [...DEFAULT_TITLES];
+    (state.users || []).forEach(u => { if (!u.status) u.status = 'active'; });
+    if (!state.users.find(u => u.id === state.currentUserId)) {
+      const admin = state.users.find(u => u.role === 'admin' && (u.status || 'active') === 'active');
+      state.currentUserId = admin ? admin.id : (state.users[0] && state.users[0].id);
+      state.currentEventId = null;
+    }
+    await saveState({ skipCloud: true });
+    renderAll();
+    replaced = true;
+  }
+  syncConfig.lastSyncAt = new Date().toISOString();
+  saveSyncConfig();
+  setSyncStatus('ok', (replaced ? '取り込み完了 ' : 'ローカルが最新 ') + new Date().toLocaleTimeString());
+  return replaced;
+}
+
+async function cloudJoin(binId) {
+  if (!syncConfig.masterKey) throw new Error('Master Key が未設定です');
+  if (!binId) throw new Error('Bin ID を入力してください');
+  syncConfig.binId = binId.trim();
+  syncConfig.autoSync = true;
+  saveSyncConfig();
+  setSyncStatus('busy', '参加中…');
+  await cloudPull({ force: true });
+  startCloudPolling();
+}
+
+function cloudDisconnect() {
+  syncConfig = { autoSync: false };
+  saveSyncConfig();
+  stopCloudPolling();
+  setSyncStatus('idle', '');
+}
+
+function startCloudPolling() {
+  stopCloudPolling();
+  if (!syncConfig.autoSync || !syncConfig.binId || !syncConfig.masterKey) return;
+  cloudPollTimer = setInterval(() => {
+    if (document.hidden) return; // タブ非表示中はスキップ
+    cloudPull().catch(e => {
+      console.warn('cloud pull failed', e);
+      setSyncStatus('error', 'プル失敗: ' + (e.message || e));
+    });
+  }, 7000);
+}
+function stopCloudPolling() {
+  if (cloudPollTimer) { clearInterval(cloudPollTimer); cloudPollTimer = null; }
 }
 
 // =================================================
@@ -2667,7 +2805,146 @@ async function importAttendeesCsv(input) {
 // ADMIN: データ書き出し/読み込み(JSON)
 // =================================================
 function openDataModal() {
+  renderSyncSection();
   openModal('modal-data');
+}
+
+const SYNC_STATUS_COLOR = { idle: 'var(--text-mute)', busy: 'var(--warning)', ok: 'var(--success)', error: 'var(--danger)' };
+const SYNC_STATUS_ICON = { idle: '◯', busy: '…', ok: '✓', error: '✕' };
+
+function renderSyncSection() {
+  const target = $('sync-section');
+  if (!target) return;
+  const linked = !!(syncConfig.binId && syncConfig.masterKey);
+  const statusColor = SYNC_STATUS_COLOR[syncStatus.kind] || SYNC_STATUS_COLOR.idle;
+  const statusIcon = SYNC_STATUS_ICON[syncStatus.kind] || '';
+  const statusLabel = linked
+    ? `連携済${syncConfig.lastSyncAt ? ' · 最終同期 ' + new Date(syncConfig.lastSyncAt).toLocaleTimeString() : ''}`
+    : '未連携';
+  target.innerHTML = `
+    <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px;line-height:1.6">
+      jsonbin.io 経由で端末間のデータを同期できます。<br>
+      <a href="https://jsonbin.io/" target="_blank" rel="noopener" style="color:var(--primary)">jsonbin.io</a> でアカウントを作り、Master Key を取得してください。
+    </p>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:14px">
+      <span style="color:${statusColor};font-size:14px">${statusIcon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px">${statusLabel}</div>
+        ${syncStatus.message ? `<div style="font-size:11px;color:${statusColor};margin-top:2px">${escapeHtml(syncStatus.message)}</div>` : ''}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Master Key</label>
+      <input type="password" class="form-input" id="sync-master-key" placeholder="$2a$10$..." value="${escapeHtml(syncConfig.masterKey || '')}" oninput="updateSyncMasterKey(this.value)">
+      <div style="font-size:11px;color:var(--text-mute);margin-top:4px">
+        jsonbin.io ダッシュボードの「API Keys」から取得した Master Key
+      </div>
+    </div>
+
+    ${linked ? `
+      <div class="form-group">
+        <label class="form-label">Bin ID(他の端末と共有)</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" class="form-input" id="sync-bin-id" value="${escapeHtml(syncConfig.binId)}" readonly style="font-family:'JetBrains Mono',monospace;font-size:12px">
+          <button class="btn btn-outline btn-sm" onclick="copyBinId()">コピー</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-primary" style="flex:1" onclick="syncNow()">今すぐ同期</button>
+        <button class="btn btn-outline" style="flex:1" onclick="confirmDisconnect()">同期を解除</button>
+      </div>
+      <label class="checkbox-row" style="margin-top:10px;background:var(--surface-soft);border:1px solid var(--border)">
+        <input type="checkbox" ${syncConfig.autoSync ? 'checked' : ''} onchange="toggleAutoSync(this.checked)">
+        <div>
+          <div class="name">自動同期</div>
+          <div style="font-size:11px;color:var(--text-mute);margin-top:2px">変更時に自動でクラウドに反映し、約7秒ごとに他端末の変更を取り込む</div>
+        </div>
+      </label>
+    ` : `
+      <div class="form-group">
+        <label class="form-label">既存の同期グループに参加する場合は Bin ID を入力</label>
+        <input type="text" class="form-input" id="sync-join-bin-id" placeholder="他の端末で表示された Bin ID">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-primary" style="flex:1" onclick="createSyncGroup()">新規作成</button>
+        <button class="btn btn-outline" style="flex:1" onclick="joinSyncGroup()">参加する</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-mute);margin-top:8px;line-height:1.5">
+        新規作成: この端末の現在のデータをクラウドに保存して共有を開始<br>
+        参加する: Bin ID 先のデータをこの端末に取り込み(現在のデータは上書きされます)
+      </div>
+    `}
+  `;
+}
+
+function updateSyncMasterKey(v) {
+  syncConfig.masterKey = v.trim();
+  saveSyncConfig();
+}
+
+async function createSyncGroup() {
+  try {
+    await cloudCreate();
+    renderSyncSection();
+    showToast('同期グループを作成しました');
+  } catch (e) {
+    console.error(e);
+    setSyncStatus('error', e.message || String(e));
+    alert('同期グループの作成に失敗しました: ' + (e.message || e));
+  }
+}
+
+async function joinSyncGroup() {
+  const binId = ($('sync-join-bin-id') && $('sync-join-bin-id').value || '').trim();
+  if (!binId) { alert('Bin ID を入力してください'); return; }
+  if (!confirm('参加するとこの端末のデータはクラウド側の内容で上書きされます。よろしいですか?')) return;
+  try {
+    await cloudJoin(binId);
+    renderSyncSection();
+    showToast('同期グループに参加しました');
+  } catch (e) {
+    console.error(e);
+    setSyncStatus('error', e.message || String(e));
+    alert('参加に失敗しました: ' + (e.message || e));
+  }
+}
+
+async function syncNow() {
+  try {
+    setSyncStatus('busy', '同期中…');
+    await cloudPull();
+    await cloudPush();
+    renderSyncSection();
+  } catch (e) {
+    console.error(e);
+    setSyncStatus('error', e.message || String(e));
+  }
+}
+
+function toggleAutoSync(on) {
+  syncConfig.autoSync = !!on;
+  saveSyncConfig();
+  if (on) startCloudPolling();
+  else stopCloudPolling();
+}
+
+function confirmDisconnect() {
+  if (!confirm('この端末の同期設定を解除します(クラウド側のデータは残ります)。よろしいですか?')) return;
+  cloudDisconnect();
+  renderSyncSection();
+}
+
+async function copyBinId() {
+  try {
+    await navigator.clipboard.writeText(syncConfig.binId);
+    showToast('Bin ID をコピーしました');
+  } catch (e) {
+    // フォールバック: 選択させる
+    const input = $('sync-bin-id');
+    if (input) { input.select(); input.setSelectionRange(0, input.value.length); }
+    showToast('コピーできませんでした。手動でコピーしてください');
+  }
 }
 
 function exportStateJson() {
@@ -3154,7 +3431,22 @@ document.querySelector('.brand').addEventListener('click', async () => {
 (async function init() {
   await loadState();
   renderAll();
+  // クラウド同期が設定済 + 自動同期ON なら、起動時にプル + ポーリング開始
+  if (syncConfig.autoSync && syncConfig.binId && syncConfig.masterKey) {
+    cloudPull().catch(e => {
+      console.warn('initial cloud pull failed', e);
+      setSyncStatus('error', 'プル失敗: ' + (e.message || e));
+    });
+    startCloudPolling();
+  }
 })();
+
+// タブが再表示されたら即プル(再ロードしなくても最新を取り込む)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && syncConfig.autoSync && syncConfig.binId && syncConfig.masterKey) {
+    cloudPull().catch(e => console.warn('visibility pull failed', e));
+  }
+});
 </script>
 </body>
 </html>
