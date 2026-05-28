@@ -539,6 +539,24 @@
   .rsvp-btn:hover { background: var(--surface-soft); }
   .rsvp-btn.active-yes { background: var(--success); color: white; border-color: var(--success); }
   .rsvp-btn.active-no { background: var(--danger); color: white; border-color: var(--danger); }
+  .rsvp-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+  .rsvp-btn:disabled:hover { background: var(--surface); }
+  .rsvp-btn.active-yes:disabled:hover { background: var(--success); }
+  .rsvp-btn.active-no:disabled:hover { background: var(--danger); }
+
+  /* 締切バッジ */
+  .badge-expired {
+    display: inline-block;
+    background: var(--danger-soft);
+    color: var(--danger);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
 
   /* === Empty === */
   .empty-state {
@@ -725,6 +743,13 @@
         <input type="datetime-local" class="form-input" id="new-event-date">
       </div>
       <div class="form-group">
+        <label class="form-label">回答期限</label>
+        <input type="datetime-local" class="form-input" id="new-event-deadline">
+        <div style="font-size:11px;color:var(--text-mute);margin-top:4px">
+          この日時を過ぎると、ユーザは出欠を変更できなくなります(管理者は変更可)
+        </div>
+      </div>
+      <div class="form-group">
         <label class="form-label">場所</label>
         <input type="text" class="form-input" id="new-event-location" placeholder="例: 本社 大会議室">
       </div>
@@ -844,6 +869,7 @@ const SEED = () => {
       id: 'e_001',
       title: '春の懇親会',
       date: future.toISOString(),
+      responseDeadline: new Date(future.getTime() - 1000 * 60 * 60 * 24).toISOString(),
       location: '本社 大会議室',
       description: '軽食をご用意します。お気軽にご参加ください。',
       createdBy: 'u_admin',
@@ -853,6 +879,7 @@ const SEED = () => {
       id: 'e_002',
       title: '月次定例ミーティング',
       date: future2.toISOString(),
+      responseDeadline: new Date(future2.getTime() - 1000 * 60 * 60 * 24).toISOString(),
       location: 'オンライン',
       description: '',
       createdBy: 'u_admin',
@@ -904,6 +931,12 @@ const fmtDateShort = iso => {
 const escapeHtml = s => (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const initial = name => (name || '?').trim().charAt(0);
 const userById = id => state.users.find(u => u.id === id);
+// datetime-local 入力欄用に Date をローカルタイムで YYYY-MM-DDTHH:mm 形式に変換
+const toLocalInputValue = d => {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const isDeadlinePassed = ev => !!ev.responseDeadline && new Date(ev.responseDeadline) < new Date();
 const currentUser = () => userById(state.currentUserId);
 const isAdmin = () => currentUser()?.role === 'admin';
 
@@ -1040,6 +1073,9 @@ function renderAdminEventDetail() {
       <div class="title">${escapeHtml(ev.title)}</div>
       <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
       ${ev.description ? `<div class="info-row"><span class="ico">📝</span>${escapeHtml(ev.description)}</div>` : ''}
+      ${ev.responseDeadline ? `
+        <div class="info-row"><span class="ico">⏰</span>回答期限 ${fmtDate(ev.responseDeadline)}${isDeadlinePassed(ev) ? ' <span class="badge-expired">締切</span>' : ''}</div>
+      ` : ''}
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px">
@@ -1171,8 +1207,10 @@ function openCreateEventModal() {
   $('new-event-description').value = '';
   const tomorrow = new Date(Date.now() + 1000 * 60 * 60 * 24);
   tomorrow.setHours(19, 0, 0, 0);
-  const iso = tomorrow.toISOString().slice(0, 16);
-  $('new-event-date').value = iso;
+  $('new-event-date').value = toLocalInputValue(tomorrow);
+  // デフォルト回答期限 = イベント日時の24時間前
+  const defaultDeadline = new Date(tomorrow.getTime() - 1000 * 60 * 60 * 24);
+  $('new-event-deadline').value = toLocalInputValue(defaultDeadline);
 
   const userList = state.users.filter(u => u.role === 'user');
   inviteSelection = new Set(userList.map(u => u.id));
@@ -1251,18 +1289,27 @@ function updateInviteCount() {
 async function saveNewEvent() {
   const title = $('new-event-title').value.trim();
   const date = $('new-event-date').value;
+  const deadlineRaw = $('new-event-deadline').value;
   const location = $('new-event-location').value.trim();
   const description = $('new-event-description').value.trim();
   if (!title || !date) {
     alert('タイトルと日時は必須です');
     return;
   }
+  const eventDateISO = new Date(date).toISOString();
+  const deadlineISO = deadlineRaw ? new Date(deadlineRaw).toISOString() : null;
+  if (deadlineISO && deadlineISO > eventDateISO) {
+    if (!confirm('回答期限がイベント日時より後になっています。このまま作成しますか?')) return;
+  }
   const attendees = Array.from(inviteSelection).map(id => ({
     userId: id, status: 'pending', checkedInAt: null
   }));
   const newEvent = {
     id: 'e_' + Date.now(),
-    title, date: new Date(date).toISOString(), location, description,
+    title,
+    date: eventDateISO,
+    responseDeadline: deadlineISO,
+    location, description,
     createdBy: state.currentUserId,
     attendees,
   };
@@ -1289,10 +1336,12 @@ function renderUserEventList() {
   }
   list.innerHTML = myEvents.map(ev => {
     const a = ev.attendees.find(x => x.userId === me.id);
+    const locked = isDeadlinePassed(ev);
     return `
       <div class="event-card" onclick="openUserEventDetail('${ev.id}')">
         <div class="date-row">
           <span class="date-tag">${fmtDate(ev.date)}</span>
+          ${locked ? '<span class="badge-expired">回答締切</span>' : ''}
         </div>
         <div class="title">${escapeHtml(ev.title)}</div>
         <div class="meta"><span>${escapeHtml(ev.location || '場所未定')}</span></div>
@@ -1313,6 +1362,7 @@ function renderUserEventDetail() {
   const me = currentUser();
   const att = ev.attendees.find(a => a.userId === me.id);
   if (!att) return;
+  const locked = isDeadlinePassed(ev);
 
   const html = `
     <div class="event-hero">
@@ -1320,21 +1370,31 @@ function renderUserEventDetail() {
       <div class="title">${escapeHtml(ev.title)}</div>
       <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
       ${ev.description ? `<div class="info-row"><span class="ico">📝</span>${escapeHtml(ev.description)}</div>` : ''}
+      ${ev.responseDeadline ? `
+        <div class="info-row"><span class="ico">⏰</span>回答期限 ${fmtDate(ev.responseDeadline)}${locked ? ' <span class="badge-expired">締切</span>' : ''}</div>
+      ` : ''}
     </div>
 
     <div class="rsvp-card">
       <div class="label">出欠の回答</div>
       <div class="rsvp-buttons">
-        <button class="rsvp-btn ${att.status === 'yes' || att.status === 'checked' ? 'active-yes' : ''}" onclick="setMyRsvp('yes')">
+        <button class="rsvp-btn ${att.status === 'yes' || att.status === 'checked' ? 'active-yes' : ''}"
+                onclick="setMyRsvp('yes')" ${locked ? 'disabled' : ''}>
           出席する
         </button>
-        <button class="rsvp-btn ${att.status === 'no' ? 'active-no' : ''}" onclick="setMyRsvp('no')">
+        <button class="rsvp-btn ${att.status === 'no' ? 'active-no' : ''}"
+                onclick="setMyRsvp('no')" ${locked ? 'disabled' : ''}>
           欠席する
         </button>
       </div>
       <div style="font-size:12px;color:var(--text-mute);margin-top:10px;text-align:center">
         現在の回答: ${statusBadge(att.status)}
       </div>
+      ${locked ? `
+        <div style="margin-top:12px;padding:10px;background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-mute);text-align:center;line-height:1.6">
+          回答期限を過ぎたため、変更できません。<br>変更が必要な場合は管理者にご連絡ください。
+        </div>
+      ` : ''}
     </div>
 
     ${(att.status === 'yes' || att.status === 'checked') ? `
@@ -1354,6 +1414,12 @@ async function setMyRsvp(answer) {
   if (!ev) return;
   const att = ev.attendees.find(a => a.userId === state.currentUserId);
   if (!att) return;
+  // 期限切れチェック(管理者は通り抜ける)
+  if (isDeadlinePassed(ev) && !isAdmin()) {
+    alert('回答期限を過ぎたため変更できません。管理者にご連絡ください。');
+    renderUserEventDetail();
+    return;
+  }
   // Don't allow downgrading from 'checked'
   if (att.status === 'checked' && answer === 'no') {
     if (!confirm('既に受付済みです。欠席に変更しますか?')) return;
