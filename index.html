@@ -1043,6 +1043,7 @@
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
         <button class="btn btn-primary btn-sm" onclick="openUserEditModal(null)">+ ユーザー登録</button>
         <button class="btn btn-outline btn-sm" onclick="openMasterModal()">マスター編集</button>
+        <button class="btn btn-outline btn-sm" onclick="openDataModal()">データ</button>
       </div>
     </div>
     <div id="admin-user-filter"></div>
@@ -1088,7 +1089,7 @@
   <div class="modal-overlay" id="modal-create-event">
     <div class="modal">
       <div class="modal-handle"></div>
-      <h2>イベントを作成</h2>
+      <h2 id="event-modal-heading">イベントを作成</h2>
       <div class="form-group">
         <label class="form-label">タイトル</label>
         <input type="text" class="form-input" id="new-event-title" placeholder="例: 春の懇親会">
@@ -1127,7 +1128,7 @@
       </div>
       <div style="display:flex;gap:8px;margin-top:18px">
         <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-create-event')">キャンセル</button>
-        <button class="btn btn-primary" style="flex:1" onclick="saveNewEvent()">作成</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveEventForm()" id="event-modal-save">作成</button>
       </div>
     </div>
   </div>
@@ -1170,6 +1171,31 @@
       <div style="display:flex;gap:8px;margin-top:18px">
         <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-profile')">キャンセル</button>
         <button class="btn btn-primary" style="flex:1" onclick="saveProfile()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-data">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>データの書き出し/読み込み</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
+        全データ(ユーザー・イベント・マスター)をJSONでバックアップ/別端末で同期できます。
+      </p>
+      <div class="form-group">
+        <label class="form-label">JSON ダウンロード</label>
+        <button class="btn btn-outline btn-full" onclick="exportStateJson()">JSONファイルを書き出す</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">JSON 読み込み</label>
+        <input type="file" id="data-import-file" accept="application/json,.json" style="display:none" onchange="importStateJson(this)">
+        <button class="btn btn-outline btn-full" onclick="document.getElementById('data-import-file').click()">JSONファイルを選択して上書き</button>
+        <div style="font-size:11px;color:var(--danger);margin-top:6px">
+          ⚠ 現在のデータは上書きされます。事前にダウンロードしておくと安心です。
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-data')">閉じる</button>
       </div>
     </div>
   </div>
@@ -1973,6 +1999,12 @@ function renderAdminEventDetail() {
     <div id="admin-attendee-list"></div>
 
     <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--border)">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn btn-outline btn-sm" onclick="openEditEventModal('${ev.id}')">イベントを編集</button>
+        <button class="btn btn-outline btn-sm" onclick="exportAttendeesCsv()">出欠CSVを書き出す</button>
+        <input type="file" id="attendee-csv-file" accept=".csv,text/csv" style="display:none" onchange="importAttendeesCsv(this)">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('attendee-csv-file').click()">出欠CSVを読み込む</button>
+      </div>
       <button class="btn btn-danger btn-sm" onclick="deleteEvent()">このイベントを削除</button>
     </div>
   `;
@@ -2110,7 +2142,12 @@ async function deleteEvent() {
 let inviteSelection = new Set();
 let inviteQuery = '';
 
+let editingEventId = null;
+
 function openCreateEventModal() {
+  editingEventId = null;
+  $('event-modal-heading').textContent = 'イベントを作成';
+  $('event-modal-save').textContent = '作成';
   $('new-event-title').value = '';
   $('new-event-location').value = '';
   $('new-event-description').value = '';
@@ -2118,12 +2155,31 @@ function openCreateEventModal() {
   const tomorrow = new Date(Date.now() + 1000 * 60 * 60 * 24);
   tomorrow.setHours(19, 0, 0, 0);
   $('new-event-date').value = toLocalInputValue(tomorrow);
-  // デフォルト回答期限 = イベント日時の24時間前
   const defaultDeadline = new Date(tomorrow.getTime() - 1000 * 60 * 60 * 24);
   $('new-event-deadline').value = toLocalInputValue(defaultDeadline);
 
   const userList = state.users.filter(u => u.role === 'user' && (u.status || 'active') === 'active');
   inviteSelection = new Set(userList.map(u => u.id));
+  inviteQuery = '';
+  inviteFilter = { departments: [], title: '' };
+  renderInviteSection();
+  openModal('modal-create-event');
+}
+
+function openEditEventModal(eventId) {
+  const ev = state.events.find(e => e.id === eventId);
+  if (!ev) return;
+  editingEventId = eventId;
+  $('event-modal-heading').textContent = 'イベントを編集';
+  $('event-modal-save').textContent = '保存';
+  $('new-event-title').value = ev.title || '';
+  $('new-event-location').value = ev.location || '';
+  $('new-event-description').value = ev.description || '';
+  $('new-event-has-afterparty').checked = !!ev.hasAfterparty;
+  $('new-event-date').value = toLocalInputValue(new Date(ev.date));
+  $('new-event-deadline').value = ev.responseDeadline ? toLocalInputValue(new Date(ev.responseDeadline)) : '';
+
+  inviteSelection = new Set(ev.attendees.map(a => a.userId));
   inviteQuery = '';
   inviteFilter = { departments: [], title: '' };
   renderInviteSection();
@@ -2240,7 +2296,7 @@ function updateInviteCount() {
   if (el) el.textContent = inviteSelection.size;
 }
 
-async function saveNewEvent() {
+async function saveEventForm() {
   const title = $('new-event-title').value.trim();
   const date = $('new-event-date').value;
   const deadlineRaw = $('new-event-deadline').value;
@@ -2254,29 +2310,72 @@ async function saveNewEvent() {
   const eventDateISO = new Date(date).toISOString();
   const deadlineISO = deadlineRaw ? new Date(deadlineRaw).toISOString() : null;
   if (deadlineISO && deadlineISO > eventDateISO) {
-    if (!confirm('回答期限がイベント日時より後になっています。このまま作成しますか?')) return;
+    if (!confirm('回答期限がイベント日時より後になっています。このまま保存しますか?')) return;
   }
-  const attendees = Array.from(inviteSelection).map(id => ({
-    userId: id,
-    status: 'pending',
-    afterStatus: hasAfterparty ? 'pending' : null,
-    checkedInAt: null,
-  }));
-  const newEvent = {
-    id: 'e_' + Date.now(),
-    title,
-    date: eventDateISO,
-    responseDeadline: deadlineISO,
-    location, description,
-    createdBy: state.currentUserId,
-    hasAfterparty,
-    afterpartyTitle: hasAfterparty ? '懇親会' : null,
-    attendees,
-  };
-  state.events.unshift(newEvent);
-  await saveState();
-  closeModal('modal-create-event');
-  renderAdminEventList();
+
+  if (editingEventId) {
+    // 編集モード: 既存のRSVPは保持しつつフィールド更新+招待者の差分反映
+    const ev = state.events.find(e => e.id === editingEventId);
+    if (!ev) { editingEventId = null; return; }
+    ev.title = title;
+    ev.date = eventDateISO;
+    ev.responseDeadline = deadlineISO;
+    ev.location = location;
+    ev.description = description;
+    ev.hasAfterparty = hasAfterparty;
+    ev.afterpartyTitle = hasAfterparty ? (ev.afterpartyTitle || '懇親会') : null;
+
+    const currentIds = new Set(ev.attendees.map(a => a.userId));
+    const newIds = inviteSelection;
+    // 削除されたユーザ
+    ev.attendees = ev.attendees.filter(a => newIds.has(a.userId));
+    // 追加されたユーザ
+    newIds.forEach(id => {
+      if (!currentIds.has(id)) {
+        ev.attendees.push({
+          userId: id,
+          status: 'pending',
+          afterStatus: hasAfterparty ? 'pending' : null,
+          checkedInAt: null,
+        });
+      }
+    });
+    // 懇親会フラグ切り替え時の afterStatus 補正
+    if (hasAfterparty) {
+      ev.attendees.forEach(a => { if (!a.afterStatus) a.afterStatus = 'pending'; });
+    } else {
+      ev.attendees.forEach(a => { a.afterStatus = null; });
+    }
+
+    await saveState();
+    closeModal('modal-create-event');
+    editingEventId = null;
+    renderAdminEventDetail();
+    showToast(`「${title}」を更新しました`);
+  } else {
+    // 新規作成
+    const attendees = Array.from(inviteSelection).map(id => ({
+      userId: id,
+      status: 'pending',
+      afterStatus: hasAfterparty ? 'pending' : null,
+      checkedInAt: null,
+    }));
+    const newEvent = {
+      id: 'e_' + Date.now(),
+      title,
+      date: eventDateISO,
+      responseDeadline: deadlineISO,
+      location, description,
+      createdBy: state.currentUserId,
+      hasAfterparty,
+      afterpartyTitle: hasAfterparty ? '懇親会' : null,
+      attendees,
+    };
+    state.events.unshift(newEvent);
+    await saveState();
+    closeModal('modal-create-event');
+    renderAdminEventList();
+  }
 }
 
 // =================================================
@@ -2372,6 +2471,200 @@ async function saveProfile() {
 // =================================================
 // ADMIN: マスター(所属/役職)編集
 // =================================================
+// =================================================
+// ADMIN: 出欠CSV 書き出し/読み込み
+// =================================================
+const STATUS_TO_JP = { yes: '出席', no: '欠席', pending: '未回答' };
+const JP_TO_STATUS = { '出席': 'yes', '欠席': 'no', '未回答': 'pending', '受付済': 'yes' };
+
+function csvEscape(v) {
+  const s = String(v == null ? '' : v);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+// シンプルなCSVパーサ(クォート対応)
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuote) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i++; }
+        else { inQuote = false; }
+      } else {
+        cell += c;
+      }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+      else if (c === '\r') { /* skip */ }
+      else { cell += c; }
+    }
+  }
+  if (cell.length || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(x => x !== ''));
+}
+
+function sanitizeFilenamePart(s) {
+  return String(s || '').replace(/[\\/:*?"<>|\n\r]/g, '_').trim() || 'event';
+}
+
+function exportAttendeesCsv() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const header = ['ユーザーID', '名前', '所属', '役職', '出欠', '懇親会'];
+  const rows = ev.attendees.map(a => {
+    const u = userById(a.userId) || {};
+    const main = STATUS_TO_JP[a.status] || '未回答';
+    const after = ev.hasAfterparty ? (STATUS_TO_JP[a.afterStatus] || '未回答') : '';
+    return [a.userId, u.name || '', u.department || '', u.title || '', main, after];
+  });
+  const csv = '﻿' + [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\r\n') + '\r\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = toLocalDateValue(new Date(ev.date)).replace(/-/g, '');
+  a.href = url;
+  a.download = `${sanitizeFilenamePart(ev.title)}-${ts}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('CSVを書き出しました');
+}
+
+async function importAttendeesCsv(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  try {
+    const text = await file.text();
+    const rows = parseCsv(text.replace(/^﻿/, ''));
+    if (!rows.length) { alert('CSVが空です'); return; }
+    const header = rows[0].map(s => s.trim());
+    const idIdx = header.indexOf('ユーザーID');
+    const nameIdx = header.indexOf('名前');
+    const statusIdx = header.indexOf('出欠');
+    const afterIdx = header.indexOf('懇親会');
+    if (statusIdx < 0) { alert('「出欠」列が見つかりません'); return; }
+
+    // 名前→userId のフォールバック索引
+    const usersByName = new Map(state.users.map(u => [u.name, u]));
+    const updates = [];
+    const skipped = [];
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      let userId = idIdx >= 0 ? (row[idIdx] || '').trim() : '';
+      if (!userId && nameIdx >= 0) {
+        const u = usersByName.get((row[nameIdx] || '').trim());
+        if (u) userId = u.id;
+      }
+      const att = userId ? ev.attendees.find(a => a.userId === userId) : null;
+      if (!att) { skipped.push(row[nameIdx] || userId || `行${r+1}`); continue; }
+      const statusJp = (row[statusIdx] || '').trim();
+      const newStatus = JP_TO_STATUS[statusJp];
+      if (!newStatus) { skipped.push((row[nameIdx] || userId) + `(出欠 "${statusJp}" 不明)`); continue; }
+      const newAfter = (ev.hasAfterparty && afterIdx >= 0)
+        ? (JP_TO_STATUS[(row[afterIdx] || '').trim()] || null)
+        : null;
+      updates.push({ att, newStatus, newAfter, statusJp });
+    }
+    if (!updates.length) {
+      alert('反映できる行がありませんでした。' + (skipped.length ? '\nスキップ: ' + skipped.length + '件' : ''));
+      return;
+    }
+    const msg = `${updates.length} 件の出欠を更新します` +
+      (skipped.length ? `\n(スキップ ${skipped.length} 件: ${skipped.slice(0, 3).join(', ')}${skipped.length > 3 ? ' …' : ''})` : '') +
+      '\n\n出席はそのまま「受付済」として登録されます。よろしいですか?';
+    if (!confirm(msg)) return;
+
+    const now = new Date().toISOString();
+    updates.forEach(({ att, newStatus, newAfter, statusJp }) => {
+      att.status = newStatus;
+      if (newStatus === 'yes') {
+        // 出席 = 受付済として扱う(既存の受付時刻があれば保持)
+        if (!att.checkedInAt) att.checkedInAt = now;
+      } else {
+        att.checkedInAt = null;
+      }
+      if (ev.hasAfterparty) {
+        if (newAfter) att.afterStatus = newAfter;
+      }
+    });
+    await saveState();
+    renderAdminEventDetail();
+    showToast(`${updates.length} 件を更新しました`);
+  } catch (e) {
+    console.error(e);
+    alert('CSVの読み込みに失敗しました: ' + (e.message || e));
+  }
+}
+
+// =================================================
+// ADMIN: データ書き出し/読み込み(JSON)
+// =================================================
+function openDataModal() {
+  openModal('modal-data');
+}
+
+function exportStateJson() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    state,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = toLocalDateValue(new Date()).replace(/-/g, '');
+  a.href = url;
+  a.download = `attendance-app-${ts}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('JSONを書き出しました');
+}
+
+async function importStateJson(input) {
+  const file = input.files && input.files[0];
+  input.value = ''; // 同じファイルを再度選んでも change が発火するように
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const newState = parsed && parsed.state ? parsed.state : parsed;
+    if (!newState || !Array.isArray(newState.users) || !Array.isArray(newState.events)) {
+      alert('JSONの形式が想定と異なります。users / events 配列を含む必要があります。');
+      return;
+    }
+    if (!confirm('現在のデータを読み込んだ内容で上書きします。よろしいですか?')) return;
+    state = newState;
+    if (!Array.isArray(state.departments)) state.departments = [...DEFAULT_DEPARTMENTS];
+    if (!Array.isArray(state.titles)) state.titles = [...DEFAULT_TITLES];
+    (state.users || []).forEach(u => { if (!u.status) u.status = 'active'; });
+    // 現在ログインしているユーザがインポート後の users に存在しなければ admin にフォールバック
+    if (!state.users.find(u => u.id === state.currentUserId)) {
+      const admin = state.users.find(u => u.role === 'admin' && (u.status || 'active') === 'active');
+      state.currentUserId = admin ? admin.id : (state.users[0] && state.users[0].id);
+    }
+    state.currentEventId = null;
+    await saveState();
+    closeModal('modal-data');
+    renderAll();
+    showToast('JSONを読み込みました');
+  } catch (e) {
+    console.error(e);
+    alert('読み込みに失敗しました: ' + (e.message || e));
+  }
+}
+
 function openMasterModal() {
   renderMasterList('departments');
   renderMasterList('titles');
