@@ -3391,10 +3391,14 @@ function renderUserEventList() {
   renderUserProfileCard();
   renderDateRangeFilter('user-event-filter');
   const me = currentUser();
-  // 表示対象: 招待されているイベント(公開済のみ) + 自分が作成したイベント(下書き含む)
+  // ユーザー画面の表示対象:
+  // - 管理者/編集者: 「招待されているイベント」のみ(自作で未招待のものは管理者画面側で確認)
+  // - 閲覧者: 招待 + 自作(自作は下書き含む。他人の下書きは非表示)
+  const isAdminCapable = canAccessAdminDashboard();
   const myEvents = state.events.filter(ev => {
-    const isOwn = ev.createdBy === me.id;
     const invited = ev.attendees.some(a => a.userId === me.id);
+    if (isAdminCapable) return invited && ev.published !== false;
+    const isOwn = ev.createdBy === me.id;
     if (!isOwn && !invited) return false;
     if (!isOwn && ev.published === false) return false; // 他人の下書きは非表示
     return true;
@@ -3402,10 +3406,13 @@ function renderUserEventList() {
   const filtered = filterEventsByRange(myEvents).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
   const list = $('user-event-list');
   if (!myEvents.length) {
+    const hint = isAdminCapable
+      ? '招待されているイベントはありません<br>主催側の操作は上部の「管理者画面」に切替えてください'
+      : '招待されているイベントはありません<br>右上の「+ 新規作成」から自分で作成もできます';
     list.innerHTML = `
       <div class="empty-state">
         <div class="glyph">○</div>
-        <div class="hint">招待されているイベントはありません<br>右上の「+ 新規作成」から自分で作成もできます</div>
+        <div class="hint">${hint}</div>
       </div>`;
     return;
   }
