@@ -4718,7 +4718,14 @@ function closeScanner() {
 // =================================================
 // Modals
 // =================================================
-function openModal(id) { $(id).classList.add('show'); }
+function openModal(id) {
+  const el = $(id);
+  if (!el) return;
+  el.classList.add('show');
+  // モーダル本体は前回のスクロール位置を保持してしまうので、毎回先頭に戻す
+  const body = el.querySelector('.modal');
+  if (body) body.scrollTop = 0;
+}
 function closeModal(id) { $(id).classList.remove('show'); }
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => {
