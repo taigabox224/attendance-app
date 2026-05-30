@@ -1556,7 +1556,10 @@
       <h2 id="user-edit-heading">ユーザー登録</h2>
       <div class="form-group">
         <label class="form-label">お名前 <span style="color:var(--danger)">*</span></label>
-        <input type="text" class="form-input" id="user-edit-name" placeholder="例: 山田 太郎">
+        <div style="display:flex;gap:6px">
+          <input type="text" class="form-input" id="user-edit-last-name" placeholder="姓" autocomplete="family-name" style="flex:1">
+          <input type="text" class="form-input" id="user-edit-first-name" placeholder="名" autocomplete="given-name" style="flex:1">
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">委員会</label>
@@ -1695,8 +1698,8 @@ const SEED = () => {
     '田村 心春', '竹内 蓮', '金子 椿', '和田 智也', '中山 ひかり',
   ];
   const users = [
-    { id: 'u_admin', name: '田中 システム管理者', role: 'sysadmin', department: null, title: null, status: 'active' },
-    { id: 'u_editor', name: '佐々木 編集者', role: 'editor', department: '人事部', title: null, status: 'active' },
+    { id: 'u_admin', name: '田中 システム管理者', lastName: '田中', firstName: 'システム管理者', role: 'sysadmin', department: null, title: null, status: 'active' },
+    { id: 'u_editor', name: '佐々木 編集者', lastName: '佐々木', firstName: '編集者', role: 'editor', department: '人事部', title: null, status: 'active' },
   ];
   SEED_NAMES.forEach((name, i) => {
     // 委員会はぐるぐる、役職は1/5の確率で付与(残りは"一般"扱いで未設定null)
@@ -1710,9 +1713,10 @@ const SEED = () => {
     let status = 'active';
     if (i === 13) status = 'inactive';
     else if (i === 27) status = 'left';
+    const { lastName, firstName } = splitFullName(name);
     users.push({
       id: 'u_' + String(i + 1).padStart(3, '0'),
-      name, role: 'viewer',
+      name, lastName, firstName, role: 'viewer',
       department, title, status,
     });
   });
@@ -1857,10 +1861,16 @@ async function loadState() {
       });
       // 後方互換: ユーザの status (アクティブ/休会/退会) が無ければ active 扱い
       // 旧 role 'admin' → 'sysadmin'、'user' → 'viewer'
+      // 旧 name 単一フィールド → lastName/firstName を補完
       (state.users || []).forEach(u => {
         if (!u.status) u.status = 'active';
         if (u.role === 'admin') u.role = 'sysadmin';
         else if (u.role === 'user') u.role = 'viewer';
+        if (!u.lastName && !u.firstName && u.name) {
+          const parts = splitFullName(u.name);
+          u.lastName = parts.lastName;
+          u.firstName = parts.firstName;
+        }
       });
       return;
     }
@@ -2041,6 +2051,19 @@ const linkify = s => {
 };
 const initial = name => (name || '?').trim().charAt(0);
 const userById = id => state.users.find(u => u.id === id);
+// 「姓 名」を分割。区切りは半角/全角空白。
+function splitFullName(full) {
+  const parts = String(full || '').trim().split(/[\s　]+/);
+  return { lastName: parts[0] || '', firstName: parts.slice(1).join(' ') || '' };
+}
+function joinFullName(lastName, firstName) {
+  const a = (lastName || '').trim();
+  const b = (firstName || '').trim();
+  if (!a && !b) return '';
+  if (!a) return b;
+  if (!b) return a;
+  return a + ' ' + b;
+}
 // datetime-local 入力欄用に Date をローカルタイムで YYYY-MM-DDTHH:mm 形式に変換
 const toLocalInputValue = d => {
   const pad = n => String(n).padStart(2, '0');
@@ -2375,7 +2398,15 @@ function openUserEditModal(userId) {
   editingUserId = userId;
   const u = userId ? userById(userId) : null;
   $('user-edit-heading').textContent = u ? 'ユーザー編集' : 'ユーザー登録';
-  $('user-edit-name').value = u ? u.name : '';
+  if (u) {
+    // lastName/firstName が無い旧データはここで補完
+    const fallback = (!u.lastName && !u.firstName) ? splitFullName(u.name) : { lastName: u.lastName || '', firstName: u.firstName || '' };
+    $('user-edit-last-name').value = fallback.lastName;
+    $('user-edit-first-name').value = fallback.firstName;
+  } else {
+    $('user-edit-last-name').value = '';
+    $('user-edit-first-name').value = '';
+  }
   $('user-edit-status').value = (u && u.status) ? u.status : 'active';
 
   // ロール選択肢: sysadminは全部、editorは viewer のみ
@@ -2469,8 +2500,10 @@ async function applyBulkEdit(kind, value) {
 }
 
 async function saveUserEdit() {
-  const name = $('user-edit-name').value.trim();
-  if (!name) { alert('お名前は必須です'); return; }
+  const lastName = $('user-edit-last-name').value.trim();
+  const firstName = $('user-edit-first-name').value.trim();
+  if (!lastName && !firstName) { alert('お名前(姓または名)は必須です'); return; }
+  const name = joinFullName(lastName, firstName);
   const dept = $('user-edit-department').value || null;
   const titleVal = $('user-edit-title').value || null;
   const role = $('user-edit-role').value || 'viewer';
@@ -2483,6 +2516,8 @@ async function saveUserEdit() {
       alert('編集者は上位ロールのユーザーを変更できません');
       return;
     }
+    u.lastName = lastName;
+    u.firstName = firstName;
     u.name = name;
     u.department = dept;
     u.title = titleVal;
@@ -2497,7 +2532,7 @@ async function saveUserEdit() {
   } else {
     state.users.push({
       id: 'u_' + Date.now(),
-      name,
+      name, lastName, firstName,
       role: isSysadmin() ? role : 'viewer',
       department: dept, title: titleVal, status,
     });
