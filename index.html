@@ -3474,18 +3474,16 @@ function renderReceptionistList() {
     target.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-mute);font-size:12px">該当するユーザーはいません</div>';
     return;
   }
-  target.innerHTML = users.map(u => {
-    const elevated = u.role === 'sysadmin' || u.role === 'editor';
-    return `
-      <label class="checkbox-row">
-        <input type="checkbox" ${receptionistSelection.has(u.id) ? 'checked' : ''}
-               onchange="toggleReceptionist('${u.id}', this.checked)">
-        <div style="min-width:0">
-          <div class="name">${escapeHtml(u.name)}${elevated ? ` <span class="role-pill-mini ${u.role}">${ROLE_LABEL[u.role]}</span>` : ''}</div>
-        </div>
-      </label>
-    `;
-  }).join('');
+  target.innerHTML = users.map(u => `
+    <label class="checkbox-row">
+      <input type="checkbox" ${receptionistSelection.has(u.id) ? 'checked' : ''}
+             onchange="toggleReceptionist('${u.id}', this.checked)">
+      <div style="min-width:0">
+        <div class="name">${escapeHtml(u.name)}</div>
+        ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
+      </div>
+    </label>
+  `).join('');
 }
 
 function onReceptionistSearch(v) {
@@ -3570,19 +3568,16 @@ function renderInviteList() {
     target.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text-mute);font-size:13px">該当するユーザーはいません</div>';
     return;
   }
-  target.innerHTML = users.map(u => {
-    const elevated = u.role === 'sysadmin' || u.role === 'editor';
-    return `
-      <label class="checkbox-row">
-        <input type="checkbox" value="${u.id}" ${inviteSelection.has(u.id) ? 'checked' : ''}
-               onchange="toggleInvite('${u.id}', this.checked)">
-        <div style="min-width:0">
-          <div class="name">${escapeHtml(u.name)}${elevated ? ` <span class="role-pill-mini ${u.role}">${ROLE_LABEL[u.role]}</span>` : ''}</div>
-          ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
-        </div>
-      </label>
-    `;
-  }).join('');
+  target.innerHTML = users.map(u => `
+    <label class="checkbox-row">
+      <input type="checkbox" value="${u.id}" ${inviteSelection.has(u.id) ? 'checked' : ''}
+             onchange="toggleInvite('${u.id}', this.checked)">
+      <div style="min-width:0">
+        <div class="name">${escapeHtml(u.name)}</div>
+        ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
+      </div>
+    </label>
+  `).join('');
 }
 
 function onInviteSearch(v) {
