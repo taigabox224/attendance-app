@@ -991,6 +991,20 @@
   }
 
   /* 懇親会バッジ */
+  /* 受付担当バッジ(自分が受付に指定されているイベント) */
+  .badge-reception {
+    display: inline-block;
+    background: var(--warning);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+
   .badge-afterparty {
     display: inline-block;
     background: var(--warning-soft);
@@ -1700,7 +1714,6 @@
       <div class="modal-handle"></div>
       <h2>イベントの操作</h2>
       <div id="event-menu-body" style="display:flex;flex-direction:column;gap:8px;margin-top:12px"></div>
-      <input type="file" id="attendee-csv-file" accept=".csv,text/csv" style="display:none" onchange="importAttendeesCsv(this)">
       <div style="margin-top:14px">
         <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu')">閉じる</button>
       </div>
@@ -3109,9 +3122,7 @@ function renderEventMenu() {
   body.innerHTML = `
     ${canEdit ? `<button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); openEditEventModal(state.currentEventId)">イベントを編集</button>` : ''}
     <button class="btn btn-primary btn-full" onclick="copyEventLink()">共有リンクをコピー</button>
-    <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); exportAttendeesCsv()">出欠CSVを書き出す</button>
     <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); exportBreakdownCsv()">出席内訳CSVを書き出す</button>
-    ${canEdit ? `<button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); document.getElementById('attendee-csv-file').click()">出欠CSVを読み込む</button>` : ''}
     ${canEdit ? `<button class="btn btn-danger btn-full" style="margin-top:6px" onclick="closeModal('modal-event-menu'); deleteEvent()">このイベントを削除</button>` : ''}
   `;
 }
@@ -3836,6 +3847,7 @@ function renderUserEventList() {
     const a = ev.attendees.find(x => x.userId === me.id);
     const locked = isDeadlinePassed(ev);
     const isOwn = ev.createdBy === me.id;
+    const isRecep = Array.isArray(ev.receptionists) && ev.receptionists.includes(me.id);
     // ユーザー画面では常にユーザRSVP画面で開く。編集は user-detail 右上の歯車から。
     const opener = `openUserEventDetail('${ev.id}')`;
     return `
@@ -3843,6 +3855,7 @@ function renderUserEventList() {
         <div class="date-row">
           <span class="date-tag">${fmtDate(ev.date)}</span>
           ${isOwn ? '<span class="badge-own">自作</span>' : ''}
+          ${isRecep ? '<span class="badge-reception">🛡️ 受付</span>' : ''}
           ${ev.hasAfterparty ? '<span class="badge-afterparty">🍻 懇親会</span>' : ''}
           ${locked ? '<span class="badge-expired">回答締切</span>' : ''}
         </div>
