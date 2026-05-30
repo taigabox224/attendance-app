@@ -4184,7 +4184,9 @@ function computeAttendanceBreakdown(ev) {
   const emptyEntry = () => ({ members: 0, responded: 0, attended: 0 });
   order.forEach(d => byCommittee.set(d, emptyEntry()));
   activeUsers.forEach(u => {
-    const key = u.department || '(未設定)';
+    // 委員会未設定のユーザは委員会別の集計には含めない(全体率には含む)
+    if (!u.department) return;
+    const key = u.department;
     if (!byCommittee.has(key)) { byCommittee.set(key, emptyEntry()); order.push(key); }
     byCommittee.get(key).members++;
   });
@@ -4194,16 +4196,15 @@ function computeAttendanceBreakdown(ev) {
     if (a.isObserver) return;
     const u = state.users.find(x => x.id === a.userId);
     if (!u || (u.status || 'active') !== 'active') return;
-    const key = u.department || '(未設定)';
+    // 全体カウントは委員会未設定の人も含む
+    if (a.status === 'yes') totalResponded++;
+    if (a.checkedInAt) totalAttended++;
+    // 委員会別は所属がある人だけ
+    if (!u.department) return;
+    const key = u.department;
     if (!byCommittee.has(key)) { byCommittee.set(key, emptyEntry()); order.push(key); }
-    if (a.status === 'yes') {
-      byCommittee.get(key).responded++;
-      totalResponded++;
-    }
-    if (a.checkedInAt) {
-      byCommittee.get(key).attended++;
-      totalAttended++;
-    }
+    if (a.status === 'yes') byCommittee.get(key).responded++;
+    if (a.checkedInAt) byCommittee.get(key).attended++;
   });
   const observerTotal = ev.attendees.filter(a => a.isObserver).length;
   const observerAttended = ev.attendees.filter(a => a.isObserver && a.checkedInAt).length;
