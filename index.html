@@ -2501,6 +2501,10 @@ async function setStatus(userId, status) {
   const att = ev.attendees.find(a => a.userId === userId);
   if (!att) return;
   if (att.status === status) return;
+  if (isDeadlinePassed(ev) && !canAccessAdminDashboard()) {
+    alert('回答期限を過ぎたため変更できません。期限を伸ばしてから再度お試しください。');
+    return;
+  }
   const u = userById(userId);
   const name = u ? u.name : '';
   const before = STATUS_LABEL[att.status] || att.status;
@@ -2537,6 +2541,10 @@ async function setAfterStatus(userId, status) {
   if (!att) return;
   const current = att.afterStatus || 'pending';
   if (current === status) return;
+  if (isDeadlinePassed(ev) && !canAccessAdminDashboard()) {
+    alert('回答期限を過ぎたため変更できません。期限を伸ばしてから再度お試しください。');
+    return;
+  }
   const u = userById(userId);
   const name = u ? u.name : '';
   const before = STATUS_LABEL[current] || current;
@@ -3418,6 +3426,11 @@ function renderUserEventDetail() {
         <div style="font-size:12px;color:var(--text-mute);margin-top:10px;text-align:center">
           現在の回答: ${statusBadge(att.afterStatus || 'pending')}${hasAfterChange ? ' <span style="color:var(--accent);font-size:11px">(未保存)</span>' : ''}
         </div>
+        ${locked ? `
+          <div style="margin-top:12px;padding:10px;background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-mute);text-align:center;line-height:1.6">
+            回答期限を過ぎたため、変更できません。<br>変更が必要な場合は管理者にご連絡ください。
+          </div>
+        ` : ''}
       </div>
     ` : ''}
 
