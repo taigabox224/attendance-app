@@ -1976,9 +1976,9 @@ function computeDefaultEventRange() {
 let eventDateRange = computeDefaultEventRange();
 
 function filterEventsByRange(events) {
-  if (eventDateRange.preset === 'all') return events;
   const from = eventDateRange.from ? new Date(eventDateRange.from + 'T00:00:00') : null;
   const to = eventDateRange.to ? new Date(eventDateRange.to + 'T23:59:59') : null;
+  if (!from && !to) return events;
   return events.filter(ev => {
     const d = new Date(ev.date);
     if (from && d < from) return false;
@@ -1995,8 +1995,9 @@ function setDateRangePreset(preset) {
     eventDateRange = { preset, from: toLocalDateValue(first), to: toLocalDateValue(last) };
   } else if (preset === 'this-and-next') {
     eventDateRange = computeDefaultEventRange();
-  } else if (preset === 'all') {
-    eventDateRange = { preset, from: '', to: '' };
+  } else if (preset === 'open-ended') {
+    // 期間指定: 開始日=本日、終了日=未指定(無期限)
+    eventDateRange = { preset, from: toLocalDateValue(now), to: '' };
   }
   reRenderEventLists();
 }
@@ -2023,12 +2024,12 @@ function renderDateRangeFilter(containerId) {
       <div class="filter-chips">
         ${presetBtn('this-month','当月')}
         ${presetBtn('this-and-next','当月+翌月')}
-        ${presetBtn('all','全期間')}
+        ${presetBtn('open-ended','期間指定')}
       </div>
       <div class="date-range-inputs">
-        <input type="date" value="${eventDateRange.from}" onchange="setDateRangeInput('from', this.value)" ${eventDateRange.preset === 'all' ? 'disabled' : ''}>
+        <input type="date" value="${eventDateRange.from}" onchange="setDateRangeInput('from', this.value)">
         <span class="sep">〜</span>
-        <input type="date" value="${eventDateRange.to}" onchange="setDateRangeInput('to', this.value)" ${eventDateRange.preset === 'all' ? 'disabled' : ''}>
+        <input type="date" value="${eventDateRange.to}" onchange="setDateRangeInput('to', this.value)">
       </div>
     </div>
   `;
