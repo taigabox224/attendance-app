@@ -991,6 +991,20 @@
   }
 
   /* 懇親会バッジ */
+  /* ピッカー内の「作成者」ラベル(必ず受付担当に含まれる) */
+  .badge-creator {
+    display: inline-block;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+
   /* 受付担当バッジ(自分が受付に指定されているイベント) */
   .badge-reception {
     display: inline-block;
@@ -3404,7 +3418,8 @@ function openCreateEventModal() {
   inviteQuery = '';
   inviteFilter = { departments: [], title: '' };
   renderInviteSection();
-  receptionistSelection = new Set();
+  // 作成者(=現在のユーザ)は必ず受付担当に含まれる
+  receptionistSelection = new Set([state.currentUserId]);
   receptionistQuery = '';
   receptionistFilter = { departments: [] };
   renderReceptionistSection();
@@ -3442,6 +3457,8 @@ function openEditEventModal(eventId) {
   inviteFilter = { departments: [], title: '' };
   renderInviteSection();
   receptionistSelection = new Set(ev.receptionists || []);
+  // 作成者は必ず含める(誤って外せたとしても保存時に再追加)
+  if (ev.createdBy) receptionistSelection.add(ev.createdBy);
   receptionistQuery = '';
   receptionistFilter = { departments: [] };
   renderReceptionistSection();
@@ -3481,6 +3498,15 @@ function toggleReceptionistFilterDept(d) {
   renderReceptionistSection();
 }
 
+function getReceptionistLockedId() {
+  // 作成者は受付担当から外せない。新規=現在のユーザ、編集=ev.createdBy
+  if (editingEventId) {
+    const ev = state.events.find(e => e.id === editingEventId);
+    return ev ? ev.createdBy : null;
+  }
+  return state.currentUserId;
+}
+
 function renderReceptionistList() {
   const target = $('receptionist-list');
   if (!target) return;
@@ -3494,16 +3520,20 @@ function renderReceptionistList() {
     target.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-mute);font-size:12px">該当するユーザーはいません</div>';
     return;
   }
-  target.innerHTML = users.map(u => `
-    <label class="checkbox-row">
-      <input type="checkbox" ${receptionistSelection.has(u.id) ? 'checked' : ''}
-             onchange="toggleReceptionist('${u.id}', this.checked)">
-      <div style="min-width:0">
-        <div class="name">${escapeHtml(u.name)}</div>
-        ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
-      </div>
-    </label>
-  `).join('');
+  const lockedId = getReceptionistLockedId();
+  target.innerHTML = users.map(u => {
+    const isLocked = u.id === lockedId;
+    return `
+      <label class="checkbox-row">
+        <input type="checkbox" ${receptionistSelection.has(u.id) ? 'checked' : ''} ${isLocked ? 'disabled' : ''}
+               onchange="toggleReceptionist('${u.id}', this.checked)">
+        <div style="min-width:0">
+          <div class="name">${escapeHtml(u.name)}${isLocked ? ' <span class="badge-creator">作成者</span>' : ''}</div>
+          ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
+        </div>
+      </label>
+    `;
+  }).join('');
 }
 
 function onReceptionistSearch(v) {
@@ -3512,6 +3542,12 @@ function onReceptionistSearch(v) {
 }
 
 function toggleReceptionist(id, checked) {
+  // 作成者は外せない(チェックボックスは disabled だが念のため)
+  if (!checked && id === getReceptionistLockedId()) {
+    receptionistSelection.add(id);
+    renderReceptionistList();
+    return;
+  }
   if (checked) receptionistSelection.add(id);
   else receptionistSelection.delete(id);
   const el = $('receptionist-count');
@@ -3701,6 +3737,8 @@ async function saveEventForm({ publish = true } = {}) {
     ev.afterpartyLocation = hasAfterparty ? (afterpartyLocation || null) : null;
     ev.afterpartyDescription = hasAfterparty ? (afterpartyDescription || null) : null;
     ev.published = publish;
+    // 作成者は必ず受付担当に含める
+    if (ev.createdBy) receptionistSelection.add(ev.createdBy);
     ev.receptionists = Array.from(receptionistSelection);
 
     // 通常ユーザの招待差分(オブザーバーには触らない)
@@ -3785,7 +3823,7 @@ async function saveEventForm({ publish = true } = {}) {
       afterpartyTitle: hasAfterparty ? '懇親会' : null,
       afterpartyLocation: hasAfterparty ? (afterpartyLocation || null) : null,
       afterpartyDescription: hasAfterparty ? (afterpartyDescription || null) : null,
-      receptionists: Array.from(receptionistSelection),
+      receptionists: Array.from(new Set([state.currentUserId, ...receptionistSelection])),
       attendees,
     };
     state.events.unshift(newEvent);
