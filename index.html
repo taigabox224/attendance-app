@@ -3582,10 +3582,32 @@ function renderReceptionistSection() {
         `).join('')}
       </div>
     ` : ''}
+    <div class="bulk-actions">
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectReceptionists(true)">表示中を全選択</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectReceptionists(false)">表示中を全解除</button>
+    </div>
     <div id="receptionist-list" style="max-height:180px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
     <div style="font-size:11px;color:var(--text-mute);margin-top:4px">選択中: <strong id="receptionist-count" style="color:var(--text);font-family:'JetBrains Mono'">${receptionistSelection.size}</strong> <span style="color:var(--accent);margin-left:6px">※自分を含みます</span></div>
   `;
   renderReceptionistList();
+}
+
+function bulkSelectReceptionists(select) {
+  const lockedId = getReceptionistLockedId();
+  const q = receptionistQuery.trim().toLowerCase();
+  const depts = receptionistFilter.departments || [];
+  state.users
+    .filter(u => (u.status || 'active') === 'active')
+    .filter(u => !q || u.name.toLowerCase().includes(q))
+    .filter(u => !depts.length || depts.includes(u.department))
+    .forEach(u => {
+      if (u.id === lockedId) return; // 作成者は外せない
+      if (select) receptionistSelection.add(u.id);
+      else receptionistSelection.delete(u.id);
+    });
+  renderReceptionistList();
+  const el = $('receptionist-count');
+  if (el) el.textContent = receptionistSelection.size;
 }
 
 function toggleReceptionistFilterDept(d) {
@@ -3696,20 +3718,12 @@ function renderInviteSection() {
         `).join('')}
       </div>
     ` : ''}
-    ${getTitles().length ? `
-      <div class="filter-section-label">役職</div>
-      <div class="filter-selects" style="margin-top:4px">
-        <select onchange="setInviteFilterTitle(this.value)">
-          <option value="">役職(全て)</option>
-          ${getTitles().map(t => `<option value="${escapeHtml(t)}" ${inviteFilter.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
-        </select>
-      </div>
-    ` : ''}
     <div class="bulk-actions">
       <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectInvites(true)">表示中を全選択</button>
       <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectInvites(false)">表示中を全解除</button>
     </div>
     <div id="invite-list" style="max-height:280px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
+    <div style="font-size:11px;color:var(--text-mute);margin-top:4px">選択中: <strong id="invite-count-bottom" style="color:var(--text);font-family:'JetBrains Mono'">${inviteSelection.size}</strong> / ${total}</div>
   `;
   renderInviteList();
 }
@@ -3785,8 +3799,11 @@ function bulkSelectInvites(select) {
 }
 
 function updateInviteCount() {
-  const el = $('invite-count');
-  if (el) el.textContent = inviteSelection.size;
+  const n = inviteSelection.size;
+  const top = $('invite-count');
+  if (top) top.textContent = n;
+  const bottom = $('invite-count-bottom');
+  if (bottom) bottom.textContent = n;
 }
 
 function buildAttendeeSummary(selectionSet, observers) {
