@@ -534,10 +534,13 @@
   }
   .event-hero .date {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 18px;
+    font-weight: 700;
     color: var(--accent);
-    letter-spacing: 0.05em;
-    margin-bottom: 6px;
+    letter-spacing: 0.03em;
+    margin-bottom: 8px;
+    line-height: 1.35;
+    white-space: pre-line;
   }
   .event-hero .title {
     font-family: 'Shippori Mincho', serif;
@@ -1614,8 +1617,12 @@
         <input type="text" class="form-input" id="new-event-title" placeholder="例: 2026年6月度例会">
       </div>
       <div class="form-group">
-        <label class="form-label">日時 <span class="required-mark">*</span></label>
+        <label class="form-label">開始日時 <span class="required-mark">*</span></label>
         <input type="datetime-local" class="form-input" id="new-event-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">終了日時 <span class="optional-mark">任意</span></label>
+        <input type="datetime-local" class="form-input" id="new-event-end-date">
       </div>
       <div class="form-group">
         <label class="form-label">回答期限</label>
@@ -2091,6 +2098,7 @@ const SEED = () => {
       id: 'e_000',
       title: '新人歓迎会',
       date: past.toISOString(),
+      endDate: new Date(past.getTime() + 1000 * 60 * 60 * 2).toISOString(),
       responseDeadline: new Date(now.getTime() - 1000 * 60 * 60 * 24).toISOString(),
       location: '本社 多目的ホール',
       description: '会場の予約都合により、回答期限を過ぎての変更はできません。',
@@ -2102,6 +2110,7 @@ const SEED = () => {
       id: 'e_001',
       title: '春の全社総会',
       date: future.toISOString(),
+      endDate: new Date(future.getTime() + 1000 * 60 * 60 * 3).toISOString(),
       responseDeadline: new Date(future.getTime() - 1000 * 60 * 60 * 24).toISOString(),
       location: '本社 大会議室',
       description: '総会本編のあと、同会場で懇親会を予定しています。',
@@ -2118,6 +2127,7 @@ const SEED = () => {
       id: 'e_002',
       title: '月次定例ミーティング',
       date: future2.toISOString(),
+      endDate: new Date(future2.getTime() + 1000 * 60 * 60).toISOString(),
       responseDeadline: new Date(future2.getTime() - 1000 * 60 * 60 * 24).toISOString(),
       location: 'オンライン',
       description: '',
@@ -2129,6 +2139,7 @@ const SEED = () => {
       id: 'e_003',
       title: '夏の研修会(調整中)',
       date: draftFuture.toISOString(),
+      endDate: null,
       responseDeadline: new Date(draftFuture.getTime() - 1000 * 60 * 60 * 24 * 3).toISOString(),
       location: '未定',
       description: '会場と日程を調整中です。確定したら公開します。',
@@ -2361,6 +2372,19 @@ const fmtDateShort = iso => {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${mm}/${dd}`;
+};
+// 開始-終了の範囲表示。同日なら終了は時刻だけ。
+const fmtDateRange = (startIso, endIso) => {
+  if (!endIso) return fmtDate(startIso);
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const sameDay = start.getFullYear() === end.getFullYear()
+    && start.getMonth() === end.getMonth()
+    && start.getDate() === end.getDate();
+  const pad = n => String(n).padStart(2, '0');
+  const endHHMM = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
+  if (sameDay) return `${fmtDate(startIso)} – ${endHHMM}`;
+  return `${fmtDate(startIso)}\n  – ${fmtDate(endIso)}`;
 };
 const escapeHtml = s => (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // テキスト中の http(s):// URL を a タグに置換(HTMLは先にエスケープ)。改行は <br>。
@@ -3091,7 +3115,7 @@ function renderAdminEventDetail() {
 
   const html = `
     <div class="event-hero">
-      <div class="date">${fmtDate(ev.date)}</div>
+      <div class="date">${fmtDateRange(ev.date, ev.endDate)}</div>
       <div class="title">${escapeHtml(ev.title)}${ev.published === false ? ' <span class="badge-draft">下書き</span>' : ''}</div>
       ${ev.committee ? `<div class="info-row"><span class="ico">🏛️</span>担当: ${escapeHtml(ev.committee)}</div>` : ''}
       <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
@@ -3521,6 +3545,8 @@ function openCreateEventModal() {
   const tomorrow = new Date(Date.now() + 1000 * 60 * 60 * 24);
   tomorrow.setHours(19, 0, 0, 0);
   $('new-event-date').value = toLocalInputValue(tomorrow);
+  // デフォルト終了日時 = 開始の2時間後
+  $('new-event-end-date').value = toLocalInputValue(new Date(tomorrow.getTime() + 1000 * 60 * 60 * 2));
   const defaultDeadline = new Date(tomorrow.getTime() - 1000 * 60 * 60 * 24);
   $('new-event-deadline').value = toLocalInputValue(defaultDeadline);
 
@@ -3564,6 +3590,7 @@ function openEditEventModal(eventId) {
   toggleObserverFields(hasObs);
   renderObserverList();
   $('new-event-date').value = toLocalInputValue(new Date(ev.date));
+  $('new-event-end-date').value = ev.endDate ? toLocalInputValue(new Date(ev.endDate)) : '';
   $('new-event-deadline').value = ev.responseDeadline ? toLocalInputValue(new Date(ev.responseDeadline)) : '';
 
   inviteSelection = new Set(ev.attendees.filter(a => !a.isObserver).map(a => a.userId));
@@ -3866,6 +3893,7 @@ function buildAttendeeSummary(selectionSet, observers) {
 async function saveEventForm({ publish = true } = {}) {
   const title = $('new-event-title').value.trim();
   const date = $('new-event-date').value;
+  const endDateRaw = $('new-event-end-date').value;
   const deadlineRaw = $('new-event-deadline').value;
   const committee = $('new-event-committee').value || null;
   const location = $('new-event-location').value.trim();
@@ -3874,16 +3902,18 @@ async function saveEventForm({ publish = true } = {}) {
   const afterpartyLocation = hasAfterparty ? $('new-event-afterparty-location').value.trim() : '';
   const afterpartyDescription = hasAfterparty ? $('new-event-afterparty-description').value.trim() : '';
   if (!title || !date) {
-    alert('タイトルと日時は必須です');
+    alert('タイトルと開始日時は必須です');
     return;
   }
   const eventDateISO = new Date(date).toISOString();
+  const endDateISO = endDateRaw ? new Date(endDateRaw).toISOString() : null;
   const deadlineISO = deadlineRaw ? new Date(deadlineRaw).toISOString() : null;
   const nowISO = new Date().toISOString();
   const warnings = [];
-  if (eventDateISO < nowISO) warnings.push('・イベント日時が現在より過去になっています');
+  if (eventDateISO < nowISO) warnings.push('・開始日時が現在より過去になっています');
+  if (endDateISO && endDateISO < eventDateISO) warnings.push('・終了日時が開始日時より前になっています');
   if (deadlineISO && deadlineISO < nowISO) warnings.push('・回答期限が現在より過去になっています');
-  if (deadlineISO && deadlineISO > eventDateISO) warnings.push('・回答期限がイベント日時より後になっています');
+  if (deadlineISO && deadlineISO > eventDateISO) warnings.push('・回答期限が開始日時より後になっています');
   if (warnings.length) {
     if (!confirm('日時設定に問題がある可能性があります:\n\n' + warnings.join('\n') + '\n\nこのまま保存しますか?')) return;
   }
@@ -3904,6 +3934,7 @@ async function saveEventForm({ publish = true } = {}) {
     if (!ev) { editingEventId = null; return; }
     ev.title = title;
     ev.date = eventDateISO;
+    ev.endDate = endDateISO;
     ev.responseDeadline = deadlineISO;
     ev.committee = committee;
     ev.location = location;
@@ -3991,6 +4022,7 @@ async function saveEventForm({ publish = true } = {}) {
       id: 'e_' + Date.now(),
       title,
       date: eventDateISO,
+      endDate: endDateISO,
       responseDeadline: deadlineISO,
       committee,
       location, description,
@@ -4916,7 +4948,7 @@ function renderUserEventDetail() {
       : (canAccessAdminDashboard() ? '編集や受付を行う場合は上部の「管理者画面」に切替えてください' : '');
     $('user-detail-content').innerHTML = `
       <div class="event-hero">
-        <div class="date">${fmtDate(ev.date)}</div>
+        <div class="date">${fmtDateRange(ev.date, ev.endDate)}</div>
         <div class="title">${escapeHtml(ev.title)}</div>
         ${ev.committee ? `<div class="info-row"><span class="ico">🏛️</span>担当: ${escapeHtml(ev.committee)}</div>` : ''}
         <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
@@ -4943,7 +4975,7 @@ function renderUserEventDetail() {
 
   const html = `
     <div class="event-hero">
-      <div class="date">${fmtDate(ev.date)}</div>
+      <div class="date">${fmtDateRange(ev.date, ev.endDate)}</div>
       <div class="title">${escapeHtml(ev.title)}</div>
       ${ev.committee ? `<div class="info-row"><span class="ico">🏛️</span>担当: ${escapeHtml(ev.committee)}</div>` : ''}
       <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
