@@ -1533,6 +1533,7 @@
         <p class="screen-sub">登録ユーザーを委員会・役職で絞り込みできます</p>
       </div>
       <div id="admin-users-actions" style="display:flex;flex-direction:row;gap:6px;align-items:center;flex-shrink:0"></div>
+      <button class="gear-btn" id="admin-users-gear" onclick="openUserListMenu()" title="設定" style="display:none;margin-left:auto">⚙</button>
     </div>
     <div id="admin-user-filter"></div>
     <div id="admin-user-bulk-bar"></div>
@@ -1843,7 +1844,7 @@
       <div class="modal-handle"></div>
       <h2>ユーザーの表示順</h2>
       <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
-        イベント作成時のユーザー一覧(参加者・受付担当)の並び順を選択します。
+        イベント作成時のユーザー一覧(参加者・受付担当)の並び順を、↑↓ ボタンで個別に並べ替えます。設定後はクラウド同期で全端末に反映されます。
       </p>
       <div id="user-order-options" style="display:flex;flex-direction:column;gap:8px"></div>
       <div style="margin-top:14px">
@@ -2485,11 +2486,10 @@ function renderAdminUserList() {
   // ヘッダのアクションボタンを権限に応じて出し分け
   const actions = $('admin-users-actions');
   if (actions) {
-    actions.innerHTML = `
-      ${canManageUsers() ? '<button class="btn btn-primary btn-sm" onclick="openUserEditModal(null)">+ ユーザー登録</button>' : ''}
-      ${(canManageMaster() || canManageUsers()) ? '<button class="gear-btn" onclick="openUserListMenu()" title="設定">⚙</button>' : ''}
-    `;
+    actions.innerHTML = canManageUsers() ? '<button class="btn btn-primary btn-sm" onclick="openUserEditModal(null)">+ ユーザー登録</button>' : '';
   }
+  const gear = $('admin-users-gear');
+  if (gear) gear.style.display = (canManageMaster() || canManageUsers()) ? '' : 'none';
   const filterTarget = $('admin-user-filter');
   const statusChip = (key, label) => `
     <button class="chip ${adminUserFilter.userStatus === key ? 'active' : ''}" onclick="setAdminUserStatus('${key}')">${label}</button>
@@ -4422,51 +4422,69 @@ function openUserListMenu() {
   openModal('modal-user-list-menu');
 }
 
-const USER_ORDER_LABEL = {
-  registered: '登録順(デフォルト)',
-  name: '姓のあいうえお順',
-  committee: '委員会別 → 姓',
-};
-
-function getUserOrder() {
-  return state.userOrder || 'registered';
+function getSortedActiveUsers() {
+  const list = state.users.filter(u => (u.status || 'active') === 'active');
+  const ids = state.userOrderIds || [];
+  const rank = new Map(ids.map((id, i) => [id, i]));
+  return list.slice().sort((a, b) => {
+    const ra = rank.has(a.id) ? rank.get(a.id) : Infinity;
+    const rb = rank.has(b.id) ? rank.get(b.id) : Infinity;
+    return ra - rb;
+  });
 }
 
 function openUserOrderModal() {
   const target = $('user-order-options');
   if (!target) return;
-  const current = getUserOrder();
-  target.innerHTML = Object.entries(USER_ORDER_LABEL).map(([key, label]) => `
-    <button class="btn ${current === key ? 'btn-primary' : 'btn-outline'} btn-full" onclick="setUserOrder('${key}')">${label}</button>
-  `).join('');
+  renderUserOrderList();
   openModal('modal-user-order');
 }
 
-async function setUserOrder(order) {
-  state.userOrder = order;
-  await saveState();
-  closeModal('modal-user-order');
-  showToast(`表示順を「${USER_ORDER_LABEL[order]}」に変更しました`);
+function renderUserOrderList() {
+  const target = $('user-order-options');
+  if (!target) return;
+  const sorted = getSortedActiveUsers();
+  if (!sorted.length) {
+    target.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-mute);font-size:12px">アクティブなユーザーがいません</div>';
+    return;
+  }
+  target.innerHTML = sorted.map((u, i) => `
+    <div class="master-row">
+      <div class="label" style="font-size:13px">${escapeHtml(u.name)}${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:2px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}</div>
+      <button class="icon-btn" onclick="moveUserOrder('${u.id}', -2)" ${i === 0 ? 'disabled' : ''} title="一番上へ">⇧</button>
+      <button class="icon-btn" onclick="moveUserOrder('${u.id}', -1)" ${i === 0 ? 'disabled' : ''} title="上へ">↑</button>
+      <button class="icon-btn" onclick="moveUserOrder('${u.id}', 1)" ${i === sorted.length - 1 ? 'disabled' : ''} title="下へ">↓</button>
+      <button class="icon-btn" onclick="moveUserOrder('${u.id}', 2)" ${i === sorted.length - 1 ? 'disabled' : ''} title="一番下へ">⇩</button>
+    </div>
+  `).join('');
 }
 
-// 設定された順序でユーザを並び替えるコンパレータ
+async function moveUserOrder(userId, dir) {
+  const sorted = getSortedActiveUsers();
+  const idx = sorted.findIndex(u => u.id === userId);
+  if (idx < 0) return;
+  let newIdx;
+  if (dir === -2) newIdx = 0;
+  else if (dir === 2) newIdx = sorted.length - 1;
+  else newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= sorted.length || newIdx === idx) return;
+  const [moved] = sorted.splice(idx, 1);
+  sorted.splice(newIdx, 0, moved);
+  state.userOrderIds = sorted.map(u => u.id);
+  await saveState();
+  renderUserOrderList();
+}
+
+// state.userOrderIds に従ったコンパレータ(空ならソート無し)
 function userOrderComparator() {
-  const order = getUserOrder();
-  if (order === 'name') {
-    return (a, b) => (a.lastName || a.name || '').localeCompare(b.lastName || b.name || '', 'ja')
-      || (a.firstName || '').localeCompare(b.firstName || '', 'ja');
-  }
-  if (order === 'committee') {
-    const deptOrder = new Map(getDepartments().map((d, i) => [d, i]));
-    const rank = u => deptOrder.has(u.department) ? deptOrder.get(u.department) : Infinity;
-    return (a, b) => {
-      const ra = rank(a), rb = rank(b);
-      if (ra !== rb) return ra - rb;
-      return (a.lastName || a.name || '').localeCompare(b.lastName || b.name || '', 'ja');
-    };
-  }
-  // registered: state.users の元の順を維持する → 安定ソートで何もしない
-  return null;
+  const ids = state.userOrderIds || [];
+  if (!ids.length) return null;
+  const rank = new Map(ids.map((id, i) => [id, i]));
+  return (a, b) => {
+    const ra = rank.has(a.id) ? rank.get(a.id) : Infinity;
+    const rb = rank.has(b.id) ? rank.get(b.id) : Infinity;
+    return ra - rb;
+  };
 }
 
 function openMasterModal() {
