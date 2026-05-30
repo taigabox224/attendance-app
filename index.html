@@ -2923,6 +2923,10 @@ function renderAdminEventDetail() {
       </div>
     ` : ''}
 
+    <button class="btn btn-accent btn-full" style="margin:14px 0" onclick="openScanner()">
+      📷 QRコードをスキャン
+    </button>
+
     ${(() => {
       const bd = computeAttendanceBreakdown(ev);
       return `
@@ -2954,10 +2958,6 @@ function renderAdminEventDetail() {
         </div>
       `;
     })()}
-
-    <button class="btn btn-accent btn-full" style="margin:14px 0" onclick="openScanner()">
-      📷 QRコードをスキャン
-    </button>
 
     <div class="section-label">
       参加者リスト <span class="count" id="admin-attendee-count">${total}</span>
