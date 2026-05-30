@@ -661,6 +661,24 @@
   }
   .date-range-inputs .sep { color: var(--text-mute); font-size: 12px; }
 
+  /* 下書きバッジ + カード表示 */
+  .badge-draft {
+    display: inline-block;
+    background: var(--warning-soft);
+    color: var(--warning);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+  .event-card.is-draft {
+    background: var(--surface-soft);
+    border-style: dashed;
+  }
+
   /* 懇親会バッジ */
   .badge-afterparty {
     display: inline-block;
@@ -1198,9 +1216,10 @@
         <label class="form-label">参加者を選択</label>
         <div id="new-event-attendees"></div>
       </div>
-      <div style="display:flex;gap:8px;margin-top:18px">
-        <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-create-event')">キャンセル</button>
-        <button class="btn btn-primary" style="flex:1" onclick="saveEventForm()" id="event-modal-save">作成</button>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px">
+        <button class="btn btn-primary btn-full" onclick="saveEventForm({ publish: true })" id="event-modal-save-publish">公開して作成</button>
+        <button class="btn btn-outline btn-full" onclick="saveEventForm({ publish: false })" id="event-modal-save-draft">下書きとして保存</button>
+        <button class="btn btn-ghost btn-full" onclick="closeModal('modal-create-event')">キャンセル</button>
       </div>
     </div>
   </div>
@@ -1253,6 +1272,7 @@
       <h2>イベントの操作</h2>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
         <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); openEditEventModal(state.currentEventId)">イベントを編集</button>
+        <button class="btn btn-primary btn-full" onclick="copyEventLink()">共有リンクをコピー</button>
         <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); exportAttendeesCsv()">出欠CSVを書き出す</button>
         <input type="file" id="attendee-csv-file" accept=".csv,text/csv" style="display:none" onchange="importAttendeesCsv(this)">
         <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); document.getElementById('attendee-csv-file').click()">出欠CSVを読み込む</button>
@@ -1480,15 +1500,23 @@ const SEED = () => {
       checkedInAt: null,
     }));
 
+  // 下書きサンプル: 管理者にしか見えない仮作成イベント
+  const draftFuture = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 28);
+  const draftAttendees = users
+    .filter(u => u.role === 'user')
+    .slice(0, 10)
+    .map(u => ({ userId: u.id, status: 'pending', afterStatus: null, checkedInAt: null }));
+
   const events = [
     {
       id: 'e_000',
       title: '新人歓迎会',
       date: past.toISOString(),
-      responseDeadline: new Date(now.getTime() - 1000 * 60 * 60 * 24).toISOString(), // 昨日で締切
+      responseDeadline: new Date(now.getTime() - 1000 * 60 * 60 * 24).toISOString(),
       location: '本社 多目的ホール',
       description: '会場の予約都合により、回答期限を過ぎての変更はできません。',
       createdBy: 'u_admin',
+      published: true,
       attendees: closedAttendees,
     },
     {
@@ -1499,6 +1527,7 @@ const SEED = () => {
       location: '本社 大会議室',
       description: '総会本編のあと、同会場で懇親会を予定しています。',
       createdBy: 'u_admin',
+      published: true,
       hasAfterparty: true,
       afterpartyTitle: '懇親会',
       afterpartyLocation: '居酒屋 旬彩(本社から徒歩3分)',
@@ -1513,7 +1542,19 @@ const SEED = () => {
       location: 'オンライン',
       description: '',
       createdBy: 'u_admin',
+      published: true,
       attendees: meetingAttendees,
+    },
+    {
+      id: 'e_003',
+      title: '夏の研修会(調整中)',
+      date: draftFuture.toISOString(),
+      responseDeadline: new Date(draftFuture.getTime() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+      location: '未定',
+      description: '会場と日程を調整中です。確定したら公開します。',
+      createdBy: 'u_admin',
+      published: false,
+      attendees: draftAttendees,
     },
   ];
   return {
@@ -1543,6 +1584,8 @@ async function loadState() {
             if (!a.checkedInAt) a.checkedInAt = new Date().toISOString();
           }
         });
+        // 後方互換: published 未設定 = 公開済み扱い
+        if (typeof ev.published !== 'boolean') ev.published = true;
       });
       // 後方互換: ユーザの status (アクティブ/休会/退会) が無ければ active 扱い
       (state.users || []).forEach(u => {
@@ -2060,9 +2103,10 @@ function renderAdminEventList() {
     const yesCount = ev.attendees.filter(a => a.status === 'yes').length;
     const checkedCount = ev.attendees.filter(a => !!a.checkedInAt).length;
     return `
-      <div class="event-card" onclick="openAdminEventDetail('${ev.id}')">
+      <div class="event-card ${ev.published === false ? 'is-draft' : ''}" onclick="openAdminEventDetail('${ev.id}')">
         <div class="date-row">
           <span class="date-tag">${fmtDate(ev.date)}</span>
+          ${ev.published === false ? '<span class="badge-draft">下書き</span>' : ''}
           ${ev.hasAfterparty ? '<span class="badge-afterparty">🍻 懇親会</span>' : ''}
         </div>
         <div class="title">${escapeHtml(ev.title)}</div>
@@ -2149,7 +2193,7 @@ function renderAdminEventDetail() {
   const html = `
     <div class="event-hero">
       <div class="date">${fmtDate(ev.date)}</div>
-      <div class="title">${escapeHtml(ev.title)}</div>
+      <div class="title">${escapeHtml(ev.title)}${ev.published === false ? ' <span class="badge-draft">下書き</span>' : ''}</div>
       <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
       ${ev.description ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.description)}</span></div>` : ''}
       ${ev.responseDeadline ? `
@@ -2389,7 +2433,8 @@ function toggleAfterpartyFields(on) {
 function openCreateEventModal() {
   editingEventId = null;
   $('event-modal-heading').textContent = 'イベントを作成';
-  $('event-modal-save').textContent = '作成';
+  $('event-modal-save-publish').textContent = '公開して作成';
+  $('event-modal-save-draft').textContent = '下書きとして保存';
   $('new-event-title').value = '';
   $('new-event-location').value = '';
   $('new-event-description').value = '';
@@ -2416,7 +2461,8 @@ function openEditEventModal(eventId) {
   if (!ev) return;
   editingEventId = eventId;
   $('event-modal-heading').textContent = 'イベントを編集';
-  $('event-modal-save').textContent = '保存';
+  $('event-modal-save-publish').textContent = ev.published ? '保存' : '公開して保存';
+  $('event-modal-save-draft').textContent = ev.published ? '下書きに戻す' : '下書きのまま保存';
   $('new-event-title').value = ev.title || '';
   $('new-event-location').value = ev.location || '';
   $('new-event-description').value = ev.description || '';
@@ -2544,7 +2590,7 @@ function updateInviteCount() {
   if (el) el.textContent = inviteSelection.size;
 }
 
-async function saveEventForm() {
+async function saveEventForm({ publish = true } = {}) {
   const title = $('new-event-title').value.trim();
   const date = $('new-event-date').value;
   const deadlineRaw = $('new-event-deadline').value;
@@ -2576,6 +2622,7 @@ async function saveEventForm() {
     ev.afterpartyTitle = hasAfterparty ? (ev.afterpartyTitle || '懇親会') : null;
     ev.afterpartyLocation = hasAfterparty ? (afterpartyLocation || null) : null;
     ev.afterpartyDescription = hasAfterparty ? (afterpartyDescription || null) : null;
+    ev.published = publish;
 
     const currentIds = new Set(ev.attendees.map(a => a.userId));
     const newIds = inviteSelection;
@@ -2603,7 +2650,7 @@ async function saveEventForm() {
     closeModal('modal-create-event');
     editingEventId = null;
     renderAdminEventDetail();
-    showToast(`「${title}」を更新しました`);
+    showToast(`「${title}」を${publish ? '公開しました' : '下書きで保存しました'}`);
   } else {
     // 新規作成
     const attendees = Array.from(inviteSelection).map(id => ({
@@ -2619,6 +2666,7 @@ async function saveEventForm() {
       responseDeadline: deadlineISO,
       location, description,
       createdBy: state.currentUserId,
+      published: publish,
       hasAfterparty,
       afterpartyTitle: hasAfterparty ? '懇親会' : null,
       afterpartyLocation: hasAfterparty ? (afterpartyLocation || null) : null,
@@ -2629,6 +2677,7 @@ async function saveEventForm() {
     await saveState();
     closeModal('modal-create-event');
     renderAdminEventList();
+    showToast(`「${title}」を${publish ? '公開しました' : '下書きで保存しました'}`);
   }
 }
 
@@ -2639,7 +2688,7 @@ function renderUserEventList() {
   renderUserProfileCard();
   renderDateRangeFilter('user-event-filter');
   const me = currentUser();
-  const myEvents = state.events.filter(ev => ev.attendees.some(a => a.userId === me.id));
+  const myEvents = state.events.filter(ev => ev.published !== false && ev.attendees.some(a => a.userId === me.id));
   const filtered = filterEventsByRange(myEvents).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
   const list = $('user-event-list');
   if (!myEvents.length) {
@@ -3494,12 +3543,62 @@ document.querySelector('.brand').addEventListener('click', async () => {
 // =================================================
 // Init
 // =================================================
+// URL パラメータ ?event=ID で対象イベント詳細を直接開く
+function eventLink(eventId) {
+  return location.origin + location.pathname + '?event=' + encodeURIComponent(eventId);
+}
+
+function navigateToEventFromUrl() {
+  const params = new URLSearchParams(location.search);
+  const eventId = params.get('event');
+  if (!eventId) return false;
+  const ev = state.events.find(e => e.id === eventId);
+  if (!ev) return false; // クラウドプル後に再試行する余地を残すため return false
+  if (ev.published === false && !isAdmin()) {
+    alert('指定されたイベントは現在公開されていません');
+    return true; // 取り扱い済み(再試行不要)
+  }
+  state.currentEventId = eventId;
+  if (isAdmin()) {
+    renderAdminEventDetail();
+    showScreen('admin-detail');
+  } else {
+    const me = currentUser();
+    const att = me && ev.attendees.find(a => a.userId === me.id);
+    if (!att) {
+      alert('このイベントには招待されていません');
+      return true;
+    }
+    pendingRsvp = { status: att.status, afterStatus: att.afterStatus || null };
+    renderUserEventDetail();
+    showScreen('user-detail');
+  }
+  return true;
+}
+
+async function copyEventLink() {
+  if (!state.currentEventId) return;
+  const url = eventLink(state.currentEventId);
+  try {
+    await navigator.clipboard.writeText(url);
+    closeModal('modal-event-menu');
+    showToast('リンクをコピーしました');
+  } catch (e) {
+    // フォールバック: プロンプトで提示
+    prompt('このURLをコピーしてください:', url);
+  }
+}
+
 (async function init() {
   await loadState();
   renderAll();
+  // URLパラメータがあれば対象イベントを開く(ローカルにあれば即時)
+  const handled = navigateToEventFromUrl();
   // クラウド同期が設定済 + 自動同期ON なら、起動時にプル + ポーリング開始
   if (syncConfig.autoSync && syncConfig.binId && syncConfig.masterKey) {
-    cloudPull().catch(e => {
+    cloudPull().then(() => {
+      if (!handled) navigateToEventFromUrl();
+    }).catch(e => {
       console.warn('initial cloud pull failed', e);
       setSyncStatus('error', 'プル失敗: ' + (e.message || e));
     });
