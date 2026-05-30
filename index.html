@@ -3311,6 +3311,7 @@ function openCreateEventModal() {
   renderInviteSection();
   receptionistSelection = new Set();
   receptionistQuery = '';
+  receptionistFilter = { departments: [] };
   renderReceptionistSection();
   openModal('modal-create-event');
 }
@@ -3347,6 +3348,7 @@ function openEditEventModal(eventId) {
   renderInviteSection();
   receptionistSelection = new Set(ev.receptionists || []);
   receptionistQuery = '';
+  receptionistFilter = { departments: [] };
   renderReceptionistSection();
   openModal('modal-create-event');
 }
@@ -3354,6 +3356,7 @@ function openEditEventModal(eventId) {
 let inviteFilter = { departments: [], title: '' };
 let receptionistSelection = new Set();
 let receptionistQuery = '';
+let receptionistFilter = { departments: [] };
 
 function renderReceptionistSection() {
   const target = $('new-event-receptionists');
@@ -3361,19 +3364,37 @@ function renderReceptionistSection() {
   target.innerHTML = `
     <input class="search-input" type="search" placeholder="名前で検索"
            value="${escapeHtml(receptionistQuery)}" oninput="onReceptionistSearch(this.value)">
+    ${getDepartments().length ? `
+      <div class="filter-section-label">委員会(複数選択可)</div>
+      <div class="multiselect-chips">
+        ${getDepartments().map(d => `
+          <button type="button" class="chip ${(receptionistFilter.departments || []).includes(d) ? 'active' : ''}" onclick="toggleReceptionistFilterDept('${escapeHtml(d).replace(/'/g, "\\'")}')">${escapeHtml(d)}</button>
+        `).join('')}
+      </div>
+    ` : ''}
     <div id="receptionist-list" style="max-height:180px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
     <div style="font-size:11px;color:var(--text-mute);margin-top:4px">選択中: <strong id="receptionist-count" style="color:var(--text);font-family:'JetBrains Mono'">${receptionistSelection.size}</strong></div>
   `;
   renderReceptionistList();
 }
 
+function toggleReceptionistFilterDept(d) {
+  const arr = receptionistFilter.departments || (receptionistFilter.departments = []);
+  const idx = arr.indexOf(d);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(d);
+  renderReceptionistSection();
+}
+
 function renderReceptionistList() {
   const target = $('receptionist-list');
   if (!target) return;
   const q = receptionistQuery.trim().toLowerCase();
+  const depts = receptionistFilter.departments || [];
   const users = state.users
     .filter(u => (u.status || 'active') === 'active')
-    .filter(u => !q || u.name.toLowerCase().includes(q));
+    .filter(u => !q || u.name.toLowerCase().includes(q))
+    .filter(u => !depts.length || depts.includes(u.department));
   if (!users.length) {
     target.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-mute);font-size:12px">該当するユーザーはいません</div>';
     return;
@@ -3514,6 +3535,34 @@ function updateInviteCount() {
   if (el) el.textContent = inviteSelection.size;
 }
 
+function buildAttendeeSummary(selectionSet, observers) {
+  const byDept = new Map();
+  selectionSet.forEach(id => {
+    const u = state.users.find(x => x.id === id);
+    if (!u) return;
+    const key = u.department || '(未設定)';
+    byDept.set(key, (byDept.get(key) || 0) + 1);
+  });
+  // マスター順にしつつ、マスターに無い委員会も末尾に追加
+  const order = [];
+  getDepartments().forEach(d => { if (byDept.has(d)) order.push(d); });
+  byDept.forEach((_, key) => { if (!order.includes(key)) order.push(key); });
+
+  const memberCount = selectionSet.size;
+  const observerCount = observers.length;
+  const lines = [];
+  lines.push(`参加者 ${memberCount} 名(委員会別):`);
+  if (order.length === 0) {
+    lines.push('  (なし)');
+  } else {
+    order.forEach(key => { lines.push(`  ${key}: ${byDept.get(key)} 名`); });
+  }
+  if (observerCount > 0) lines.push(`オブザーバー: ${observerCount} 名`);
+  lines.push('');
+  lines.push(`合計: ${memberCount + observerCount} 名`);
+  return lines.join('\n');
+}
+
 async function saveEventForm({ publish = true } = {}) {
   const title = $('new-event-title').value.trim();
   const date = $('new-event-date').value;
@@ -3541,6 +3590,12 @@ async function saveEventForm({ publish = true } = {}) {
   // オブザーバーの最終リスト(チェックOFFなら空)
   const useObservers = $('new-event-has-observers').checked;
   const finalObservers = useObservers ? pendingObservers.slice() : [];
+
+  // 新規作成かつ公開: 参加者の委員会別内訳を確認
+  if (!editingEventId && publish) {
+    const summary = buildAttendeeSummary(inviteSelection, finalObservers);
+    if (!confirm(`このイベントを公開して作成します。\n\n${summary}\n\nよろしいですか?`)) return;
+  }
 
   if (editingEventId) {
     // 編集モード: 既存のRSVPは保持しつつフィールド更新+招待者の差分反映
