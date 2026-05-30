@@ -68,11 +68,45 @@
     z-index: 50;
   }
   .topbar .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text);
+    text-align: left;
+  }
+  .topbar .brand-logo {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: var(--surface-soft);
+    /* ロゴ画像が決まったら background-image をここに指定 */
+  }
+  .topbar .brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+  }
+  .topbar .brand-text-line1 {
     font-family: 'Shippori Mincho', serif;
-    font-size: 18px;
+    font-size: 13px;
+    color: var(--text-mute);
     letter-spacing: 0.02em;
   }
-  .topbar .brand .accent { color: var(--accent); font-style: italic; }
+  .topbar .brand-text-line2 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
 
   .role-pill {
     display: flex;
@@ -781,7 +815,7 @@
   /* === Search + filter (for large attendee lists) === */
   .filter-bar {
     position: sticky;
-    top: 56px;
+    top: 64px; /* topbar 高さに合わせて調整 */
     z-index: 20;
     background: var(--bg);
     padding: 10px 0 8px;
@@ -1124,7 +1158,13 @@
 
   <!-- Top bar -->
   <header class="topbar">
-    <div class="brand">出欠 <span class="accent">記録</span></div>
+    <button class="brand" type="button" onclick="goHome()">
+      <span class="brand-logo" aria-hidden="true"></span>
+      <span class="brand-text">
+        <span class="brand-text-line1">流山青年会議所</span>
+        <span class="brand-text-line2">イベント管理アプリ</span>
+      </span>
+    </button>
     <button class="role-pill" id="role-switch-btn">
       <div class="avatar" id="topbar-avatar">A</div>
       <div class="label">
@@ -2425,6 +2465,13 @@ function backFromEventDetail() {
   state.currentEventId = null;
   if (canAccessAdminDashboard()) showScreen('admin-list');
   else showScreen('user-list');
+}
+
+function goHome() {
+  state.currentEventId = null;
+  if (canAccessAdminDashboard()) showScreen('admin-list');
+  else showScreen('user-list');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function renderAdminAttendeeList() {
