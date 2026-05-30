@@ -366,7 +366,7 @@
     border-radius: 100px;
     letter-spacing: 0.04em;
   }
-  .picker-card-tag.required { background: var(--primary-soft); color: var(--primary); }
+  .picker-card-tag.required { background: var(--warning); color: white; }
   .picker-card-tag.optional { background: var(--surface-soft); color: var(--text-mute); border: 1px solid var(--border); }
   .picker-card-help {
     font-size: 11px;
@@ -374,17 +374,17 @@
     margin-bottom: 10px;
     line-height: 1.5;
   }
-  /* 参加者は青系の左ボーダー、受付担当は warning(オレンジ)系で明確に区別 */
+  /* 必須(参加者)を強めに目立たせ、任意(受付担当)は控えめに表示 */
   .picker-participants {
-    border-left: 4px solid var(--primary);
-    background: var(--surface);
-  }
-  .picker-receptionists {
     border-left: 4px solid var(--warning);
     background: var(--warning-soft);
   }
-  .picker-receptionists .checkbox-row { background: var(--surface); }
-  .picker-receptionists #receptionist-list { background: var(--surface); }
+  .picker-participants .checkbox-row { background: var(--surface); }
+  .picker-participants #invite-list { background: var(--surface); }
+  .picker-receptionists {
+    border-left: 4px solid var(--primary);
+    background: var(--surface);
+  }
   .form-label {
     display: block;
     font-size: 12px;
