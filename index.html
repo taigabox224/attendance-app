@@ -3509,7 +3509,7 @@ function renderReceptionistSection() {
       </div>
     ` : ''}
     <div id="receptionist-list" style="max-height:180px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
-    <div style="font-size:11px;color:var(--text-mute);margin-top:4px">選択中: <strong id="receptionist-count" style="color:var(--text);font-family:'JetBrains Mono'">${receptionistSelection.size}</strong></div>
+    <div style="font-size:11px;color:var(--text-mute);margin-top:4px">選択中: <strong id="receptionist-count" style="color:var(--text);font-family:'JetBrains Mono'">${receptionistSelection.size}</strong> <span style="color:var(--accent);margin-left:6px">※自分を含みます</span></div>
   `;
   renderReceptionistList();
 }
