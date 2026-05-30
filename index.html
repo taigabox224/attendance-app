@@ -942,6 +942,57 @@
     border-radius: var(--radius-sm);
     margin-bottom: 6px;
   }
+  .user-row.is-selected { background: var(--primary-soft); border-color: var(--primary); }
+  .user-row .user-select {
+    width: 18px; height: 18px;
+    margin: 0;
+    accent-color: var(--primary);
+    flex-shrink: 0;
+  }
+
+  /* 一括変更バー */
+  .bulk-bar {
+    position: sticky;
+    top: 64px;
+    z-index: 25;
+    background: var(--primary);
+    color: white;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow-md);
+  }
+  .bulk-bar-left {
+    font-size: 13px;
+    flex: 1;
+    min-width: 110px;
+  }
+  .bulk-bar-left strong {
+    font-size: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    margin-right: 4px;
+  }
+  .bulk-bar-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .bulk-bar .btn-outline {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: white;
+  }
+  .bulk-bar .btn-outline:hover { background: rgba(255, 255, 255, 0.25); }
+  .bulk-bar .btn-primary {
+    background: white;
+    color: var(--primary);
+    border-color: white;
+  }
+  .bulk-bar .btn-primary:hover { background: rgba(255,255,255,0.9); }
   .user-row .avatar {
     width: 32px; height: 32px;
     border-radius: 50%;
@@ -1205,6 +1256,7 @@
       <div id="admin-users-actions" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end"></div>
     </div>
     <div id="admin-user-filter"></div>
+    <div id="admin-user-bulk-bar"></div>
     <div id="admin-user-list"></div>
   </section>
 
@@ -1423,6 +1475,18 @@
       <div style="display:flex;gap:8px;margin-top:18px">
         <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-user-edit')">キャンセル</button>
         <button class="btn btn-primary" style="flex:1" onclick="saveUserEdit()" id="user-edit-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-bulk-edit">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2 id="bulk-edit-heading">一括変更</h2>
+      <p id="bulk-edit-sub" style="font-size:12px;color:var(--text-mute);margin-bottom:14px"></p>
+      <div id="bulk-edit-options"></div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-bulk-edit')">キャンセル</button>
       </div>
     </div>
   </div>
@@ -2015,9 +2079,61 @@ function renderAdminUserList() {
   renderAdminUserRows();
 }
 
+// 複数選択(一括変更)の状態
+let adminUserSelection = new Set();
+
+function clampUserSelection() {
+  // 表示中のユーザに合わせて、不正なIDを除去
+  const visibleIds = new Set(getFilteredAdminUsers().map(u => u.id));
+  adminUserSelection.forEach(id => { if (!visibleIds.has(id)) adminUserSelection.delete(id); });
+}
+
+function toggleUserSelection(id) {
+  if (adminUserSelection.has(id)) adminUserSelection.delete(id);
+  else adminUserSelection.add(id);
+  renderAdminUserBulkBar();
+  // 行のチェック状態を反映するためにチェックボックスだけ更新(全件再描画は不要)
+  const cb = document.querySelector(`input.user-select[data-id="${id}"]`);
+  if (cb) cb.checked = adminUserSelection.has(id);
+}
+
+function selectAllVisibleUsers() {
+  getFilteredAdminUsers().forEach(u => adminUserSelection.add(u.id));
+  renderAdminUserList();
+}
+
+function clearUserSelection() {
+  adminUserSelection.clear();
+  renderAdminUserList();
+}
+
+function renderAdminUserBulkBar() {
+  const bar = $('admin-user-bulk-bar');
+  if (!bar) return;
+  const n = adminUserSelection.size;
+  if (!n) { bar.innerHTML = ''; return; }
+  bar.innerHTML = `
+    <div class="bulk-bar">
+      <div class="bulk-bar-left">
+        <strong>${n}件</strong>選択中
+      </div>
+      <div class="bulk-bar-actions">
+        <button class="btn btn-outline btn-sm" onclick="selectAllVisibleUsers()">全選択</button>
+        <button class="btn btn-outline btn-sm" onclick="clearUserSelection()">解除</button>
+      </div>
+      <div class="bulk-bar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openBulkEdit('status')">ステータス変更</button>
+        <button class="btn btn-primary btn-sm" onclick="openBulkEdit('department')">委員会変更</button>
+        <button class="btn btn-primary btn-sm" onclick="openBulkEdit('title')">役職変更</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderAdminUserRows() {
   const target = $('admin-user-list');
   if (!target) return;
+  clampUserSelection();
   const users = getFilteredAdminUsers();
   const baseRoleFilter = isSysadmin()
     ? (u => u.role === 'viewer' || u.role === 'editor' || u.role === 'sysadmin')
@@ -2027,6 +2143,7 @@ function renderAdminUserRows() {
   if (countEl) {
     countEl.textContent = users.length === totalUsers ? `${totalUsers} 件` : `${users.length} / ${totalUsers} 件`;
   }
+  renderAdminUserBulkBar();
   if (!users.length) {
     target.innerHTML = `
       <div class="empty-state" style="padding:32px 0">
@@ -2037,8 +2154,10 @@ function renderAdminUserRows() {
   target.innerHTML = users.map(u => {
     const status = u.status || 'active';
     const elevated = u.role === 'sysadmin' || u.role === 'editor';
+    const checked = adminUserSelection.has(u.id);
     return `
-      <div class="user-row" onclick="openUserEditModal('${u.id}')" style="cursor:pointer">
+      <div class="user-row ${checked ? 'is-selected' : ''}" onclick="openUserEditModal('${u.id}')" style="cursor:pointer">
+        <input type="checkbox" class="user-select" data-id="${u.id}" ${checked ? 'checked' : ''} onclick="event.stopPropagation(); toggleUserSelection('${u.id}')">
         <div class="avatar" style="background:${roleAvatarColor(u.role)};color:white">${initial(u.name)}</div>
         <div class="info">
           <div class="name">${escapeHtml(u.name)}${elevated ? ` <span class="role-pill-mini ${u.role}">${ROLE_LABEL[u.role]}</span>` : ''}${status !== 'active' ? ` <span class="user-status-pill ${status}">${USER_STATUS_LABEL[status]}</span>` : ''}</div>
@@ -2111,6 +2230,66 @@ function openUserEditModal(userId) {
   titleSel.innerHTML = `<option value="">(未設定)</option>` +
     getTitles().map(t => `<option value="${escapeHtml(t)}" ${u && u.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
   openModal('modal-user-edit');
+}
+
+// 一括変更モーダル
+function openBulkEdit(kind) {
+  if (!adminUserSelection.size) return;
+  const n = adminUserSelection.size;
+  let title, opts;
+  if (kind === 'status') {
+    title = 'ステータスを一括変更';
+    opts = [
+      { value: 'active', label: 'アクティブ' },
+      { value: 'inactive', label: '休会' },
+      { value: 'left', label: '退会' },
+    ];
+  } else if (kind === 'department') {
+    title = '委員会を一括変更';
+    opts = [{ value: '__null', label: '(未設定にする)' }]
+      .concat(getDepartments().map(d => ({ value: d, label: d })));
+  } else if (kind === 'title') {
+    title = '役職を一括変更';
+    opts = [{ value: '__null', label: '(未設定 / メンバー)' }]
+      .concat(getTitles().map(t => ({ value: t, label: t })));
+  } else {
+    return;
+  }
+  $('bulk-edit-heading').textContent = title;
+  $('bulk-edit-sub').textContent = `${n} 件のユーザーに適用します。新しい値を選択してください。`;
+  $('bulk-edit-options').innerHTML = opts.map(o => {
+    const safeVal = String(o.value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<button class="btn btn-outline btn-full" style="margin-bottom:6px" onclick="applyBulkEdit('${kind}', '${safeVal}')">${escapeHtml(o.label)}</button>`;
+  }).join('');
+  openModal('modal-bulk-edit');
+}
+
+async function applyBulkEdit(kind, value) {
+  if (!adminUserSelection.size) return;
+  const realValue = value === '__null' ? null : value;
+  const labelByKind = { status: 'ステータス', department: '委員会', title: '役職' };
+  const displayValue = (kind === 'status') ? (USER_STATUS_LABEL[realValue] || realValue) : (realValue || '(未設定)');
+  const n = adminUserSelection.size;
+  if (!confirm(`${n} 件のユーザーの${labelByKind[kind]}を「${displayValue}」に変更します。\nよろしいですか?`)) return;
+
+  let applied = 0;
+  let skipped = 0;
+  const ids = Array.from(adminUserSelection);
+  for (const id of ids) {
+    const u = userById(id);
+    if (!u) { skipped++; continue; }
+    // editor は上位ロールのユーザーを操作不可
+    if (!isSysadmin() && (u.role === 'sysadmin' || u.role === 'editor')) { skipped++; continue; }
+    if (kind === 'status') u.status = realValue || 'active';
+    else if (kind === 'department') u.department = realValue;
+    else if (kind === 'title') u.title = realValue;
+    applied++;
+  }
+  await saveState();
+  closeModal('modal-bulk-edit');
+  clearUserSelection();
+  renderAdminUserList();
+  showToast(`${applied} 件を更新しました${skipped ? ` (スキップ ${skipped} 件)` : ''}`);
 }
 
 async function saveUserEdit() {
