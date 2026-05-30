@@ -434,6 +434,37 @@
   }
   .gear-btn:hover { background: var(--surface-soft); color: var(--text); }
 
+  /* 受付モード(通常/受付)トグル */
+  .reception-toggle-bar {
+    margin: 0 0 12px;
+  }
+  .reception-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 3px;
+    box-shadow: var(--shadow-sm);
+  }
+  .reception-toggle button {
+    flex: 1;
+    padding: 8px 10px;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    color: var(--text-mute);
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 100px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .reception-toggle button.active {
+    background: var(--accent);
+    color: white;
+    font-weight: 500;
+  }
+  .reception-toggle button:not(.active):hover { color: var(--text); }
+
   .event-hero {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1373,6 +1404,7 @@
       <button class="back-link" onclick="backFromEventDetail()">一覧に戻る</button>
       <button class="gear-btn" onclick="openEventMenu()" title="このイベントの操作">⚙</button>
     </div>
+    <div id="reception-toggle-admin" class="reception-toggle-bar" style="display:none"></div>
     <div id="admin-detail-content"></div>
   </section>
 
@@ -1395,6 +1427,7 @@
       <button class="back-link" onclick="backFromEventDetail()">一覧に戻る</button>
       <button class="gear-btn" id="user-detail-gear" onclick="openEventMenu()" title="このイベントの操作" style="display:none">⚙</button>
     </div>
+    <div id="reception-toggle-user" class="reception-toggle-bar" style="display:none"></div>
     <div id="user-detail-content"></div>
   </section>
 
@@ -1480,6 +1513,11 @@
       <div class="form-group">
         <label class="form-label">参加者を選択</label>
         <div id="new-event-attendees"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">受付担当を選択 (任意)</label>
+        <div style="font-size:11px;color:var(--text-mute);margin-bottom:6px">指定したユーザーは当日「受付」モードに切替えてQRスキャンや出欠変更ができます</div>
+        <div id="new-event-receptionists"></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px">
         <button class="btn btn-primary btn-full" onclick="saveEventForm({ publish: true })" id="event-modal-save-publish">公開して作成</button>
@@ -1825,6 +1863,7 @@ const SEED = () => {
       afterpartyTitle: '懇親会',
       afterpartyLocation: '居酒屋 旬彩(本社から徒歩3分)',
       afterpartyDescription: '会費 4,000円(現地支払)。\n会場地図: https://maps.example.com/shunsai\n予約状況確認: https://example.com/reserve/abc123',
+      receptionists: ['u_002', 'u_003'],
       attendees: partyAttendees,
     },
     {
@@ -1879,6 +1918,7 @@ async function loadState() {
         });
         // 後方互換: published 未設定 = 公開済み扱い
         if (typeof ev.published !== 'boolean') ev.published = true;
+        if (!Array.isArray(ev.receptionists)) ev.receptionists = [];
       });
       // 後方互換: ユーザの status (アクティブ/休会/退会) が無ければ active 扱い
       // 旧 role 'admin' → 'sysadmin'、'user' → 'viewer'
@@ -2178,10 +2218,16 @@ function renderAll() {
   } else {
     renderUserEventList();
     if (state.currentEventId) {
-      // ユーザー画面では誰がタップしても基本はユーザRSVP画面。
-      // 自作イベントの編集は user-detail 右上の歯車ボタン経由で行う。
-      renderUserEventDetail();
-      showScreen('user-detail');
+      const ev = state.events.find(e => e.id === state.currentEventId);
+      // 受付担当が「受付」モードを選んでいる場合は管理者風の詳細にする
+      if (ev && receptionMode === 'reception' && isReceptionist(ev)) {
+        renderAdminEventDetail();
+        showScreen('admin-detail');
+      } else {
+        // ユーザー画面では基本ユーザRSVP画面。自作イベントの編集は user-detail 右上の歯車から。
+        renderUserEventDetail();
+        showScreen('user-detail');
+      }
     } else {
       showScreen('user-list');
     }
@@ -2711,6 +2757,7 @@ function openAdminEventDetail(eventId) {
   state.currentEventId = eventId;
   adminFilter = { status: 'all', query: '', departments: [], title: '', kind: 'all' };
   adminAttendeeFilter = adminFilter;
+  receptionMode = 'reception';
   renderAdminEventDetail();
   showScreen('admin-detail');
 }
@@ -2769,6 +2816,7 @@ function clearAdminAttendeeFilter() {
 function renderAdminEventDetail() {
   const ev = state.events.find(e => e.id === state.currentEventId);
   if (!ev) return;
+  renderReceptionToggle(ev);
   const total = ev.attendees.length;
   const yesCount = ev.attendees.filter(a => a.status === 'yes').length;
   const checkedCount = ev.attendees.filter(a => !!a.checkedInAt).length;
@@ -3058,6 +3106,45 @@ async function deleteEvent() {
 }
 
 // 表示中の詳細画面(admin-detail / user-detail)を再描画
+// 受付モード: 'normal'(ユーザRSVP表示) / 'reception'(管理者風表示)。イベントを開くたびに 'normal' へ。
+let receptionMode = 'normal';
+
+function isReceptionist(ev) {
+  return !!ev && Array.isArray(ev.receptionists) && ev.receptionists.includes(state.currentUserId);
+}
+
+function renderReceptionToggle(ev) {
+  const show = isReceptionist(ev);
+  ['reception-toggle-user', 'reception-toggle-admin'].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    if (!show) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = '';
+    el.innerHTML = `
+      <div class="reception-toggle">
+        <button type="button" class="${receptionMode === 'normal' ? 'active' : ''}" onclick="setReceptionMode('normal')">通常</button>
+        <button type="button" class="${receptionMode === 'reception' ? 'active' : ''}" onclick="setReceptionMode('reception')">受付</button>
+      </div>
+    `;
+  });
+}
+
+function setReceptionMode(mode) {
+  if (mode !== 'normal' && mode !== 'reception') return;
+  if (mode === receptionMode) return;
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  if (mode === 'reception' && !isReceptionist(ev) && !canEditEvent(ev)) return;
+  receptionMode = mode;
+  if (mode === 'reception') {
+    renderAdminEventDetail();
+    showScreen('admin-detail');
+  } else {
+    renderUserEventDetail();
+    showScreen('user-detail');
+  }
+}
+
 function renderCurrentEventDetail() {
   if (isAdminMode()) renderAdminEventDetail();
   else renderUserEventDetail();
@@ -3141,6 +3228,9 @@ function openCreateEventModal() {
   inviteQuery = '';
   inviteFilter = { departments: [], title: '' };
   renderInviteSection();
+  receptionistSelection = new Set();
+  receptionistQuery = '';
+  renderReceptionistSection();
   openModal('modal-create-event');
 }
 
@@ -3174,10 +3264,64 @@ function openEditEventModal(eventId) {
   inviteQuery = '';
   inviteFilter = { departments: [], title: '' };
   renderInviteSection();
+  receptionistSelection = new Set(ev.receptionists || []);
+  receptionistQuery = '';
+  renderReceptionistSection();
   openModal('modal-create-event');
 }
 
 let inviteFilter = { departments: [], title: '' };
+let receptionistSelection = new Set();
+let receptionistQuery = '';
+
+function renderReceptionistSection() {
+  const target = $('new-event-receptionists');
+  if (!target) return;
+  target.innerHTML = `
+    <input class="search-input" type="search" placeholder="名前で検索"
+           value="${escapeHtml(receptionistQuery)}" oninput="onReceptionistSearch(this.value)">
+    <div id="receptionist-list" style="max-height:180px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
+    <div style="font-size:11px;color:var(--text-mute);margin-top:4px">選択中: <strong id="receptionist-count" style="color:var(--text);font-family:'JetBrains Mono'">${receptionistSelection.size}</strong></div>
+  `;
+  renderReceptionistList();
+}
+
+function renderReceptionistList() {
+  const target = $('receptionist-list');
+  if (!target) return;
+  const q = receptionistQuery.trim().toLowerCase();
+  const users = state.users
+    .filter(u => (u.status || 'active') === 'active')
+    .filter(u => !q || u.name.toLowerCase().includes(q));
+  if (!users.length) {
+    target.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-mute);font-size:12px">該当するユーザーはいません</div>';
+    return;
+  }
+  target.innerHTML = users.map(u => {
+    const elevated = u.role === 'sysadmin' || u.role === 'editor';
+    return `
+      <label class="checkbox-row">
+        <input type="checkbox" ${receptionistSelection.has(u.id) ? 'checked' : ''}
+               onchange="toggleReceptionist('${u.id}', this.checked)">
+        <div style="min-width:0">
+          <div class="name">${escapeHtml(u.name)}${elevated ? ` <span class="role-pill-mini ${u.role}">${ROLE_LABEL[u.role]}</span>` : ''}</div>
+        </div>
+      </label>
+    `;
+  }).join('');
+}
+
+function onReceptionistSearch(v) {
+  receptionistQuery = v;
+  renderReceptionistList();
+}
+
+function toggleReceptionist(id, checked) {
+  if (checked) receptionistSelection.add(id);
+  else receptionistSelection.delete(id);
+  const el = $('receptionist-count');
+  if (el) el.textContent = receptionistSelection.size;
+}
 
 function getFilteredInviteUsers() {
   const q = inviteQuery.trim().toLowerCase();
@@ -3331,6 +3475,7 @@ async function saveEventForm({ publish = true } = {}) {
     ev.afterpartyLocation = hasAfterparty ? (afterpartyLocation || null) : null;
     ev.afterpartyDescription = hasAfterparty ? (afterpartyDescription || null) : null;
     ev.published = publish;
+    ev.receptionists = Array.from(receptionistSelection);
 
     // 通常ユーザの招待差分(オブザーバーには触らない)
     const regulars = ev.attendees.filter(a => !a.isObserver);
@@ -3414,6 +3559,7 @@ async function saveEventForm({ publish = true } = {}) {
       afterpartyTitle: hasAfterparty ? '懇親会' : null,
       afterpartyLocation: hasAfterparty ? (afterpartyLocation || null) : null,
       afterpartyDescription: hasAfterparty ? (afterpartyDescription || null) : null,
+      receptionists: Array.from(receptionistSelection),
       attendees,
     };
     state.events.unshift(newEvent);
@@ -3966,6 +4112,7 @@ function openUserEventDetail(eventId) {
     status: att ? att.status : null,
     afterStatus: att ? (att.afterStatus || null) : null,
   };
+  receptionMode = 'normal';
   renderUserEventDetail();
   showScreen('user-detail');
 }
@@ -3973,6 +4120,7 @@ function openUserEventDetail(eventId) {
 function renderUserEventDetail() {
   const ev = state.events.find(e => e.id === state.currentEventId);
   if (!ev) return;
+  renderReceptionToggle(ev);
   const me = currentUser();
   const att = ev.attendees.find(a => a.userId === me.id);
   // 編集権限があれば右上に歯車ボタンを表示
@@ -4373,12 +4521,14 @@ function navigateToEventFromUrl() {
   state.currentEventId = eventId;
   // 管理者画面のときだけ管理者詳細。それ以外(ユーザー画面・閲覧者)はユーザRSVP画面で開く。
   if (isAdminMode()) {
+    receptionMode = 'reception';
     renderAdminEventDetail();
     showScreen('admin-detail');
   } else {
     const me = currentUser();
     const att = me && ev.attendees.find(a => a.userId === me.id);
     if (att) pendingRsvp = { status: att.status, afterStatus: att.afterStatus || null };
+    receptionMode = 'normal';
     renderUserEventDetail();
     showScreen('user-detail');
   }
