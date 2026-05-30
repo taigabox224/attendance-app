@@ -2632,12 +2632,17 @@ function renderDateRangeFilter(containerId) {
 function renderAdminEventList() {
   renderDateRangeFilter('admin-event-filter');
   const list = $('admin-event-list');
-  const filtered = filterEventsByRange(state.events).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
-  if (!state.events.length) {
+  // 編集者は自分が招待されているか作成したイベントだけ表示。システム管理者は全て表示。
+  const me = currentUser();
+  const visibleEvents = isSysadmin()
+    ? state.events
+    : state.events.filter(ev => ev.createdBy === me.id || ev.attendees.some(a => a.userId === me.id));
+  const filtered = filterEventsByRange(visibleEvents).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (!visibleEvents.length) {
     list.innerHTML = `
       <div class="empty-state">
         <div class="glyph">○</div>
-        <div class="hint">まだイベントがありません<br>右上のボタンから作成できます</div>
+        <div class="hint">${isSysadmin() ? 'まだイベントがありません<br>右上のボタンから作成できます' : 'あなたが招待されているイベントはありません<br>右上のボタンから作成もできます'}</div>
       </div>`;
     return;
   }
