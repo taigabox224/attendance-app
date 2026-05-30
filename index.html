@@ -614,8 +614,9 @@
   }
   .breakdown-row:first-of-type { border-top: none; }
   .breakdown-row .bd-label { color: var(--text); }
-  .breakdown-row .bd-count { font-family: 'JetBrains Mono', monospace; color: var(--text-mute); font-size: 12px; }
+  .breakdown-row .bd-count { font-family: 'JetBrains Mono', monospace; color: var(--text-mute); font-size: 12px; text-align: right; }
   .breakdown-row .bd-rate { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text); min-width: 56px; text-align: right; }
+  .breakdown-row .bd-sub { font-size: 10px; color: var(--text-soft); font-weight: normal; margin-top: 2px; }
   .breakdown-row.breakdown-total {
     border-top: none;
     padding-bottom: 8px;
@@ -2936,25 +2937,25 @@ function renderAdminEventDetail() {
             <button class="btn btn-outline btn-sm" onclick="exportBreakdownCsv()">CSV書き出し</button>
           </div>
           <div class="breakdown-row breakdown-total">
-            <span class="bd-label">全体</span>
-            <span class="bd-count">${bd.total.attending} / ${bd.total.members}</span>
-            <span class="bd-rate">${fmtRate(bd.total.rate)}</span>
+            <div class="bd-label">全体</div>
+            <div class="bd-count">${bd.total.attending} / ${bd.total.members}<div class="bd-sub">招待 ${bd.total.invited} 名</div></div>
+            <div class="bd-rate">${fmtRate(bd.total.rate)}</div>
           </div>
           ${bd.rows.map(r => `
             <div class="breakdown-row">
-              <span class="bd-label">${escapeHtml(r.key)}</span>
-              <span class="bd-count">${r.attending} / ${r.members}</span>
-              <span class="bd-rate">${fmtRate(r.rate)}</span>
+              <div class="bd-label">${escapeHtml(r.key)}</div>
+              <div class="bd-count">${r.attending} / ${r.members}<div class="bd-sub">招待 ${r.invited} 名</div></div>
+              <div class="bd-rate">${fmtRate(r.rate)}</div>
             </div>
           `).join('')}
           ${bd.observerYes > 0 ? `
             <div class="breakdown-row breakdown-observer">
-              <span class="bd-label">オブザーバー</span>
-              <span class="bd-count">${bd.observerYes} 名</span>
-              <span class="bd-rate">—</span>
+              <div class="bd-label">オブザーバー</div>
+              <div class="bd-count">${bd.observerYes} 名</div>
+              <div class="bd-rate">—</div>
             </div>
           ` : ''}
-          <div class="breakdown-note">参加率はアクティブユーザーから算出</div>
+          <div class="breakdown-note">参加率は委員会の総人数(アクティブ)から算出</div>
         </div>
       `;
     })()}
@@ -3826,30 +3827,38 @@ function computeAttendanceBreakdown(ev) {
   const seen = new Set();
   getDepartments().forEach(d => { order.push(d); seen.add(d); });
   const byCommittee = new Map();
-  order.forEach(d => byCommittee.set(d, { members: 0, attending: 0 }));
+  const emptyEntry = () => ({ members: 0, invited: 0, attending: 0 });
+  order.forEach(d => byCommittee.set(d, emptyEntry()));
   activeUsers.forEach(u => {
     const key = u.department || '(未設定)';
-    if (!byCommittee.has(key)) { byCommittee.set(key, { members: 0, attending: 0 }); order.push(key); }
+    if (!byCommittee.has(key)) { byCommittee.set(key, emptyEntry()); order.push(key); }
     byCommittee.get(key).members++;
   });
-  // 出席のカウント: status='yes' のメンバー(オブザーバー除く)、非アクティブは除外
-  let totalAttending = 0;
+  // 招待(招待されている=ev.attendees に居る、オブザーバー除く、アクティブのみ)
+  let totalInvited = 0;
   ev.attendees.forEach(a => {
     if (a.isObserver) return;
-    if (a.status !== 'yes') return;
     const u = state.users.find(x => x.id === a.userId);
     if (!u || (u.status || 'active') !== 'active') return;
     const key = u.department || '(未設定)';
-    if (!byCommittee.has(key)) { byCommittee.set(key, { members: 0, attending: 0 }); order.push(key); }
-    byCommittee.get(key).attending++;
-    totalAttending++;
+    if (!byCommittee.has(key)) { byCommittee.set(key, emptyEntry()); order.push(key); }
+    byCommittee.get(key).invited++;
+    totalInvited++;
+    if (a.status === 'yes') byCommittee.get(key).attending++;
   });
+  const totalAttending = ev.attendees.reduce((n, a) => {
+    if (a.isObserver || a.status !== 'yes') return n;
+    const u = state.users.find(x => x.id === a.userId);
+    if (!u || (u.status || 'active') !== 'active') return n;
+    return n + 1;
+  }, 0);
   const observerYes = ev.attendees.filter(a => a.isObserver && a.status === 'yes').length;
   const rows = order
     .filter(key => byCommittee.get(key).members > 0 || byCommittee.get(key).attending > 0)
     .map(key => ({
       key,
       members: byCommittee.get(key).members,
+      invited: byCommittee.get(key).invited,
       attending: byCommittee.get(key).attending,
       rate: byCommittee.get(key).members ? byCommittee.get(key).attending / byCommittee.get(key).members : 0,
     }));
@@ -3857,6 +3866,7 @@ function computeAttendanceBreakdown(ev) {
     rows,
     total: {
       members: totalMembers,
+      invited: totalInvited,
       attending: totalAttending,
       rate: totalMembers ? totalAttending / totalMembers : 0,
     },
@@ -3870,13 +3880,13 @@ function exportBreakdownCsv() {
   const ev = state.events.find(e => e.id === state.currentEventId);
   if (!ev) return;
   const bd = computeAttendanceBreakdown(ev);
-  const header = ['区分', '委員会', '出席数', '委員会人数', '参加率'];
+  const header = ['区分', '委員会', '出席数', '招待人数', '委員会人数', '参加率'];
   const rows = [];
-  rows.push(['全体', '', bd.total.attending, bd.total.members, fmtRate(bd.total.rate)]);
+  rows.push(['全体', '', bd.total.attending, bd.total.invited, bd.total.members, fmtRate(bd.total.rate)]);
   bd.rows.forEach(r => {
-    rows.push(['委員会別', r.key, r.attending, r.members, fmtRate(r.rate)]);
+    rows.push(['委員会別', r.key, r.attending, r.invited, r.members, fmtRate(r.rate)]);
   });
-  rows.push(['オブザーバー', '', bd.observerYes, '', '']);
+  rows.push(['オブザーバー', '', bd.observerYes, '', '', '']);
   const csv = '﻿' + [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\r\n') + '\r\n';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
