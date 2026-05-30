@@ -1949,7 +1949,7 @@ let state = {
 
 // 委員会・役職の初期値(マスターは state.departments / state.titles で管理し、管理者が編集可能)
 const DEFAULT_DEPARTMENTS = ['正副・幹事', '拡大ヒーローズ', '経営革新', 'キャリーボンド', '未来創造', 'Challenge♾️', '組織マネジメント'];
-const DEFAULT_TITLES = ['理事長', '専務理事', '直前理事長', '副理事長', '委員長', '副委員長', 'メンバー'];
+const DEFAULT_TITLES = ['理事長', '専務理事', '直前理事長', '副理事長', '顧問', '監事', '外部監事', '委員長', '副委員長', 'メンバー'];
 const getDepartments = () => state.departments || DEFAULT_DEPARTMENTS;
 const getTitles = () => state.titles || DEFAULT_TITLES;
 
@@ -1970,8 +1970,16 @@ const SEED = () => {
     { id: 'u_admin', name: '田中 システム管理者', lastName: '田中', firstName: 'システム管理者', role: 'sysadmin', department: null, title: null, status: 'active' },
     { id: 'u_editor', name: '佐々木 編集者', lastName: '佐々木', firstName: '編集者', role: 'editor', department: '正副・幹事', title: null, status: 'active' },
   ];
-  // 先頭5名は「正副・幹事」の理事陣として配置、残りは他の委員会を巡回
-  const OFFICER_TITLES = ['理事長', '専務理事', '直前理事長', '副理事長', '副理事長'];
+  // 先頭11名は「正副・幹事」の役員陣として配置、残りは他の6委員会を巡回
+  const OFFICER_TITLES = [
+    '理事長',                          // 1
+    '専務理事',                        // 1
+    '直前理事長',                      // 1
+    '副理事長', '副理事長', '副理事長', '副理事長', // 4
+    '顧問',                            // 1
+    '監事',                            // 1
+    '外部監事', '外部監事',            // 2
+  ];
   const OTHER_COMMITTEES = DEFAULT_DEPARTMENTS.filter(d => d !== '正副・幹事');
   SEED_NAMES.forEach((name, i) => {
     let department, title;
@@ -1982,9 +1990,9 @@ const SEED = () => {
       const remIdx = i - OFFICER_TITLES.length;
       department = OTHER_COMMITTEES[remIdx % OTHER_COMMITTEES.length];
       const positionRound = Math.floor(remIdx / OTHER_COMMITTEES.length);
-      if (positionRound === 0) title = '委員長';
-      else if (positionRound === 1) title = '副委員長';
-      else title = 'メンバー';
+      if (positionRound === 0) title = '委員長';        // 各委員会1名 × 6
+      else if (positionRound === 1) title = '副委員長'; // 各委員会1名 × 6
+      else title = 'メンバー';                           // 残り
     }
     // 1人だけ休会、1人だけ退会としてサンプル化
     let status = 'active';
