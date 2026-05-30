@@ -2605,8 +2605,13 @@ async function saveEventForm({ publish = true } = {}) {
   }
   const eventDateISO = new Date(date).toISOString();
   const deadlineISO = deadlineRaw ? new Date(deadlineRaw).toISOString() : null;
-  if (deadlineISO && deadlineISO > eventDateISO) {
-    if (!confirm('回答期限がイベント日時より後になっています。このまま保存しますか?')) return;
+  const nowISO = new Date().toISOString();
+  const warnings = [];
+  if (eventDateISO < nowISO) warnings.push('・イベント日時が現在より過去になっています');
+  if (deadlineISO && deadlineISO < nowISO) warnings.push('・回答期限が現在より過去になっています');
+  if (deadlineISO && deadlineISO > eventDateISO) warnings.push('・回答期限がイベント日時より後になっています');
+  if (warnings.length) {
+    if (!confirm('日時設定に問題がある可能性があります:\n\n' + warnings.join('\n') + '\n\nこのまま保存しますか?')) return;
   }
 
   if (editingEventId) {
