@@ -1455,6 +1455,36 @@
     border-color: var(--text-mute);
   }
 
+  /* 会費受領済 / 未収バッジ */
+  .badge-paid {
+    display: inline-block;
+    background: var(--success-soft);
+    color: var(--success);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    vertical-align: middle;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.badge-paid:hover { border-color: var(--success); }
+  .badge-unpaid {
+    display: inline-block;
+    background: var(--warn-soft, #fff4d6);
+    color: var(--warn, #b35400);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px dashed var(--warn, #b35400);
+    vertical-align: middle;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.badge-unpaid:hover { background: var(--warn, #b35400); color: white; }
+
   /* QRスキャン成功トースト */
   .scan-toast {
     position: fixed;
@@ -1721,6 +1751,13 @@
       <div style="display:flex;gap:8px;margin-top:10px">
         <button class="btn btn-outline btn-full" onclick="closeScanner()">閉じる</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-scan-fee">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div id="scan-fee-body"></div>
     </div>
   </div>
 
@@ -2076,11 +2113,14 @@ const SEED = () => {
       if (status === 'pending') afterStatus = 'pending';
       else if (status === 'no') afterStatus = (i % 4 === 0) ? 'yes' : 'no';
       else afterStatus = (i % 5 === 0) ? 'no' : ((i % 7 === 0) ? 'pending' : 'yes');
+      // 既に受付済 & 懇親会出席予定 → 会費受領済のサンプル
+      const afterPaidAt = (checkedIn && afterStatus === 'yes') ? new Date(now.getTime() - 1000 * 60 * 30).toISOString() : null;
       return {
         userId: u.id,
         status,
         afterStatus,
         checkedInAt: checkedIn ? new Date(now.getTime() - 1000 * 60 * 30).toISOString() : null,
+        afterPaidAt,
       };
     });
 
@@ -2091,7 +2131,9 @@ const SEED = () => {
     .map((u, i) => ({
       userId: u.id,
       status: i % 3 === 0 ? 'yes' : (i % 3 === 1 ? 'pending' : 'no'),
+      afterStatus: null,
       checkedInAt: null,
+      afterPaidAt: null,
     }));
 
   // 下書きサンプル: 管理者にしか見えない仮作成イベント
@@ -2099,7 +2141,7 @@ const SEED = () => {
   const draftAttendees = users
     .filter(u => u.role === 'viewer')
     .slice(0, 10)
-    .map(u => ({ userId: u.id, status: 'pending', afterStatus: null, checkedInAt: null }));
+    .map(u => ({ userId: u.id, status: 'pending', afterStatus: null, checkedInAt: null, afterPaidAt: null }));
 
   const events = [
     {
@@ -2184,6 +2226,8 @@ async function loadState() {
             a.status = 'yes';
             if (!a.checkedInAt) a.checkedInAt = new Date().toISOString();
           }
+          // 懇親会会費の受領日時(未設定なら null)
+          if (a.afterPaidAt === undefined) a.afterPaidAt = null;
         });
         // 後方互換: published 未設定 = 公開済み扱い
         if (typeof ev.published !== 'boolean') ev.published = true;
@@ -3210,6 +3254,33 @@ function renderAdminEventDetail() {
           ` : ''}
           <div class="breakdown-note">参加率は委員会の総人数(アクティブ)から算出</div>
         </div>
+        ${ev.hasAfterparty ? `
+          <div class="breakdown-card" style="margin-top:10px">
+            <div class="breakdown-header">
+              <span>🍻 懇親会会費</span>
+            </div>
+            <div class="breakdown-row breakdown-total">
+              <div class="bd-label">全体</div>
+              <div class="bd-count">${bd.total.afterPaid} / ${bd.total.afterYes}<div class="bd-sub">受領済 / 出席予定</div></div>
+              <div class="bd-rate">${bd.total.afterYes ? fmtRate(bd.total.afterPaid / bd.total.afterYes) : '—'}</div>
+            </div>
+            ${bd.rows.filter(r => r.afterYes > 0 || r.afterPaid > 0).map(r => `
+              <div class="breakdown-row">
+                <div class="bd-label">${escapeHtml(r.key)}</div>
+                <div class="bd-count">${r.afterPaid} / ${r.afterYes}</div>
+                <div class="bd-rate">${r.afterYes ? fmtRate(r.afterPaid / r.afterYes) : '—'}</div>
+              </div>
+            `).join('')}
+            ${bd.observerAfterYes > 0 ? `
+              <div class="breakdown-row breakdown-observer">
+                <div class="bd-label">オブザーバー</div>
+                <div class="bd-count">${bd.observerAfterPaid} / ${bd.observerAfterYes}</div>
+                <div class="bd-rate">${bd.observerAfterYes ? fmtRate(bd.observerAfterPaid / bd.observerAfterYes) : '—'}</div>
+              </div>
+            ` : ''}
+            <div class="breakdown-note">受領率は懇親会「出席予定」を母数として算出</div>
+          </div>
+        ` : ''}
       `;
     })()}
 
@@ -3333,6 +3404,11 @@ function renderAdminAttendeeList() {
               ${checkedIn
                 ? `<button class="badge-checked-in" onclick="toggleCheckedIn('${a.userId}')" title="受付済を取消">✓受付済</button>`
                 : `<button class="badge-not-checked-in" onclick="toggleCheckedIn('${a.userId}')" title="受付済にする">受付未</button>`}
+              ${(hasAP && af === 'yes') ? (
+                a.afterPaidAt
+                  ? `<button class="badge-paid" onclick="toggleFeePaid('${a.userId}')" title="会費受領を取消">💰受領済</button>`
+                  : `<button class="badge-unpaid" onclick="toggleFeePaid('${a.userId}')" title="会費を受領済にする">💰未収</button>`
+              ) : ''}
             </div>
             ${(dept || title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(dept || '')}${dept && title ? ' · ' : ''}${escapeHtml(title || '')}</div>` : ''}
             <div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
@@ -3402,6 +3478,25 @@ async function toggleCheckedIn(userId) {
     if (!confirm(`${name} さんを受付済にします。\nよろしいですか?`)) return;
     att.checkedInAt = new Date().toISOString();
     if (att.status !== 'yes') att.status = 'yes';
+  }
+  await saveState();
+  renderAdminEventDetail();
+}
+
+async function toggleFeePaid(userId) {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev || !ev.hasAfterparty) return;
+  const att = ev.attendees.find(a => a.userId === userId);
+  if (!att) return;
+  const u = userById(userId);
+  const name = att.isObserver ? (att.name || '(ゲスト)') : (u ? u.name : '');
+  if (att.afterPaidAt) {
+    if (!confirm(`${name} さんの懇親会会費「受領済」を取消します。\nよろしいですか?`)) return;
+    att.afterPaidAt = null;
+  } else {
+    if (!confirm(`${name} さんの懇親会会費を受領済にします。\nよろしいですか?`)) return;
+    att.afterPaidAt = new Date().toISOString();
+    if (att.afterStatus !== 'yes') att.afterStatus = 'yes';
   }
   await saveState();
   renderAdminEventDetail();
@@ -3978,6 +4073,7 @@ async function saveEventForm({ publish = true } = {}) {
           status: 'pending',
           afterStatus: hasAfterparty ? 'pending' : null,
           checkedInAt: null,
+          afterPaidAt: null,
         });
       }
     });
@@ -4001,6 +4097,7 @@ async function saveEventForm({ publish = true } = {}) {
         status: 'yes',
         afterStatus: hasAfterparty ? 'yes' : null,
         checkedInAt: null,
+        afterPaidAt: null,
       };
     });
 
@@ -4025,6 +4122,7 @@ async function saveEventForm({ publish = true } = {}) {
       status: 'pending',
       afterStatus: hasAfterparty ? 'pending' : null,
       checkedInAt: null,
+      afterPaidAt: null,
     }));
     finalObservers.forEach((o, i) => {
       attendees.push({
@@ -4034,6 +4132,7 @@ async function saveEventForm({ publish = true } = {}) {
         status: 'yes',
         afterStatus: hasAfterparty ? 'yes' : null,
         checkedInAt: null,
+        afterPaidAt: null,
       });
     });
     const newEvent = {
@@ -4242,7 +4341,7 @@ function computeAttendanceBreakdown(ev) {
   const seen = new Set();
   getDepartments().forEach(d => { order.push(d); seen.add(d); });
   const byCommittee = new Map();
-  const emptyEntry = () => ({ members: 0, responded: 0, attended: 0 });
+  const emptyEntry = () => ({ members: 0, responded: 0, attended: 0, afterYes: 0, afterPaid: 0 });
   order.forEach(d => byCommittee.set(d, emptyEntry()));
   activeUsers.forEach(u => {
     // 委員会未設定のユーザは委員会別の集計には含めない(全体率には含む)
@@ -4253,6 +4352,8 @@ function computeAttendanceBreakdown(ev) {
   });
   let totalResponded = 0;
   let totalAttended = 0;
+  let totalAfterYes = 0;
+  let totalAfterPaid = 0;
   ev.attendees.forEach(a => {
     if (a.isObserver) return;
     const u = state.users.find(x => x.id === a.userId);
@@ -4260,15 +4361,21 @@ function computeAttendanceBreakdown(ev) {
     // 全体カウントは委員会未設定の人も含む
     if (a.status === 'yes') totalResponded++;
     if (a.checkedInAt) totalAttended++;
+    if (a.afterStatus === 'yes') totalAfterYes++;
+    if (a.afterPaidAt) totalAfterPaid++;
     // 委員会別は所属がある人だけ
     if (!u.department) return;
     const key = u.department;
     if (!byCommittee.has(key)) { byCommittee.set(key, emptyEntry()); order.push(key); }
     if (a.status === 'yes') byCommittee.get(key).responded++;
     if (a.checkedInAt) byCommittee.get(key).attended++;
+    if (a.afterStatus === 'yes') byCommittee.get(key).afterYes++;
+    if (a.afterPaidAt) byCommittee.get(key).afterPaid++;
   });
   const observerTotal = ev.attendees.filter(a => a.isObserver).length;
   const observerAttended = ev.attendees.filter(a => a.isObserver && a.checkedInAt).length;
+  const observerAfterYes = ev.attendees.filter(a => a.isObserver && a.afterStatus === 'yes').length;
+  const observerAfterPaid = ev.attendees.filter(a => a.isObserver && a.afterPaidAt).length;
   const rows = order
     .filter(key => byCommittee.get(key).members > 0 || byCommittee.get(key).attended > 0 || byCommittee.get(key).responded > 0)
     .map(key => ({
@@ -4276,6 +4383,8 @@ function computeAttendanceBreakdown(ev) {
       members: byCommittee.get(key).members,
       responded: byCommittee.get(key).responded,
       attended: byCommittee.get(key).attended,
+      afterYes: byCommittee.get(key).afterYes,
+      afterPaid: byCommittee.get(key).afterPaid,
       rate: byCommittee.get(key).members ? byCommittee.get(key).attended / byCommittee.get(key).members : 0,
     }));
   return {
@@ -4284,10 +4393,14 @@ function computeAttendanceBreakdown(ev) {
       members: totalMembers,
       responded: totalResponded,
       attended: totalAttended,
+      afterYes: totalAfterYes,
+      afterPaid: totalAfterPaid,
       rate: totalMembers ? totalAttended / totalMembers : 0,
     },
     observerAttended,
     observerTotal,
+    observerAfterYes,
+    observerAfterPaid,
   };
 }
 
@@ -4297,13 +4410,16 @@ function exportBreakdownCsv() {
   const ev = state.events.find(e => e.id === state.currentEventId);
   if (!ev) return;
   const bd = computeAttendanceBreakdown(ev);
-  const header = ['区分', '委員会', '出席数', '出席回答数', '委員会人数', '参加率'];
+  const hasAP = !!ev.hasAfterparty;
+  const header = ['区分', '委員会', '出席数', '出席回答数', '委員会人数', '参加率']
+    .concat(hasAP ? ['懇親会出席予定', '懇親会会費受領'] : []);
+  const apCols = (afterYes, afterPaid) => hasAP ? [afterYes, afterPaid] : [];
   const rows = [];
-  rows.push(['全体', '', bd.total.attended, bd.total.responded, bd.total.members, fmtRate(bd.total.rate)]);
+  rows.push(['全体', '', bd.total.attended, bd.total.responded, bd.total.members, fmtRate(bd.total.rate), ...apCols(bd.total.afterYes, bd.total.afterPaid)]);
   bd.rows.forEach(r => {
-    rows.push(['委員会別', r.key, r.attended, r.responded, r.members, fmtRate(r.rate)]);
+    rows.push(['委員会別', r.key, r.attended, r.responded, r.members, fmtRate(r.rate), ...apCols(r.afterYes, r.afterPaid)]);
   });
-  rows.push(['オブザーバー', '', bd.observerAttended, '', bd.observerTotal, '']);
+  rows.push(['オブザーバー', '', bd.observerAttended, '', bd.observerTotal, '', ...apCols(bd.observerAfterYes, bd.observerAfterPaid)]);
   const csv = '﻿' + [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\r\n') + '\r\n';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -4321,15 +4437,18 @@ function exportBreakdownCsv() {
 function exportAttendeesCsv() {
   const ev = state.events.find(e => e.id === state.currentEventId);
   if (!ev) return;
-  const header = ['ユーザーID', '名前', '委員会', '役職', '区分', '出欠', '懇親会'];
+  const hasAP = !!ev.hasAfterparty;
+  const header = ['ユーザーID', '名前', '委員会', '役職', '区分', '出欠', '懇親会']
+    .concat(hasAP ? ['懇親会会費'] : []);
   const rows = ev.attendees.map(a => {
     const main = STATUS_TO_JP[a.status] || '未回答';
-    const after = ev.hasAfterparty ? (STATUS_TO_JP[a.afterStatus] || '未回答') : '';
+    const after = hasAP ? (STATUS_TO_JP[a.afterStatus] || '未回答') : '';
+    const fee = hasAP ? (a.afterPaidAt ? '受領済' : '未収') : '';
     if (a.isObserver) {
-      return [a.userId, a.name || '', '', '', 'ゲスト', main, after];
+      return [a.userId, a.name || '', '', '', 'ゲスト', main, after].concat(hasAP ? [fee] : []);
     }
     const u = userById(a.userId) || {};
-    return [a.userId, u.name || '', u.department || '', u.title || '', 'メンバー', main, after];
+    return [a.userId, u.name || '', u.department || '', u.title || '', 'メンバー', main, after].concat(hasAP ? [fee] : []);
   });
   const csv = '﻿' + [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\r\n') + '\r\n';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
@@ -5247,8 +5366,16 @@ async function onScanSuccess(decoded) {
   if (att.status !== 'yes') att.status = 'yes';
   att.checkedInAt = new Date().toISOString();
   await saveState();
-  const deptTitle = [u.department, u.title].filter(Boolean).join(' · ');
-  showScanToast({ ok: true, name: u.name, sub: deptTitle ? `${deptTitle} · 受付完了` : '受付完了' });
+
+  // 懇親会あり&出席予定/未回答ならスキャン結果モーダルで会費の受領を確認
+  // (欠席の人 / 懇親会なしのイベントは従来通りトーストのみ)
+  const showFeeModal = ev.hasAfterparty && att.afterStatus !== 'no';
+  if (showFeeModal) {
+    openScanFeeModal(ev, att, u);
+  } else {
+    const deptTitle = [u.department, u.title].filter(Boolean).join(' · ');
+    showScanToast({ ok: true, name: u.name, sub: deptTitle ? `${deptTitle} · 受付完了` : '受付完了' });
+  }
   $('scan-result-box').innerHTML = `<div class="scan-result">✓ ${escapeHtml(u.name)} さんを受付しました</div>`;
 
   // refresh fallback list if shown
@@ -5258,6 +5385,62 @@ async function onScanSuccess(decoded) {
     }, 800);
   }
   // refresh detail view in background
+  renderAdminEventDetail();
+}
+
+// QRスキャン後の会費受領モーダル
+function openScanFeeModal(ev, att, u) {
+  const deptTitle = [u.department, u.title].filter(Boolean).join(' · ');
+  const afterLabel = att.afterStatus === 'yes' ? '出席予定' : (att.afterStatus === 'pending' ? '未回答' : '');
+  const afterClass = att.afterStatus === 'yes' ? 'badge-yes' : 'badge-pending';
+  const feeText = ev.afterpartyDescription ? escapeHtml(ev.afterpartyDescription) : '懇親会会費';
+  const body = `
+    <div style="text-align:center;padding:8px 0 4px">
+      <div style="font-size:36px;color:var(--success);line-height:1">✓</div>
+      <div style="font-size:13px;color:var(--text-mute);margin-top:4px">${escapeHtml(ev.title)} 受付完了</div>
+    </div>
+    <div style="background:var(--bg-elev);border-radius:10px;padding:12px;margin:12px 0 16px">
+      <div style="font-size:18px;font-weight:700">${escapeHtml(u.name)} さん</div>
+      ${deptTitle ? `<div style="font-size:12px;color:var(--text-mute);margin-top:2px">${escapeHtml(deptTitle)}</div>` : ''}
+      <div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span class="status-badge ${afterClass}">懇親会: ${afterLabel}</span>
+      </div>
+    </div>
+    <div style="font-size:14px;font-weight:600;margin-bottom:8px">懇親会会費を徴収しますか?</div>
+    <div style="font-size:12px;color:var(--text-mute);margin-bottom:12px;white-space:pre-line">${feeText}</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-primary btn-full" onclick="scanFeeAction('paid')">会費を受領しました</button>
+      <button class="btn btn-outline btn-full" onclick="scanFeeAction('defer')">後払い (今は受領しない)</button>
+    </div>
+  `;
+  $('scan-fee-body').innerHTML = body;
+  scanFeeContext = { eventId: ev.id, userId: att.userId };
+  openModal('modal-scan-fee');
+}
+
+let scanFeeContext = null;
+async function scanFeeAction(action) {
+  if (!scanFeeContext) { closeModal('modal-scan-fee'); return; }
+  const { eventId, userId } = scanFeeContext;
+  const ev = state.events.find(e => e.id === eventId);
+  const att = ev && ev.attendees.find(a => a.userId === userId);
+  const u = att ? userById(att.userId) : null;
+  const name = att ? (att.isObserver ? att.name : (u ? u.name : '')) : '';
+  if (att) {
+    if (action === 'paid') {
+      att.afterPaidAt = new Date().toISOString();
+      // 未回答だった場合は出席に寄せる(受領するということは参加するので)
+      if (att.afterStatus !== 'yes') att.afterStatus = 'yes';
+      await saveState();
+      showScanToast({ ok: true, name, sub: '受付 + 会費受領' });
+    } else {
+      // defer: 受領済にしない。後から行のトグルで補正可能
+      await saveState();
+      showScanToast({ ok: true, name, sub: '受付完了 (会費は後払い)' });
+    }
+  }
+  scanFeeContext = null;
+  closeModal('modal-scan-fee');
   renderAdminEventDetail();
 }
 
