@@ -2948,10 +2948,10 @@ function renderAdminEventDetail() {
               <div class="bd-rate">${fmtRate(r.rate)}</div>
             </div>
           `).join('')}
-          ${bd.observerAttended > 0 ? `
+          ${bd.observerTotal > 0 ? `
             <div class="breakdown-row breakdown-observer">
               <div class="bd-label">オブザーバー</div>
-              <div class="bd-count">${bd.observerAttended} 名</div>
+              <div class="bd-count">${bd.observerAttended} / ${bd.observerTotal}</div>
               <div class="bd-rate">—</div>
             </div>
           ` : ''}
@@ -3854,6 +3854,7 @@ function computeAttendanceBreakdown(ev) {
       totalAttended++;
     }
   });
+  const observerTotal = ev.attendees.filter(a => a.isObserver).length;
   const observerAttended = ev.attendees.filter(a => a.isObserver && a.checkedInAt).length;
   const rows = order
     .filter(key => byCommittee.get(key).members > 0 || byCommittee.get(key).attended > 0 || byCommittee.get(key).responded > 0)
@@ -3873,6 +3874,7 @@ function computeAttendanceBreakdown(ev) {
       rate: totalMembers ? totalAttended / totalMembers : 0,
     },
     observerAttended,
+    observerTotal,
   };
 }
 
@@ -3888,7 +3890,7 @@ function exportBreakdownCsv() {
   bd.rows.forEach(r => {
     rows.push(['委員会別', r.key, r.attended, r.responded, r.members, fmtRate(r.rate)]);
   });
-  rows.push(['オブザーバー', '', bd.observerAttended, '', '', '']);
+  rows.push(['オブザーバー', '', bd.observerAttended, '', bd.observerTotal, '']);
   const csv = '﻿' + [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\r\n') + '\r\n';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
