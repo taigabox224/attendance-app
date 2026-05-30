@@ -1532,7 +1532,7 @@
         <h1 class="screen-title">ユーザー一覧</h1>
         <p class="screen-sub">登録ユーザーを委員会・役職で絞り込みできます</p>
       </div>
-      <div id="admin-users-actions" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end"></div>
+      <div id="admin-users-actions" style="display:flex;flex-direction:row;gap:6px;align-items:center;flex-shrink:0"></div>
     </div>
     <div id="admin-user-filter"></div>
     <div id="admin-user-bulk-bar"></div>
@@ -1823,6 +1823,31 @@
       <div id="bulk-edit-options"></div>
       <div style="display:flex;gap:8px;margin-top:18px">
         <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-bulk-edit')">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-user-list-menu">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>ユーザー一覧の設定</h2>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px" id="user-list-menu-body"></div>
+      <div style="margin-top:14px">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-user-list-menu')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-user-order">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>ユーザーの表示順</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
+        イベント作成時のユーザー一覧(参加者・受付担当)の並び順を選択します。
+      </p>
+      <div id="user-order-options" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div style="margin-top:14px">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-user-order')">閉じる</button>
       </div>
     </div>
   </div>
@@ -2462,8 +2487,7 @@ function renderAdminUserList() {
   if (actions) {
     actions.innerHTML = `
       ${canManageUsers() ? '<button class="btn btn-primary btn-sm" onclick="openUserEditModal(null)">+ ユーザー登録</button>' : ''}
-      ${canManageMaster() ? '<button class="btn btn-outline btn-sm" onclick="openMasterModal()">マスター編集</button>' : ''}
-      ${canManageData() ? '<button class="btn btn-outline btn-sm" onclick="openDataModal()">データ</button>' : ''}
+      ${(canManageMaster() || canManageUsers()) ? '<button class="gear-btn" onclick="openUserListMenu()" title="設定">⚙</button>' : ''}
     `;
   }
   const filterTarget = $('admin-user-filter');
@@ -3512,10 +3536,12 @@ function renderReceptionistList() {
   if (!target) return;
   const q = receptionistQuery.trim().toLowerCase();
   const depts = receptionistFilter.departments || [];
-  const users = state.users
+  const rawList = state.users
     .filter(u => (u.status || 'active') === 'active')
     .filter(u => !q || u.name.toLowerCase().includes(q))
     .filter(u => !depts.length || depts.includes(u.department));
+  const cmp = userOrderComparator();
+  const users = cmp ? rawList.slice().sort(cmp) : rawList;
   if (!users.length) {
     target.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-mute);font-size:12px">該当するユーザーはいません</div>';
     return;
@@ -3557,11 +3583,13 @@ function toggleReceptionist(id, checked) {
 function getFilteredInviteUsers() {
   const q = inviteQuery.trim().toLowerCase();
   const depts = inviteFilter.departments || [];
-  return state.users
+  const list = state.users
     .filter(u => (u.status || 'active') === 'active')
     .filter(u => !q || u.name.toLowerCase().includes(q))
     .filter(u => !depts.length || depts.includes(u.department))
     .filter(u => !inviteFilter.title || u.title === inviteFilter.title);
+  const cmp = userOrderComparator();
+  return cmp ? list.slice().sort(cmp) : list;
 }
 
 function getActiveUserPoolSize() {
@@ -4381,6 +4409,64 @@ async function importStateJson(input) {
     console.error(e);
     alert('読み込みに失敗しました: ' + (e.message || e));
   }
+}
+
+// ユーザー一覧の歯車メニュー
+function openUserListMenu() {
+  const body = $('user-list-menu-body');
+  if (!body) return;
+  body.innerHTML = `
+    ${canManageMaster() ? '<button class="btn btn-outline btn-full" onclick="closeModal(\'modal-user-list-menu\'); openMasterModal()">マスター編集</button>' : ''}
+    ${canManageUsers() ? '<button class="btn btn-outline btn-full" onclick="closeModal(\'modal-user-list-menu\'); openUserOrderModal()">ユーザーの表示順</button>' : ''}
+  `;
+  openModal('modal-user-list-menu');
+}
+
+const USER_ORDER_LABEL = {
+  registered: '登録順(デフォルト)',
+  name: '姓のあいうえお順',
+  committee: '委員会別 → 姓',
+};
+
+function getUserOrder() {
+  return state.userOrder || 'registered';
+}
+
+function openUserOrderModal() {
+  const target = $('user-order-options');
+  if (!target) return;
+  const current = getUserOrder();
+  target.innerHTML = Object.entries(USER_ORDER_LABEL).map(([key, label]) => `
+    <button class="btn ${current === key ? 'btn-primary' : 'btn-outline'} btn-full" onclick="setUserOrder('${key}')">${label}</button>
+  `).join('');
+  openModal('modal-user-order');
+}
+
+async function setUserOrder(order) {
+  state.userOrder = order;
+  await saveState();
+  closeModal('modal-user-order');
+  showToast(`表示順を「${USER_ORDER_LABEL[order]}」に変更しました`);
+}
+
+// 設定された順序でユーザを並び替えるコンパレータ
+function userOrderComparator() {
+  const order = getUserOrder();
+  if (order === 'name') {
+    return (a, b) => (a.lastName || a.name || '').localeCompare(b.lastName || b.name || '', 'ja')
+      || (a.firstName || '').localeCompare(b.firstName || '', 'ja');
+  }
+  if (order === 'committee') {
+    const deptOrder = new Map(getDepartments().map((d, i) => [d, i]));
+    const rank = u => deptOrder.has(u.department) ? deptOrder.get(u.department) : Infinity;
+    return (a, b) => {
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      return (a.lastName || a.name || '').localeCompare(b.lastName || b.name || '', 'ja');
+    };
+  }
+  // registered: state.users の元の順を維持する → 安定ソートで何もしない
+  return null;
 }
 
 function openMasterModal() {
