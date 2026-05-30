@@ -363,6 +363,15 @@
   }
   .form-input:focus, .form-textarea:focus { border-color: var(--text); }
   .form-textarea { resize: vertical; min-height: 70px; }
+  .readonly-field {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-soft);
+    color: var(--text-mute);
+    font-size: 14px;
+    min-height: 1.5em;
+  }
 
   .checkbox-row {
     display: flex;
@@ -1498,7 +1507,7 @@
       <div class="modal-handle"></div>
       <h2>プロフィール編集</h2>
       <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
-        お名前は姓と名に分けて入力します。委員会・役職は任意です。
+        お名前は姓と名に分けて入力します。委員会と役職の変更は管理者にご依頼ください。
       </p>
       <div class="form-group">
         <label class="form-label">お名前 <span style="color:var(--danger)">*</span></label>
@@ -1509,11 +1518,11 @@
       </div>
       <div class="form-group">
         <label class="form-label">委員会</label>
-        <select class="form-input" id="profile-department"></select>
+        <div id="profile-department-display" class="readonly-field"></div>
       </div>
       <div class="form-group">
         <label class="form-label">役職</label>
-        <select class="form-input" id="profile-title"></select>
+        <div id="profile-title-display" class="readonly-field"></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:18px">
         <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-profile')">キャンセル</button>
@@ -3478,12 +3487,9 @@ function openProfileModal() {
   const fallback = (!me.lastName && !me.firstName) ? splitFullName(me.name) : { lastName: me.lastName || '', firstName: me.firstName || '' };
   $('profile-last-name').value = fallback.lastName;
   $('profile-first-name').value = fallback.firstName;
-  const dept = $('profile-department');
-  dept.innerHTML = `<option value="">(未設定)</option>` +
-    getDepartments().map(d => `<option value="${escapeHtml(d)}" ${me.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('');
-  const title = $('profile-title');
-  title.innerHTML = `<option value="">(未設定)</option>` +
-    getTitles().map(t => `<option value="${escapeHtml(t)}" ${me.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+  // 委員会・役職は読み取り専用表示(変更は管理者のユーザー編集から)
+  $('profile-department-display').textContent = me.department || '未設定';
+  $('profile-title-display').textContent = me.title || 'メンバー';
   openModal('modal-profile');
 }
 
@@ -3496,8 +3502,7 @@ async function saveProfile() {
   me.lastName = lastName;
   me.firstName = firstName;
   me.name = joinFullName(lastName, firstName);
-  me.department = $('profile-department').value || null;
-  me.title = $('profile-title').value || null;
+  // 委員会・役職はこの画面からは変更不可
   await saveState();
   closeModal('modal-profile');
   renderAll();
