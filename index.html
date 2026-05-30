@@ -145,6 +145,30 @@
   }
   .mode-toggle button:not(.active):hover { color: var(--text); }
 
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .user-menu-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--text-mute);
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .user-menu-btn:hover { background: var(--surface-soft); color: var(--text); }
+
   .role-pill {
     display: flex;
     align-items: center;
@@ -1102,6 +1126,7 @@
   }
   .role-pill-mini.sysadmin { background: var(--text); color: var(--surface); }
   .role-pill-mini.editor { background: var(--primary-soft); color: var(--primary); }
+  .role-pill-mini.viewer { background: var(--surface-soft); color: var(--text-mute); border: 1px solid var(--border); }
 
   /* ユーザステータスのピル(休会/退会) */
   .user-status-pill {
@@ -1273,13 +1298,16 @@
         <span class="brand-text-line2">イベント管理アプリ</span>
       </span>
     </button>
-    <button class="role-pill" id="role-switch-btn">
-      <div class="avatar" id="topbar-avatar">A</div>
-      <div class="label">
-        <div class="name" id="topbar-name">管理者</div>
-        <div class="role" id="topbar-role">admin</div>
-      </div>
-    </button>
+    <div class="topbar-right">
+      <button class="role-pill" id="role-switch-btn">
+        <div class="avatar" id="topbar-avatar">A</div>
+        <div class="label">
+          <div class="name" id="topbar-name">管理者</div>
+          <div class="role" id="topbar-role">admin</div>
+        </div>
+      </button>
+      <button class="user-menu-btn" type="button" onclick="openUserMenu()" title="マイメニュー">⚙</button>
+    </div>
   </header>
 
   <div id="mode-toggle-bar" class="mode-toggle-bar" style="display:none"></div>
@@ -1337,7 +1365,6 @@
       </div>
       <button class="btn btn-primary btn-sm" onclick="openCreateEventModal()">+ 新規作成</button>
     </div>
-    <div id="user-profile-card"></div>
     <div id="user-event-filter"></div>
     <div id="user-event-list"></div>
   </section>
@@ -1553,6 +1580,20 @@
       <div style="display:flex;gap:8px;margin-top:18px">
         <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-user-edit')">キャンセル</button>
         <button class="btn btn-primary" style="flex:1" onclick="saveUserEdit()" id="user-edit-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-user-menu">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>マイメニュー</h2>
+      <div id="user-menu-summary" style="font-size:13px;color:var(--text-mute);margin-bottom:14px;line-height:1.6"></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+        <button class="btn btn-primary btn-full" onclick="closeModal('modal-user-menu'); openProfileModal()">ユーザー情報を編集</button>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-user-menu')">閉じる</button>
       </div>
     </div>
   </div>
@@ -2118,6 +2159,21 @@ function renderModeToggleBar() {
       <button type="button" class="${viewMode === 'admin' ? 'active' : ''}" onclick="setViewMode('admin')">管理者画面</button>
     </div>
   `;
+}
+
+function openUserMenu() {
+  const me = currentUser();
+  const summary = $('user-menu-summary');
+  if (summary && me) {
+    const dept = me.department || '委員会未設定';
+    const title = me.title || 'メンバー';
+    const roleLabel = ROLE_LABEL[me.role] || me.role;
+    summary.innerHTML = `
+      <div style="font-size:14px;color:var(--text);font-weight:500">${escapeHtml(me.name)} <span class="role-pill-mini ${me.role}" style="font-size:10px">${escapeHtml(roleLabel)}</span></div>
+      <div style="margin-top:4px">${escapeHtml(dept)} · ${escapeHtml(title)}</div>
+    `;
+  }
+  openModal('modal-user-menu');
 }
 
 function setViewMode(mode) {
