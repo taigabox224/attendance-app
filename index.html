@@ -1391,7 +1391,10 @@
 
   <!-- ========== USER: Event Detail ========== -->
   <section id="screen-user-detail" class="screen screen-hidden">
-    <button class="back-link" onclick="backFromEventDetail()">一覧に戻る</button>
+    <div class="detail-toolbar">
+      <button class="back-link" onclick="backFromEventDetail()">一覧に戻る</button>
+      <button class="gear-btn" id="user-detail-gear" onclick="openEventMenu()" title="このイベントの操作" style="display:none">⚙</button>
+    </div>
     <div id="user-detail-content"></div>
   </section>
 
@@ -2175,16 +2178,10 @@ function renderAll() {
   } else {
     renderUserEventList();
     if (state.currentEventId) {
-      const ev = state.events.find(e => e.id === state.currentEventId);
-      // 管理者/編集者がユーザー画面のときは常にユーザRSVP画面(自分のQRなどを確認できる)。
-      // 閲覧者の場合だけ、自作イベントは管理者風の詳細にして編集・QRスキャンを可能に。
-      if (ev && ev.createdBy === state.currentUserId && !canAccessAdminDashboard()) {
-        renderAdminEventDetail();
-        showScreen('admin-detail');
-      } else {
-        renderUserEventDetail();
-        showScreen('user-detail');
-      }
+      // ユーザー画面では誰がタップしても基本はユーザRSVP画面。
+      // 自作イベントの編集は user-detail 右上の歯車ボタン経由で行う。
+      renderUserEventDetail();
+      showScreen('user-detail');
     } else {
       showScreen('user-list');
     }
@@ -3060,6 +3057,12 @@ async function deleteEvent() {
   renderAll();
 }
 
+// 表示中の詳細画面(admin-detail / user-detail)を再描画
+function renderCurrentEventDetail() {
+  if (isAdminMode()) renderAdminEventDetail();
+  else renderUserEventDetail();
+}
+
 // =================================================
 // ADMIN: Create event modal
 // =================================================
@@ -3379,7 +3382,7 @@ async function saveEventForm({ publish = true } = {}) {
     await saveState();
     closeModal('modal-create-event');
     editingEventId = null;
-    renderAdminEventDetail();
+    renderCurrentEventDetail();
     showToast(`「${title}」を${publish ? '公開しました' : '下書きで保存しました'}`);
   } else {
     // 新規作成
@@ -3472,10 +3475,8 @@ function renderUserEventList() {
     const a = ev.attendees.find(x => x.userId === me.id);
     const locked = isDeadlinePassed(ev);
     const isOwn = ev.createdBy === me.id;
-    // 閲覧者は自作イベントを管理者風で開く。管理者/編集者がユーザー画面にいるときは常にユーザRSVP画面。
-    const opener = (isOwn && !canAccessAdminDashboard())
-      ? `openAdminEventDetail('${ev.id}')`
-      : `openUserEventDetail('${ev.id}')`;
+    // ユーザー画面では常にユーザRSVP画面で開く。編集は user-detail 右上の歯車から。
+    const opener = `openUserEventDetail('${ev.id}')`;
     return `
       <div class="event-card ${ev.published === false ? 'is-draft' : ''}" onclick="${opener}">
         <div class="date-row">
@@ -3678,7 +3679,7 @@ async function importAttendeesCsv(input) {
       }
     });
     await saveState();
-    renderAdminEventDetail();
+    renderCurrentEventDetail();
     showToast(`${updates.length} 件を更新しました`);
   } catch (e) {
     console.error(e);
@@ -3974,9 +3975,19 @@ function renderUserEventDetail() {
   if (!ev) return;
   const me = currentUser();
   const att = ev.attendees.find(a => a.userId === me.id);
-  // 招待されていない参加者向けのフォールバック画面(管理者がユーザー画面で他人のイベントを開いた場合など)
+  // 編集権限があれば右上に歯車ボタンを表示
+  const gear = $('user-detail-gear');
+  if (gear) gear.style.display = canEditEvent(ev) ? '' : 'none';
+  // 招待されていない参加者向けのフォールバック画面
   if (!att) {
     const locked0 = isDeadlinePassed(ev);
+    const isOwner = ev.createdBy === state.currentUserId;
+    const message = isOwner
+      ? 'あなたはこのイベントの参加者リストには含まれていません(主催のみ)'
+      : 'あなたはこのイベントに招待されていません';
+    const subMessage = isOwner
+      ? '参加者として登録するには、右上の歯車 → 「イベントを編集」から自分を追加してください'
+      : (canAccessAdminDashboard() ? '編集や受付を行う場合は上部の「管理者画面」に切替えてください' : '');
     $('user-detail-content').innerHTML = `
       <div class="event-hero">
         <div class="date">${fmtDate(ev.date)}</div>
@@ -3987,8 +3998,8 @@ function renderUserEventDetail() {
       </div>
       <div class="rsvp-card">
         <div style="text-align:center;padding:14px 0;line-height:1.6">
-          <div style="font-size:14px;color:var(--text-mute);margin-bottom:6px">あなたはこのイベントに招待されていません</div>
-          ${canAccessAdminDashboard() ? '<div style="font-size:12px;color:var(--text-mute)">編集や受付を行う場合は上部の「管理者画面」に切替えてください</div>' : ''}
+          <div style="font-size:14px;color:var(--text-mute);margin-bottom:6px">${escapeHtml(message)}</div>
+          ${subMessage ? `<div style="font-size:12px;color:var(--text-mute)">${escapeHtml(subMessage)}</div>` : ''}
         </div>
       </div>
     `;
@@ -4360,8 +4371,8 @@ function navigateToEventFromUrl() {
     return true;
   }
   state.currentEventId = eventId;
-  // 表示モード優先: 管理者画面のときだけ管理者詳細。それ以外はユーザRSVP画面。
-  if (isAdminMode() || (isOwner && !canAccessAdminDashboard())) {
+  // 管理者画面のときだけ管理者詳細。それ以外(ユーザー画面・閲覧者)はユーザRSVP画面で開く。
+  if (isAdminMode()) {
     renderAdminEventDetail();
     showScreen('admin-detail');
   } else {
