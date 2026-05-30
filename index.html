@@ -2938,13 +2938,13 @@ function renderAdminEventDetail() {
           </div>
           <div class="breakdown-row breakdown-total">
             <div class="bd-label">全体</div>
-            <div class="bd-count">${bd.total.attending} / ${bd.total.members}<div class="bd-sub">招待 ${bd.total.invited} 名</div></div>
+            <div class="bd-count">${bd.total.attending} / ${bd.total.members}<div class="bd-sub">出席回答 ${bd.total.invited} 名</div></div>
             <div class="bd-rate">${fmtRate(bd.total.rate)}</div>
           </div>
           ${bd.rows.map(r => `
             <div class="breakdown-row">
               <div class="bd-label">${escapeHtml(r.key)}</div>
-              <div class="bd-count">${r.attending} / ${r.members}<div class="bd-sub">招待 ${r.invited} 名</div></div>
+              <div class="bd-count">${r.attending} / ${r.members}<div class="bd-sub">出席回答 ${r.invited} 名</div></div>
               <div class="bd-rate">${fmtRate(r.rate)}</div>
             </div>
           `).join('')}
@@ -3880,7 +3880,7 @@ function exportBreakdownCsv() {
   const ev = state.events.find(e => e.id === state.currentEventId);
   if (!ev) return;
   const bd = computeAttendanceBreakdown(ev);
-  const header = ['区分', '委員会', '出席数', '招待人数', '委員会人数', '参加率'];
+  const header = ['区分', '委員会', '出席数', '出席回答数', '委員会人数', '参加率'];
   const rows = [];
   rows.push(['全体', '', bd.total.attending, bd.total.invited, bd.total.members, fmtRate(bd.total.rate)]);
   bd.rows.forEach(r => {
