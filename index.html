@@ -993,6 +993,25 @@
   }
   button.badge-checked-in:hover { border-color: var(--accent); }
 
+  .badge-not-checked-in {
+    display: inline-block;
+    background: var(--surface-soft);
+    color: var(--text-mute);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px dashed var(--border);
+    vertical-align: middle;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.badge-not-checked-in:hover {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--text-mute);
+  }
+
   /* QRスキャン成功トースト */
   .scan-toast {
     position: fixed;
@@ -2233,7 +2252,9 @@ function renderAdminAttendeeList() {
           <div style="min-width:0">
             <div class="name-row">
               <span class="name">${escapeHtml(u.name)}</span>
-              ${checkedIn ? `<button class="badge-checked-in" onclick="toggleCheckedIn('${a.userId}')" title="受付済を取消">✓受付済</button>` : ''}
+              ${checkedIn
+                ? `<button class="badge-checked-in" onclick="toggleCheckedIn('${a.userId}')" title="受付済を取消">✓受付済</button>`
+                : `<button class="badge-not-checked-in" onclick="toggleCheckedIn('${a.userId}')" title="受付済にする">受付未</button>`}
             </div>
             ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
             <div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
