@@ -2056,6 +2056,8 @@ async function loadState() {
           u.firstName = parts.firstName;
         }
       });
+      // 起動時はイベント詳細を開かない(URL ?event=... があれば別途処理)
+      state.currentEventId = null;
       return;
     }
   } catch (e) { /* parse failure, fall through to seed */ }
@@ -2154,13 +2156,20 @@ async function cloudPull({ force = false } = {}) {
   const remoteTs = remoteState.updatedAt || '';
   let replaced = false;
   if (force || remoteTs > localTs) {
+    // 端末固有のビュー状態(どのイベント詳細を開いているか)はクラウドから引き継がない
+    const keepEventId = state.currentEventId;
     state = remoteState;
+    state.currentEventId = keepEventId;
     if (!Array.isArray(state.departments)) state.departments = [...DEFAULT_DEPARTMENTS];
     if (!Array.isArray(state.titles)) state.titles = [...DEFAULT_TITLES];
     (state.users || []).forEach(u => { if (!u.status) u.status = 'active'; });
     if (!state.users.find(u => u.id === state.currentUserId)) {
       const admin = state.users.find(u => u.role === 'sysadmin' && (u.status || 'active') === 'active');
       state.currentUserId = admin ? admin.id : (state.users[0] && state.users[0].id);
+      state.currentEventId = null;
+    }
+    // 既に存在しないイベントを参照していたらクリア
+    if (state.currentEventId && !state.events.find(e => e.id === state.currentEventId)) {
       state.currentEventId = null;
     }
     await saveState({ skipCloud: true });
