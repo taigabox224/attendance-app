@@ -338,7 +338,7 @@
     justify-content: space-between;
     gap: 10px;
   }
-  .screen-header.header-row > div { min-width: 0; flex: 1; }
+  .screen-header.header-row > div:first-child { min-width: 0; flex: 1; }
 
   /* === Forms === */
   .form-group { margin-bottom: 14px; }
@@ -1533,7 +1533,7 @@
         <p class="screen-sub">登録ユーザーを委員会・役職で絞り込みできます</p>
       </div>
       <div id="admin-users-actions" style="display:flex;flex-direction:row;gap:6px;align-items:center;flex-shrink:0"></div>
-      <button class="gear-btn" id="admin-users-gear" onclick="openUserListMenu()" title="設定" style="display:none;margin-left:auto">⚙</button>
+      <button class="gear-btn" id="admin-users-gear" onclick="openUserListMenu()" title="設定" style="display:none">⚙</button>
     </div>
     <div id="admin-user-filter"></div>
     <div id="admin-user-bulk-bar"></div>
