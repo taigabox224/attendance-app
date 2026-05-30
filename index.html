@@ -1492,11 +1492,14 @@
       <div class="modal-handle"></div>
       <h2>プロフィール編集</h2>
       <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
-        委員会と役職を登録できます。どちらも任意です。
+        お名前は姓と名に分けて入力します。委員会・役職は任意です。
       </p>
       <div class="form-group">
-        <label class="form-label">お名前</label>
-        <div id="profile-name-display" style="font-size:14px;padding:10px 12px;background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-mute)"></div>
+        <label class="form-label">お名前 <span style="color:var(--danger)">*</span></label>
+        <div style="display:flex;gap:6px">
+          <input type="text" class="form-input" id="profile-last-name" placeholder="姓" autocomplete="family-name" style="flex:1">
+          <input type="text" class="form-input" id="profile-first-name" placeholder="名" autocomplete="given-name" style="flex:1">
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">委員会</label>
@@ -3449,7 +3452,10 @@ function renderUserProfileCard() {
 function openProfileModal() {
   const me = currentUser();
   if (!me) return;
-  $('profile-name-display').textContent = me.name;
+  // 既存データに lastName/firstName が無ければ name を分割して埋める
+  const fallback = (!me.lastName && !me.firstName) ? splitFullName(me.name) : { lastName: me.lastName || '', firstName: me.firstName || '' };
+  $('profile-last-name').value = fallback.lastName;
+  $('profile-first-name').value = fallback.firstName;
   const dept = $('profile-department');
   dept.innerHTML = `<option value="">(未設定)</option>` +
     getDepartments().map(d => `<option value="${escapeHtml(d)}" ${me.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('');
@@ -3462,11 +3468,18 @@ function openProfileModal() {
 async function saveProfile() {
   const me = currentUser();
   if (!me) return;
+  const lastName = $('profile-last-name').value.trim();
+  const firstName = $('profile-first-name').value.trim();
+  if (!lastName && !firstName) { alert('お名前(姓または名)は必須です'); return; }
+  me.lastName = lastName;
+  me.firstName = firstName;
+  me.name = joinFullName(lastName, firstName);
   me.department = $('profile-department').value || null;
   me.title = $('profile-title').value || null;
   await saveState();
   closeModal('modal-profile');
-  renderUserProfileCard();
+  renderAll();
+  showToast('プロフィールを更新しました');
 }
 
 // =================================================
