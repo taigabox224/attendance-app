@@ -108,6 +108,43 @@
     letter-spacing: 0.02em;
   }
 
+  /* 表示モード(ユーザー/管理者)切替バー — sysadmin/editor のみ表示 */
+  .mode-toggle-bar {
+    background: var(--surface-soft);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .mode-toggle {
+    flex: 1;
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 3px;
+    box-shadow: var(--shadow-sm);
+  }
+  .mode-toggle button {
+    flex: 1;
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    font-size: 12px;
+    color: var(--text-mute);
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 100px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .mode-toggle button.active {
+    background: var(--primary);
+    color: white;
+    font-weight: 500;
+  }
+  .mode-toggle button:not(.active):hover { color: var(--text); }
+
   .role-pill {
     display: flex;
     align-items: center;
@@ -1245,6 +1282,8 @@
     </button>
   </header>
 
+  <div id="mode-toggle-bar" class="mode-toggle-bar" style="display:none"></div>
+
   <!-- ========== ADMIN: Event List ========== -->
   <section id="screen-admin-list" class="screen">
     <div class="admin-tabs">
@@ -1980,6 +2019,16 @@ const canManageData = () => isSysadmin();
 const canEditAnyEvent = () => isSysadmin() || isEditor();
 const canEditEvent = ev => !!ev && (canEditAnyEvent() || ev.createdBy === state.currentUserId);
 
+// 表示モード: 管理者・編集者は user / admin を切替できる。デフォルトは user(QRなどを確認しやすくするため)。
+const VIEW_MODE_KEY = 'attendance_view_mode';
+let viewMode = (() => {
+  try { return localStorage.getItem(VIEW_MODE_KEY) || 'user'; } catch { return 'user'; }
+})();
+function saveViewMode() {
+  try { localStorage.setItem(VIEW_MODE_KEY, viewMode); } catch {}
+}
+const isAdminMode = () => canAccessAdminDashboard() && viewMode === 'admin';
+
 const STATUS_LABEL = {
   pending: '未回答',
   yes: '出席',
@@ -2027,7 +2076,8 @@ function roleAvatarColor(role) {
 
 function renderAll() {
   renderRoleSwitcher();
-  if (canAccessAdminDashboard()) {
+  renderModeToggleBar();
+  if (isAdminMode()) {
     renderAdminEventList();
     if (state.currentEventId) {
       renderAdminEventDetail();
@@ -2039,8 +2089,8 @@ function renderAll() {
     renderUserEventList();
     if (state.currentEventId) {
       const ev = state.events.find(e => e.id === state.currentEventId);
+      // 自作イベントは管理者風の詳細(編集・QRスキャンなどができる)
       if (ev && ev.createdBy === state.currentUserId) {
-        // 閲覧者が自作イベントを開いた場合は管理者風の詳細画面
         renderAdminEventDetail();
         showScreen('admin-detail');
       } else {
@@ -2051,6 +2101,32 @@ function renderAll() {
       showScreen('user-list');
     }
   }
+}
+
+function renderModeToggleBar() {
+  const bar = $('mode-toggle-bar');
+  if (!bar) return;
+  if (!canAccessAdminDashboard()) {
+    bar.style.display = 'none';
+    bar.innerHTML = '';
+    return;
+  }
+  bar.style.display = '';
+  bar.innerHTML = `
+    <div class="mode-toggle">
+      <button type="button" class="${viewMode === 'user' ? 'active' : ''}" onclick="setViewMode('user')">ユーザー画面</button>
+      <button type="button" class="${viewMode === 'admin' ? 'active' : ''}" onclick="setViewMode('admin')">管理者画面</button>
+    </div>
+  `;
+}
+
+function setViewMode(mode) {
+  if (mode !== 'user' && mode !== 'admin') return;
+  if (mode === viewMode) return;
+  viewMode = mode;
+  saveViewMode();
+  state.currentEventId = null;
+  renderAll();
 }
 
 // =================================================
@@ -2907,7 +2983,8 @@ function openCreateEventModal() {
   const defaultDeadline = new Date(tomorrow.getTime() - 1000 * 60 * 60 * 24);
   $('new-event-deadline').value = toLocalInputValue(defaultDeadline);
 
-  const userList = state.users.filter(u => u.role === 'viewer' && (u.status || 'active') === 'active');
+  // 招待対象はロールを問わず全アクティブユーザ(管理者・編集者自身も含む)
+  const userList = state.users.filter(u => (u.status || 'active') === 'active');
   inviteSelection = new Set(userList.map(u => u.id));
   inviteQuery = '';
   inviteFilter = { departments: [], title: '' };
@@ -2954,7 +3031,6 @@ function getFilteredInviteUsers() {
   const q = inviteQuery.trim().toLowerCase();
   const depts = inviteFilter.departments || [];
   return state.users
-    .filter(u => u.role === 'viewer')
     .filter(u => (u.status || 'active') === 'active')
     .filter(u => !q || u.name.toLowerCase().includes(q))
     .filter(u => !depts.length || depts.includes(u.department))
@@ -2962,7 +3038,7 @@ function getFilteredInviteUsers() {
 }
 
 function getActiveUserPoolSize() {
-  return state.users.filter(u => u.role === 'viewer' && (u.status || 'active') === 'active').length;
+  return state.users.filter(u => (u.status || 'active') === 'active').length;
 }
 
 function renderInviteSection() {
@@ -3021,16 +3097,19 @@ function renderInviteList() {
     target.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text-mute);font-size:13px">該当するユーザーはいません</div>';
     return;
   }
-  target.innerHTML = users.map(u => `
-    <label class="checkbox-row">
-      <input type="checkbox" value="${u.id}" ${inviteSelection.has(u.id) ? 'checked' : ''}
-             onchange="toggleInvite('${u.id}', this.checked)">
-      <div style="min-width:0">
-        <div class="name">${escapeHtml(u.name)}</div>
-        ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
-      </div>
-    </label>
-  `).join('');
+  target.innerHTML = users.map(u => {
+    const elevated = u.role === 'sysadmin' || u.role === 'editor';
+    return `
+      <label class="checkbox-row">
+        <input type="checkbox" value="${u.id}" ${inviteSelection.has(u.id) ? 'checked' : ''}
+               onchange="toggleInvite('${u.id}', this.checked)">
+        <div style="min-width:0">
+          <div class="name">${escapeHtml(u.name)}${elevated ? ` <span class="role-pill-mini ${u.role}">${ROLE_LABEL[u.role]}</span>` : ''}</div>
+          ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
+        </div>
+      </label>
+    `;
+  }).join('');
 }
 
 function onInviteSearch(v) {
