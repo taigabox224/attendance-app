@@ -753,6 +753,28 @@
     border-radius: 100px;
     margin: -8px auto 18px;
   }
+  .modal { position: relative; }
+  .modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-mute);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    z-index: 2;
+    transition: background 0.15s, color 0.15s;
+  }
+  .modal-close:hover { background: var(--surface-soft); color: var(--text); }
   .modal h2 {
     font-family: 'Shippori Mincho', serif;
     font-size: 20px;
@@ -1538,6 +1560,7 @@
   <div class="modal-overlay" id="modal-create-event">
     <div class="modal">
       <div class="modal-handle"></div>
+      <button type="button" class="modal-close" onclick="closeModal('modal-create-event')" aria-label="閉じる">×</button>
       <h2 id="event-modal-heading">イベントを作成</h2>
       <div class="form-group">
         <label class="form-label">タイトル</label>
