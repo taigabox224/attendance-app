@@ -661,6 +661,20 @@
   }
   .date-range-inputs .sep { color: var(--text-mute); font-size: 12px; }
 
+  /* 自作イベントバッジ */
+  .badge-own {
+    display: inline-block;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+
   /* 下書きバッジ + カード表示 */
   .badge-draft {
     display: inline-block;
@@ -915,6 +929,20 @@
     outline: none;
   }
 
+  /* ユーザロールのピル(管理者一覧で表示) */
+  .role-pill-mini {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+  .role-pill-mini.sysadmin { background: var(--text); color: var(--surface); }
+  .role-pill-mini.editor { background: var(--primary-soft); color: var(--primary); }
+
   /* ユーザステータスのピル(休会/退会) */
   .user-status-pill {
     display: inline-block;
@@ -1116,11 +1144,7 @@
         <h1 class="screen-title">ユーザー一覧</h1>
         <p class="screen-sub">登録ユーザーを所属・役職で絞り込みできます</p>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-        <button class="btn btn-primary btn-sm" onclick="openUserEditModal(null)">+ ユーザー登録</button>
-        <button class="btn btn-outline btn-sm" onclick="openMasterModal()">マスター編集</button>
-        <button class="btn btn-outline btn-sm" onclick="openDataModal()">データ</button>
-      </div>
+      <div id="admin-users-actions" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end"></div>
     </div>
     <div id="admin-user-filter"></div>
     <div id="admin-user-list"></div>
@@ -1129,7 +1153,7 @@
   <!-- ========== ADMIN: Event Detail ========== -->
   <section id="screen-admin-detail" class="screen screen-hidden">
     <div class="detail-toolbar">
-      <button class="back-link" onclick="showScreen('admin-list')">一覧に戻る</button>
+      <button class="back-link" onclick="backFromEventDetail()">一覧に戻る</button>
       <button class="gear-btn" onclick="openEventMenu()" title="このイベントの操作">⚙</button>
     </div>
     <div id="admin-detail-content"></div>
@@ -1137,9 +1161,12 @@
 
   <!-- ========== USER: Event List ========== -->
   <section id="screen-user-list" class="screen screen-hidden">
-    <div class="screen-header">
-      <h1 class="screen-title">あなたのイベント</h1>
-      <p class="screen-sub">招待されているイベントの一覧です</p>
+    <div class="screen-header header-row">
+      <div>
+        <h1 class="screen-title">あなたのイベント</h1>
+        <p class="screen-sub">招待されているイベントと、自分で作成したイベントを表示</p>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openCreateEventModal()">+ 新規作成</button>
     </div>
     <div id="user-profile-card"></div>
     <div id="user-event-filter"></div>
@@ -1270,14 +1297,8 @@
     <div class="modal">
       <div class="modal-handle"></div>
       <h2>イベントの操作</h2>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
-        <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); openEditEventModal(state.currentEventId)">イベントを編集</button>
-        <button class="btn btn-primary btn-full" onclick="copyEventLink()">共有リンクをコピー</button>
-        <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); exportAttendeesCsv()">出欠CSVを書き出す</button>
-        <input type="file" id="attendee-csv-file" accept=".csv,text/csv" style="display:none" onchange="importAttendeesCsv(this)">
-        <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); document.getElementById('attendee-csv-file').click()">出欠CSVを読み込む</button>
-        <button class="btn btn-danger btn-full" style="margin-top:6px" onclick="closeModal('modal-event-menu'); deleteEvent()">このイベントを削除</button>
-      </div>
+      <div id="event-menu-body" style="display:flex;flex-direction:column;gap:8px;margin-top:12px"></div>
+      <input type="file" id="attendee-csv-file" accept=".csv,text/csv" style="display:none" onchange="importAttendeesCsv(this)">
       <div style="margin-top:14px">
         <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu')">閉じる</button>
       </div>
@@ -1327,10 +1348,8 @@
       </div>
       <div class="form-group">
         <label class="form-label">ロール</label>
-        <select class="form-input" id="user-edit-role">
-          <option value="user">一般ユーザー</option>
-          <option value="admin">管理者</option>
-        </select>
+        <select class="form-input" id="user-edit-role"></select>
+        <div id="user-edit-role-note" style="font-size:11px;color:var(--text-mute);margin-top:4px"></div>
       </div>
       <div class="form-group">
         <label class="form-label">ステータス</label>
@@ -1429,7 +1448,10 @@ const SEED = () => {
     '岡本 大和', '松田 凪', '中川 朝陽', '原田 さき', '小野 海',
     '田村 心春', '竹内 蓮', '金子 椿', '和田 智也', '中山 ひかり',
   ];
-  const users = [{ id: 'u_admin', name: '田中 管理者', role: 'admin', department: null, title: null, status: 'active' }];
+  const users = [
+    { id: 'u_admin', name: '田中 システム管理者', role: 'sysadmin', department: null, title: null, status: 'active' },
+    { id: 'u_editor', name: '佐々木 編集者', role: 'editor', department: '人事部', title: null, status: 'active' },
+  ];
   SEED_NAMES.forEach((name, i) => {
     // 所属はぐるぐる、役職は1/5の確率で付与(残りは"一般"扱いで未設定null)
     const department = DEFAULT_DEPARTMENTS[i % DEFAULT_DEPARTMENTS.length];
@@ -1444,7 +1466,7 @@ const SEED = () => {
     else if (i === 27) status = 'left';
     users.push({
       id: 'u_' + String(i + 1).padStart(3, '0'),
-      name, role: 'user',
+      name, role: 'viewer',
       department, title, status,
     });
   });
@@ -1456,7 +1478,7 @@ const SEED = () => {
 
   // 期限切れイベント: 開催は3日後、回答期限は昨日(=既に締切)
   const closedAttendees = users
-    .filter(u => u.role === 'user')
+    .filter(u => u.role === 'viewer')
     .slice(0, 40)
     .map((u, i) => {
       // 期限切れなので回答済が多めの構成: yes 60%, no 25%, pending 15%
@@ -1469,7 +1491,7 @@ const SEED = () => {
 
   // 春の総会: 全員(50名)招待、ステータス散らす。懇親会あり。
   const partyAttendees = users
-    .filter(u => u.role === 'user')
+    .filter(u => u.role === 'viewer')
     .map((u, i) => {
       const m = i % 10;
       let status = 'yes';
@@ -1492,7 +1514,7 @@ const SEED = () => {
 
   // 月次定例: 30人だけ招待
   const meetingAttendees = users
-    .filter(u => u.role === 'user')
+    .filter(u => u.role === 'viewer')
     .slice(0, 30)
     .map((u, i) => ({
       userId: u.id,
@@ -1503,7 +1525,7 @@ const SEED = () => {
   // 下書きサンプル: 管理者にしか見えない仮作成イベント
   const draftFuture = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 28);
   const draftAttendees = users
-    .filter(u => u.role === 'user')
+    .filter(u => u.role === 'viewer')
     .slice(0, 10)
     .map(u => ({ userId: u.id, status: 'pending', afterStatus: null, checkedInAt: null }));
 
@@ -1588,8 +1610,11 @@ async function loadState() {
         if (typeof ev.published !== 'boolean') ev.published = true;
       });
       // 後方互換: ユーザの status (アクティブ/休会/退会) が無ければ active 扱い
+      // 旧 role 'admin' → 'sysadmin'、'user' → 'viewer'
       (state.users || []).forEach(u => {
         if (!u.status) u.status = 'active';
+        if (u.role === 'admin') u.role = 'sysadmin';
+        else if (u.role === 'user') u.role = 'viewer';
       });
       return;
     }
@@ -1694,7 +1719,7 @@ async function cloudPull({ force = false } = {}) {
     if (!Array.isArray(state.titles)) state.titles = [...DEFAULT_TITLES];
     (state.users || []).forEach(u => { if (!u.status) u.status = 'active'; });
     if (!state.users.find(u => u.id === state.currentUserId)) {
-      const admin = state.users.find(u => u.role === 'admin' && (u.status || 'active') === 'active');
+      const admin = state.users.find(u => u.role === 'sysadmin' && (u.status || 'active') === 'active');
       state.currentUserId = admin ? admin.id : (state.users[0] && state.users[0].id);
       state.currentEventId = null;
     }
@@ -1777,7 +1802,22 @@ const toLocalInputValue = d => {
 };
 const isDeadlinePassed = ev => !!ev.responseDeadline && new Date(ev.responseDeadline) < new Date();
 const currentUser = () => userById(state.currentUserId);
-const isAdmin = () => currentUser()?.role === 'admin';
+// 役割: sysadmin > editor > viewer
+const ROLE_LABEL = {
+  sysadmin: 'システム管理者',
+  editor: '編集者',
+  viewer: '閲覧者',
+};
+const ROLE_ORDER = { sysadmin: 3, editor: 2, viewer: 1 };
+const isSysadmin = () => currentUser()?.role === 'sysadmin';
+const isEditor = () => currentUser()?.role === 'editor';
+const isViewer = () => currentUser()?.role === 'viewer';
+const canAccessAdminDashboard = () => isSysadmin() || isEditor();
+const canManageMaster = () => isSysadmin();
+const canManageUsers = () => isSysadmin() || isEditor();
+const canManageData = () => isSysadmin();
+const canEditAnyEvent = () => isSysadmin() || isEditor();
+const canEditEvent = ev => !!ev && (canEditAnyEvent() || ev.createdBy === state.currentUserId);
 
 const STATUS_LABEL = {
   pending: '未回答',
@@ -1813,14 +1853,20 @@ function showScreen(name) {
 function renderRoleSwitcher() {
   const u = currentUser();
   $('topbar-avatar').textContent = initial(u.name);
-  $('topbar-avatar').style.background = u.role === 'admin' ? 'var(--text)' : 'var(--accent)';
+  $('topbar-avatar').style.background = roleAvatarColor(u.role);
   $('topbar-name').textContent = u.name;
-  $('topbar-role').textContent = u.role;
+  $('topbar-role').textContent = ROLE_LABEL[u.role] || u.role;
+}
+
+function roleAvatarColor(role) {
+  if (role === 'sysadmin') return 'var(--text)';
+  if (role === 'editor') return 'var(--primary)';
+  return 'var(--accent)';
 }
 
 function renderAll() {
   renderRoleSwitcher();
-  if (isAdmin()) {
+  if (canAccessAdminDashboard()) {
     renderAdminEventList();
     if (state.currentEventId) {
       renderAdminEventDetail();
@@ -1831,8 +1877,15 @@ function renderAll() {
   } else {
     renderUserEventList();
     if (state.currentEventId) {
-      renderUserEventDetail();
-      showScreen('user-detail');
+      const ev = state.events.find(e => e.id === state.currentEventId);
+      if (ev && ev.createdBy === state.currentUserId) {
+        // 閲覧者が自作イベントを開いた場合は管理者風の詳細画面
+        renderAdminEventDetail();
+        showScreen('admin-detail');
+      } else {
+        renderUserEventDetail();
+        showScreen('user-detail');
+      }
     } else {
       showScreen('user-list');
     }
@@ -1847,8 +1900,12 @@ let adminUserFilter = { query: '', department: '', title: '', userStatus: 'activ
 
 function getFilteredAdminUsers() {
   const q = adminUserFilter.query.trim().toLowerCase();
+  // sysadmin は全ロール表示、editor は viewer のみ管理対象
+  const baseRoleFilter = isSysadmin()
+    ? (u => u.role === 'viewer' || u.role === 'editor' || u.role === 'sysadmin')
+    : (u => u.role === 'viewer');
   return state.users
-    .filter(u => u.role === 'user')
+    .filter(baseRoleFilter)
     .filter(u => adminUserFilter.userStatus === 'all' || (u.status || 'active') === adminUserFilter.userStatus)
     .filter(u => !q || u.name.toLowerCase().includes(q))
     .filter(u => !adminUserFilter.department || u.department === adminUserFilter.department)
@@ -1856,7 +1913,16 @@ function getFilteredAdminUsers() {
 }
 
 function renderAdminUserList() {
-  const totalUsers = state.users.filter(u => u.role === 'user').length;
+  const totalUsers = state.users.filter(u => isSysadmin() ? (u.role === 'viewer' || u.role === 'editor' || u.role === 'sysadmin') : u.role === 'viewer').length;
+  // ヘッダのアクションボタンを権限に応じて出し分け
+  const actions = $('admin-users-actions');
+  if (actions) {
+    actions.innerHTML = `
+      ${canManageUsers() ? '<button class="btn btn-primary btn-sm" onclick="openUserEditModal(null)">+ ユーザー登録</button>' : ''}
+      ${canManageMaster() ? '<button class="btn btn-outline btn-sm" onclick="openMasterModal()">マスター編集</button>' : ''}
+      ${canManageData() ? '<button class="btn btn-outline btn-sm" onclick="openDataModal()">データ</button>' : ''}
+    `;
+  }
   const filterTarget = $('admin-user-filter');
   const statusChip = (key, label) => `
     <button class="chip ${adminUserFilter.userStatus === key ? 'active' : ''}" onclick="setAdminUserStatus('${key}')">${label}</button>
@@ -1895,7 +1961,10 @@ function renderAdminUserRows() {
   const target = $('admin-user-list');
   if (!target) return;
   const users = getFilteredAdminUsers();
-  const totalUsers = state.users.filter(u => u.role === 'user').length;
+  const baseRoleFilter = isSysadmin()
+    ? (u => u.role === 'viewer' || u.role === 'editor' || u.role === 'sysadmin')
+    : (u => u.role === 'viewer');
+  const totalUsers = state.users.filter(baseRoleFilter).length;
   const countEl = $('admin-user-count');
   if (countEl) {
     countEl.textContent = users.length === totalUsers ? `${totalUsers} 件` : `${users.length} / ${totalUsers} 件`;
@@ -1909,11 +1978,12 @@ function renderAdminUserRows() {
   }
   target.innerHTML = users.map(u => {
     const status = u.status || 'active';
+    const elevated = u.role === 'sysadmin' || u.role === 'editor';
     return `
       <div class="user-row" onclick="openUserEditModal('${u.id}')" style="cursor:pointer">
-        <div class="avatar">${initial(u.name)}</div>
+        <div class="avatar" style="background:${roleAvatarColor(u.role)};color:white">${initial(u.name)}</div>
         <div class="info">
-          <div class="name">${escapeHtml(u.name)}${status !== 'active' ? ` <span class="user-status-pill ${status}">${USER_STATUS_LABEL[status]}</span>` : ''}</div>
+          <div class="name">${escapeHtml(u.name)}${elevated ? ` <span class="role-pill-mini ${u.role}">${ROLE_LABEL[u.role]}</span>` : ''}${status !== 'active' ? ` <span class="user-status-pill ${status}">${USER_STATUS_LABEL[status]}</span>` : ''}</div>
           <div class="meta">
             <span class="${u.department ? '' : 'placeholder'}">${escapeHtml(u.department || '所属未設定')}</span>
             <span>·</span>
@@ -1953,8 +2023,29 @@ function openUserEditModal(userId) {
   const u = userId ? userById(userId) : null;
   $('user-edit-heading').textContent = u ? 'ユーザー編集' : 'ユーザー登録';
   $('user-edit-name').value = u ? u.name : '';
-  $('user-edit-role').value = u ? u.role : 'user';
   $('user-edit-status').value = (u && u.status) ? u.status : 'active';
+
+  // ロール選択肢: sysadminは全部、editorは viewer のみ
+  const roleSel = $('user-edit-role');
+  const note = $('user-edit-role-note');
+  const allowAllRoles = isSysadmin();
+  const currentRole = u ? u.role : 'viewer';
+  if (allowAllRoles) {
+    roleSel.innerHTML = `
+      <option value="sysadmin" ${currentRole === 'sysadmin' ? 'selected' : ''}>システム管理者</option>
+      <option value="editor" ${currentRole === 'editor' ? 'selected' : ''}>編集者</option>
+      <option value="viewer" ${currentRole === 'viewer' ? 'selected' : ''}>閲覧者</option>
+    `;
+    roleSel.disabled = false;
+    note.textContent = '';
+  } else {
+    // editor は viewer 固定。既存の上位ロールは表示するが変更不可。
+    const display = u && (u.role === 'sysadmin' || u.role === 'editor') ? u.role : 'viewer';
+    roleSel.innerHTML = `<option value="${display}" selected>${ROLE_LABEL[display] || display}</option>`;
+    roleSel.disabled = true;
+    note.textContent = '編集者は閲覧者のみ追加でき、上位ロールの変更はできません';
+  }
+
   const deptSel = $('user-edit-department');
   deptSel.innerHTML = `<option value="">(未設定)</option>` +
     getDepartments().map(d => `<option value="${escapeHtml(d)}" ${u && u.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('');
@@ -1969,31 +2060,41 @@ async function saveUserEdit() {
   if (!name) { alert('お名前は必須です'); return; }
   const dept = $('user-edit-department').value || null;
   const titleVal = $('user-edit-title').value || null;
-  const role = $('user-edit-role').value;
+  const role = $('user-edit-role').value || 'viewer';
   const status = $('user-edit-status').value;
   if (editingUserId) {
     const u = userById(editingUserId);
     if (!u) return;
+    // editor が sysadmin/editor の上位ロールを編集しようとするケースを防御
+    if (!isSysadmin() && (u.role === 'sysadmin' || u.role === 'editor')) {
+      alert('編集者は上位ロールのユーザーを変更できません');
+      return;
+    }
     u.name = name;
     u.department = dept;
     u.title = titleVal;
-    u.role = role;
+    if (isSysadmin()) u.role = role;
     u.status = status;
-    // 編集対象が自分自身でロールがuserになった、または非アクティブ化されたなら admin に戻す
-    if (u.id === state.currentUserId && (role !== 'admin' || status !== 'active')) {
-      // 安全のため切替モーダル等で選び直してもらう
-      state.currentUserId = (state.users.find(x => x.role === 'admin' && (x.status || 'active') === 'active') || u).id;
+    // 自分自身を非アクティブ化したら、他のアクティブユーザに切り替え(ロール降格はそのまま許可)
+    if (u.id === state.currentUserId && status !== 'active') {
+      const fallback = state.users.find(x => x.id !== u.id && x.role === 'sysadmin' && (x.status || 'active') === 'active')
+        || state.users.find(x => x.id !== u.id && (x.status || 'active') === 'active');
+      if (fallback) state.currentUserId = fallback.id;
     }
   } else {
     state.users.push({
       id: 'u_' + Date.now(),
-      name, role, department: dept, title: titleVal, status,
+      name,
+      role: isSysadmin() ? role : 'viewer',
+      department: dept, title: titleVal, status,
     });
   }
+  const wasEditing = !!editingUserId;
   await saveState();
   closeModal('modal-user-edit');
-  renderAdminUserList();
-  if (!editingUserId) showToast(`「${name}」を登録しました`);
+  // 自分自身を編集してロールが変わっている可能性があるので renderAll で再評価
+  renderAll();
+  if (!wasEditing) showToast(`「${name}」を登録しました`);
 }
 
 // =================================================
@@ -2052,7 +2153,7 @@ function setDateRangeInput(which, value) {
 }
 
 function reRenderEventLists() {
-  if (isAdmin()) renderAdminEventList();
+  if (canAccessAdminDashboard()) renderAdminEventList();
   else renderUserEventList();
 }
 
@@ -2286,7 +2387,28 @@ function renderAdminEventDetail() {
 
 function openEventMenu() {
   if (!state.currentEventId) return;
+  renderEventMenu();
   openModal('modal-event-menu');
+}
+
+function renderEventMenu() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  const body = $('event-menu-body');
+  if (!ev || !body) return;
+  const canEdit = canEditEvent(ev);
+  body.innerHTML = `
+    ${canEdit ? `<button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); openEditEventModal(state.currentEventId)">イベントを編集</button>` : ''}
+    <button class="btn btn-primary btn-full" onclick="copyEventLink()">共有リンクをコピー</button>
+    <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); exportAttendeesCsv()">出欠CSVを書き出す</button>
+    ${canEdit ? `<button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); document.getElementById('attendee-csv-file').click()">出欠CSVを読み込む</button>` : ''}
+    ${canEdit ? `<button class="btn btn-danger btn-full" style="margin-top:6px" onclick="closeModal('modal-event-menu'); deleteEvent()">このイベントを削除</button>` : ''}
+  `;
+}
+
+function backFromEventDetail() {
+  state.currentEventId = null;
+  if (canAccessAdminDashboard()) showScreen('admin-list');
+  else showScreen('user-list');
 }
 
 function renderAdminAttendeeList() {
@@ -2448,7 +2570,7 @@ function openCreateEventModal() {
   const defaultDeadline = new Date(tomorrow.getTime() - 1000 * 60 * 60 * 24);
   $('new-event-deadline').value = toLocalInputValue(defaultDeadline);
 
-  const userList = state.users.filter(u => u.role === 'user' && (u.status || 'active') === 'active');
+  const userList = state.users.filter(u => u.role === 'viewer' && (u.status || 'active') === 'active');
   inviteSelection = new Set(userList.map(u => u.id));
   inviteQuery = '';
   inviteFilter = { departments: [], title: '' };
@@ -2486,7 +2608,7 @@ function getFilteredInviteUsers() {
   const q = inviteQuery.trim().toLowerCase();
   const depts = inviteFilter.departments || [];
   return state.users
-    .filter(u => u.role === 'user')
+    .filter(u => u.role === 'viewer')
     .filter(u => (u.status || 'active') === 'active')
     .filter(u => !q || u.name.toLowerCase().includes(q))
     .filter(u => !depts.length || depts.includes(u.department))
@@ -2494,7 +2616,7 @@ function getFilteredInviteUsers() {
 }
 
 function getActiveUserPoolSize() {
-  return state.users.filter(u => u.role === 'user' && (u.status || 'active') === 'active').length;
+  return state.users.filter(u => u.role === 'viewer' && (u.status || 'active') === 'active').length;
 }
 
 function renderInviteSection() {
@@ -2681,7 +2803,8 @@ async function saveEventForm({ publish = true } = {}) {
     state.events.unshift(newEvent);
     await saveState();
     closeModal('modal-create-event');
-    renderAdminEventList();
+    if (canAccessAdminDashboard()) renderAdminEventList();
+    else renderUserEventList();
     showToast(`「${title}」を${publish ? '公開しました' : '下書きで保存しました'}`);
   }
 }
@@ -2693,14 +2816,21 @@ function renderUserEventList() {
   renderUserProfileCard();
   renderDateRangeFilter('user-event-filter');
   const me = currentUser();
-  const myEvents = state.events.filter(ev => ev.published !== false && ev.attendees.some(a => a.userId === me.id));
+  // 表示対象: 招待されているイベント(公開済のみ) + 自分が作成したイベント(下書き含む)
+  const myEvents = state.events.filter(ev => {
+    const isOwn = ev.createdBy === me.id;
+    const invited = ev.attendees.some(a => a.userId === me.id);
+    if (!isOwn && !invited) return false;
+    if (!isOwn && ev.published === false) return false; // 他人の下書きは非表示
+    return true;
+  });
   const filtered = filterEventsByRange(myEvents).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
   const list = $('user-event-list');
   if (!myEvents.length) {
     list.innerHTML = `
       <div class="empty-state">
         <div class="glyph">○</div>
-        <div class="hint">招待されているイベントはありません</div>
+        <div class="hint">招待されているイベントはありません<br>右上の「+ 新規作成」から自分で作成もできます</div>
       </div>`;
     return;
   }
@@ -2715,16 +2845,20 @@ function renderUserEventList() {
   list.innerHTML = filtered.map(ev => {
     const a = ev.attendees.find(x => x.userId === me.id);
     const locked = isDeadlinePassed(ev);
+    const isOwn = ev.createdBy === me.id;
+    const opener = isOwn ? `openAdminEventDetail('${ev.id}')` : `openUserEventDetail('${ev.id}')`;
     return `
-      <div class="event-card" onclick="openUserEventDetail('${ev.id}')">
+      <div class="event-card ${ev.published === false ? 'is-draft' : ''}" onclick="${opener}">
         <div class="date-row">
           <span class="date-tag">${fmtDate(ev.date)}</span>
+          ${ev.published === false ? '<span class="badge-draft">下書き</span>' : ''}
+          ${isOwn ? '<span class="badge-own">自作</span>' : ''}
           ${ev.hasAfterparty ? '<span class="badge-afterparty">🍻 懇親会</span>' : ''}
           ${locked ? '<span class="badge-expired">回答締切</span>' : ''}
         </div>
         <div class="title">${escapeHtml(ev.title)}</div>
         <div class="meta"><span>${escapeHtml(ev.location || '場所未定')}</span></div>
-        ${statusBadge(a.status)}
+        ${a ? statusBadge(a.status) : ''}
       </div>`;
   }).join('');
 }
@@ -3098,7 +3232,7 @@ async function importStateJson(input) {
     (state.users || []).forEach(u => { if (!u.status) u.status = 'active'; });
     // 現在ログインしているユーザがインポート後の users に存在しなければ admin にフォールバック
     if (!state.users.find(u => u.id === state.currentUserId)) {
-      const admin = state.users.find(u => u.role === 'admin' && (u.status || 'active') === 'active');
+      const admin = state.users.find(u => u.role === 'sysadmin' && (u.status || 'active') === 'active');
       state.currentUserId = admin ? admin.id : (state.users[0] && state.users[0].id);
     }
     state.currentEventId = null;
@@ -3293,14 +3427,14 @@ function renderUserEventDetail() {
 
 function pickMyRsvp(answer) {
   const ev = state.events.find(e => e.id === state.currentEventId);
-  if (!ev || (isDeadlinePassed(ev) && !isAdmin())) return;
+  if (!ev || (isDeadlinePassed(ev) && !canAccessAdminDashboard())) return;
   pendingRsvp.status = answer;
   renderUserEventDetail();
 }
 
 function pickMyAfterparty(answer) {
   const ev = state.events.find(e => e.id === state.currentEventId);
-  if (!ev || (isDeadlinePassed(ev) && !isAdmin())) return;
+  if (!ev || (isDeadlinePassed(ev) && !canAccessAdminDashboard())) return;
   pendingRsvp.afterStatus = answer;
   renderUserEventDetail();
 }
@@ -3310,7 +3444,7 @@ async function saveMyRsvp() {
   if (!ev) return;
   const att = ev.attendees.find(a => a.userId === state.currentUserId);
   if (!att) return;
-  if (isDeadlinePassed(ev) && !isAdmin()) {
+  if (isDeadlinePassed(ev) && !canAccessAdminDashboard()) {
     alert('回答期限を過ぎたため変更できません。管理者にご連絡ください。');
     renderUserEventDetail();
     return;
@@ -3510,10 +3644,10 @@ $('role-switch-btn').addEventListener('click', () => {
     .map(u => `
       <div class="attendee-row" style="cursor:pointer" onclick="switchUser('${u.id}')">
         <div class="left">
-          <div class="avatar" style="background:${u.role === 'admin' ? 'var(--text)' : 'var(--accent)'};color:white">${initial(u.name)}</div>
+          <div class="avatar" style="background:${roleAvatarColor(u.role)};color:white">${initial(u.name)}</div>
           <div>
             <div class="name">${escapeHtml(u.name)}</div>
-            <div style="font-size:11px;color:var(--text-mute);font-family:'JetBrains Mono'">${u.role}</div>
+            <div style="font-size:11px;color:var(--text-mute)">${ROLE_LABEL[u.role] || u.role}</div>
           </div>
         </div>
         ${state.currentUserId === u.id ? '<div style="color:var(--accent);font-size:13px">●</div>' : ''}
@@ -3558,13 +3692,14 @@ function navigateToEventFromUrl() {
   const eventId = params.get('event');
   if (!eventId) return false;
   const ev = state.events.find(e => e.id === eventId);
-  if (!ev) return false; // クラウドプル後に再試行する余地を残すため return false
-  if (ev.published === false && !isAdmin()) {
+  if (!ev) return false; // クラウドプル後に再試行する余地を残す
+  const isOwner = ev.createdBy === state.currentUserId;
+  if (ev.published === false && !canAccessAdminDashboard() && !isOwner) {
     alert('指定されたイベントは現在公開されていません');
-    return true; // 取り扱い済み(再試行不要)
+    return true;
   }
   state.currentEventId = eventId;
-  if (isAdmin()) {
+  if (canAccessAdminDashboard() || isOwner) {
     renderAdminEventDetail();
     showScreen('admin-detail');
   } else {
