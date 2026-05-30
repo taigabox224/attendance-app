@@ -392,6 +392,23 @@
     margin-bottom: 6px;
     font-weight: 500;
   }
+  .required-mark {
+    color: var(--danger);
+    font-weight: 700;
+    margin-left: 2px;
+  }
+  .optional-mark {
+    display: inline-block;
+    background: var(--surface-soft);
+    color: var(--text-soft);
+    border: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
   .form-input, .form-textarea {
     width: 100%;
     padding: 10px 12px;
@@ -1591,12 +1608,13 @@
       <div class="modal-handle"></div>
       <button type="button" class="modal-close" onclick="closeModal('modal-create-event')" aria-label="閉じる">×</button>
       <h2 id="event-modal-heading">イベントを作成</h2>
+      <p style="font-size:11px;color:var(--text-mute);margin-bottom:14px"><span class="required-mark">*</span> は必須項目です</p>
       <div class="form-group">
-        <label class="form-label">タイトル</label>
+        <label class="form-label">タイトル <span class="required-mark">*</span></label>
         <input type="text" class="form-input" id="new-event-title" placeholder="例: 2026年6月度例会">
       </div>
       <div class="form-group">
-        <label class="form-label">日時</label>
+        <label class="form-label">日時 <span class="required-mark">*</span></label>
         <input type="datetime-local" class="form-input" id="new-event-date">
       </div>
       <div class="form-group">
@@ -1615,7 +1633,7 @@
         <input type="text" class="form-input" id="new-event-location" placeholder="例: スターツおおたかの森ホール">
       </div>
       <div class="form-group">
-        <label class="form-label">説明 (任意)</label>
+        <label class="form-label">説明 <span class="optional-mark">任意</span></label>
         <textarea class="form-textarea" id="new-event-description" placeholder="服装、持ち物、注意事項など"></textarea>
       </div>
       <div class="form-group">
@@ -1629,11 +1647,11 @@
       </div>
       <div id="afterparty-fields" style="display:none">
         <div class="form-group">
-          <label class="form-label">懇親会の場所 (任意)</label>
+          <label class="form-label">懇親会の場所 <span class="optional-mark">任意</span></label>
           <input type="text" class="form-input" id="new-event-afterparty-location" placeholder="例: 居酒屋 旬彩(本社から徒歩3分)">
         </div>
         <div class="form-group">
-          <label class="form-label">懇親会の説明 (任意)</label>
+          <label class="form-label">懇親会の説明 <span class="optional-mark">任意</span></label>
           <textarea class="form-textarea" id="new-event-afterparty-description" placeholder="会費、地図URL、注意事項など"></textarea>
           <div style="font-size:11px;color:var(--text-mute);margin-top:4px">URL は自動でリンクになります</div>
         </div>
