@@ -2236,7 +2236,7 @@ function setViewMode(mode) {
 // ADMIN: User list
 // =================================================
 const USER_STATUS_LABEL = { active: 'アクティブ', inactive: '休会', left: '退会' };
-let adminUserFilter = { query: '', department: '', title: '', userStatus: 'active' };
+let adminUserFilter = { query: '', departments: [], title: '', userStatus: 'active' };
 
 function getFilteredAdminUsers() {
   const q = adminUserFilter.query.trim().toLowerCase();
@@ -2244,11 +2244,12 @@ function getFilteredAdminUsers() {
   const baseRoleFilter = isSysadmin()
     ? (u => u.role === 'viewer' || u.role === 'editor' || u.role === 'sysadmin')
     : (u => u.role === 'viewer');
+  const depts = adminUserFilter.departments || [];
   return state.users
     .filter(baseRoleFilter)
     .filter(u => adminUserFilter.userStatus === 'all' || (u.status || 'active') === adminUserFilter.userStatus)
     .filter(u => !q || u.name.toLowerCase().includes(q))
-    .filter(u => !adminUserFilter.department || u.department === adminUserFilter.department)
+    .filter(u => !depts.length || depts.includes(u.department))
     .filter(u => !adminUserFilter.title || u.title === adminUserFilter.title);
 }
 
@@ -2278,16 +2279,23 @@ function renderAdminUserList() {
         ${statusChip('left', '退会')}
         ${statusChip('all', '全て')}
       </div>
-      <div class="filter-selects">
-        <select onchange="setAdminUserFilter('department', this.value)">
-          <option value="">委員会(全て)</option>
-          ${getDepartments().map(d => `<option value="${escapeHtml(d)}" ${adminUserFilter.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
-        </select>
-        <select onchange="setAdminUserFilter('title', this.value)">
-          <option value="">役職(全て)</option>
-          ${getTitles().map(t => `<option value="${escapeHtml(t)}" ${adminUserFilter.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
-        </select>
-      </div>
+      ${getDepartments().length ? `
+        <div class="filter-section-label">委員会(複数選択可)</div>
+        <div class="multiselect-chips">
+          ${getDepartments().map(d => `
+            <button class="chip ${(adminUserFilter.departments || []).includes(d) ? 'active' : ''}" onclick="toggleAdminUserDept('${escapeHtml(d).replace(/'/g, "\\'")}')">${escapeHtml(d)}</button>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${getTitles().length ? `
+        <div class="filter-section-label">役職</div>
+        <div class="filter-selects" style="margin-top:4px">
+          <select onchange="setAdminUserFilter('title', this.value)">
+            <option value="">役職(全て)</option>
+            ${getTitles().map(t => `<option value="${escapeHtml(t)}" ${adminUserFilter.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
+          </select>
+        </div>
+      ` : ''}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--text-mute)">
         <span id="admin-user-count">${totalUsers} 件</span>
         <button class="btn btn-outline btn-sm" onclick="resetAdminUserFilter()">フィルタをリセット</button>
@@ -2400,13 +2408,21 @@ function setAdminUserFilter(key, value) {
   renderAdminUserRows();
 }
 
+function toggleAdminUserDept(d) {
+  const arr = adminUserFilter.departments || (adminUserFilter.departments = []);
+  const idx = arr.indexOf(d);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(d);
+  renderAdminUserList();
+}
+
 function setAdminUserStatus(key) {
   adminUserFilter.userStatus = key;
   renderAdminUserList();
 }
 
 function resetAdminUserFilter() {
-  adminUserFilter = { query: '', department: '', title: '', userStatus: 'active' };
+  adminUserFilter = { query: '', departments: [], title: '', userStatus: 'active' };
   renderAdminUserList();
 }
 
@@ -3903,7 +3919,7 @@ async function removeMaster(kind, index) {
   list.splice(index, 1);
   // フィルタで選択中だったらクリア
   if (kind === 'departments') {
-    adminUserFilter.department = '';
+    adminUserFilter.departments = (adminUserFilter.departments || []).filter(d => d !== value);
     if (adminAttendeeFilter) adminAttendeeFilter.departments = (adminAttendeeFilter.departments || []).filter(d => d !== value);
   } else {
     adminUserFilter.title = '';
