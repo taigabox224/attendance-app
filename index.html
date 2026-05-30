@@ -2126,11 +2126,10 @@ const toLocalDateValue = d => {
 
 function computeDefaultEventRange() {
   const now = new Date();
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastNext = new Date(now.getFullYear(), now.getMonth() + 2, 0);
   return {
-    preset: 'this-and-next',
-    from: toLocalDateValue(first),
+    preset: 'today-and-next',
+    from: toLocalDateValue(now),
     to: toLocalDateValue(lastNext),
   };
 }
@@ -2155,7 +2154,7 @@ function setDateRangePreset(preset) {
     const first = new Date(now.getFullYear(), now.getMonth(), 1);
     const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     eventDateRange = { preset, from: toLocalDateValue(first), to: toLocalDateValue(last) };
-  } else if (preset === 'this-and-next') {
+  } else if (preset === 'today-and-next') {
     eventDateRange = computeDefaultEventRange();
   } else if (preset === 'open-ended') {
     // 期間指定: 開始日=本日、終了日=未指定(無期限)
@@ -2185,7 +2184,7 @@ function renderDateRangeFilter(containerId) {
     <div class="date-range-filter">
       <div class="filter-chips">
         ${presetBtn('this-month','当月')}
-        ${presetBtn('this-and-next','当月+翌月')}
+        ${presetBtn('today-and-next','本日以降+翌月')}
         ${presetBtn('open-ended','期間指定')}
       </div>
       <div class="date-range-inputs">
