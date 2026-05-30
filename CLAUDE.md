@@ -6,56 +6,59 @@
 
 出欠記録Webアプリ。管理者がイベントを作成して参加者を招待し、ユーザーは出欠を回答、出席時はQRコードを生成して当日受付で提示する。受付では管理者がQRをスキャンして参加者をチェックインする。スマホ利用が前提。
 
-現在は **プロトタイプ段階**(単一HTMLファイル、データはブラウザローカル保存)。本実装ではFirebase等のバックエンドに置き換える予定。
+現在は **プロトタイプ段階** (単一HTMLファイル + localStorage + jsonbin.io によるクラウド同期)。本実装では認証 + 専用バックエンドに置き換える予定。詳細は [PRODUCTION.md](./PRODUCTION.md) 参照。
 
 ## 現状とフェーズ
 
 ### Phase 1: プロトタイプ (現在)
 - 単一HTMLファイル (`index.html`) で完結
 - 全ロジックがインラインの `<script>` 内
-- データはブラウザのストレージに保存(複数端末で共有不可)
+- データはブラウザの localStorage に保存
+- 端末間同期は **jsonbin.io** 経由(Master Key + Bin ID を各端末に保存)
+- ホスティングは **Vercel**(静的サイト)
 - 目的: UI/UX検証、フロー確認、スマホでのQRスキャン動作確認
 
-### Phase 2: 本実装 (未着手)
-- React (Next.js) + Firebase (Auth + Firestore + Hosting) の構成を予定
-- 認証、複数端末同期、リマインド通知、CSV出力などを追加
+### Phase 2: 本実装(未着手)
+- **ホスティング**: AWS Lightsail(コスト優先) or Amplify Hosting
+- **認証**: メールアドレス + メール認証(Cognito + SES を想定)
+- **DB**: PostgreSQL(Lightsail 同居 or RDS) or DynamoDB
+- **バックエンド**: Node.js + TypeScript(Fastify / Express)
+- **フロント**: 現状の `index.html` をベースに、API 化に伴い分離
+
+本番化の準備事項・スキーマ・移行リスクは [PRODUCTION.md](./PRODUCTION.md) にまとめている。
 
 ## 技術スタック (Phase 1)
 
-- **HTML / CSS / vanilla JavaScript** のみ
+- **HTML / CSS / vanilla JavaScript** のみ(ビルド無し)
 - **外部ライブラリ** (CDNから読み込み):
   - `qrcodejs` (1.0.0) - QRコード生成
   - `html5-qrcode` (2.3.8) - QRコードスキャン (カメラ)
-- **ホスティング**: Vercel (静的サイトとして配信、HTTPS自動付与)
 - **フォント**: Google Fonts (Noto Sans JP, Shippori Mincho, JetBrains Mono)
-
-ビルドツール・パッケージマネージャーは現時点では使っていない。Phase 2 で導入。
+- **クラウド同期**: jsonbin.io v3 API(プロトタイプ専用、本番では削除)
 
 ## ファイル構成
 
 ```
 .
-├── index.html      # 本体 (HTML + CSS + JS 全部入り)
+├── index.html        # 本体 (HTML + CSS + JS 全部入り)
 ├── README.md
-├── CLAUDE.md       # このファイル
+├── CLAUDE.md         # このファイル
+├── PRODUCTION.md     # 本番化に向けた準備メモ
 └── .gitignore
 ```
 
 ## 開発・デプロイ
 
 ### ローカルで開く
-ファイルを直接ブラウザで開くだけで動く。ただし `file://` プロトコルではカメラAPIが使えないので、QRスキャンを試したい場合はローカルサーバー経由で開く:
-
 ```bash
 python3 -m http.server 8000
-# → http://localhost:8000 をブラウザで開く
+# → http://localhost:8000
 ```
 
-### スマホで検証
-PCと同じWi-Fiにスマホを接続し、PCのIPアドレス(例 `http://192.168.1.5:8000`)をスマホで開く。ただしカメラAPIはHTTPSが必須なため、本格的な検証はVercelデプロイ後のURLで行う。
+カメラAPIはHTTPSが必須なため、QRスキャンを試したい場合は Vercel デプロイ後のURLで検証する。
 
 ### デプロイ
-`main` ブランチにpushすると Vercel が自動で再デプロイする。設定は不要(静的サイトとして自動認識)。
+`main` ブランチに push すると Vercel が自動で再デプロイ。設定不要。
 
 ```bash
 git add .
@@ -63,91 +66,74 @@ git commit -m "..."
 git push
 ```
 
-## 既知の問題 / 修正が必要な箇所
+> このプロジェクトでは **コミット&push まで確認なしで自動実行** することが許可されている(`/Users/eishin/.claude/projects/-Users-eishin-git-attendance-app/memory/feedback_push_without_asking.md`)。破壊的操作のみ確認を取る。
 
-### 🔴 重要: ストレージAPIの差し替え
-現状のコードは Claude artifact 環境向けの `window.storage` API を使っているため、Vercel上では動かない。`localStorage` ベースに置き換える必要がある。
+## 主要な機能
 
-該当箇所は `loadState()` と `saveState()` 関数。修正方針:
+- 3階層の権限: **システム管理者 / 編集者 / 閲覧者**
+- ユーザー画面 / 管理者画面のトグル(管理者・編集者向け)
+- イベントごとの受付担当指定(通常モード/受付モードを切替)
+- 下書き保存と公開、URL 共有(`?event=ID`)
+- 委員会・役職マスター編集(sysadmin のみ)
+- 参加者リスト(プリセット)からの一括選択
+- 出席内訳(委員会別 / 全体 / オブザーバー)+ CSV 出力
+- jsonbin.io 経由のクラウド同期 + last-write-wins 競合解決
 
-```javascript
-async function loadState() {
-  try {
-    const raw = localStorage.getItem('attendance_app_state');
-    if (raw) {
-      state = JSON.parse(raw);
-      return;
-    }
-  } catch (e) {}
-  state = SEED();
-  await saveState();
-}
-async function saveState() {
-  try {
-    localStorage.setItem('attendance_app_state', JSON.stringify(state));
-  } catch (e) { console.warn('save failed', e); }
-}
-```
+## データモデル(要約)
 
-### その他
-- QRトークンに署名がない (`attend:<eventId>:<userId>` の生文字列)。Phase 2 でJWTかHMAC署名を付ける
-- 同じQRを複数回スキャンした時の挙動は「既に受付済」エラーを返すが、本番では time-based に動作させる方が安全
-- 削除操作の取り消し(Undo)がない
-- ユーザー追加・削除のUIがない(SEEDデータで固定)
-
-## データモデル
+詳細は [PRODUCTION.md](./PRODUCTION.md) のスキーマ章を参照。
 
 ```javascript
 state = {
-  users: [
-    { id: 'u_xxx', name: '...', role: 'admin' | 'user' }
-  ],
-  events: [
-    {
-      id: 'e_xxx',
-      title: '...',
-      date: ISO8601,
-      location: '...',
-      description: '...',
-      createdBy: 'u_xxx',
-      attendees: [
-        {
-          userId: 'u_xxx',
-          status: 'pending' | 'yes' | 'no' | 'checked',
-          checkedInAt: ISO8601 | null
-        }
-      ]
-    }
-  ],
-  currentUserId: 'u_xxx',   // デモ用に切り替え可能
-  currentEventId: 'e_xxx' | null
+  updatedAt: ISO8601,
+  currentUserId: 'u_xxx',
+  currentEventId: 'e_xxx' | null,
+  departments: string[],     // 委員会マスター
+  titles: string[],          // 役職マスター
+  userOrderIds: string[],    // ユーザー表示順
+  users: [...],
+  events: [...],
+  attendeeLists: [...]
 }
 ```
-
-### ステータス遷移
-- `pending` (初期) → ユーザーが回答すると `yes` / `no`
-- `yes` → 当日受付でQRスキャンされると `checked`
-- 管理者は任意のステータスに手動で変更可能(ユーザーがログインできない場合の救済)
 
 ## コーディング規約 / 設計メモ
 
 - **スマホファースト**: `.app-frame` で `max-width: 440px` 中央寄せ。タップターゲットは最低 40px 確保
-- **CSS変数** で色・余白を定義(`:root` 内)。`--accent` は terracotta系 `#C7522A`
-- **フォント**: 見出しは `Shippori Mincho` (明朝)、本文は `Noto Sans JP`、数字や日付は `JetBrains Mono`
+- **CSS変数** で色・余白を定義(`:root` 内)。`--accent` は terracotta系 `#C7522A`、`--primary` は青系 `#355282`
+- **フォント**: 見出しは `Shippori Mincho`(明朝)、本文は `Noto Sans JP`、数字や日付は `JetBrains Mono`
 - **DOM操作**: jQuery等は使わず、`getElementById` のショートカット `$()` のみ
-- **永続化**: state変更時は必ず `await saveState()` を呼ぶ
+- **永続化**: state 変更時は必ず `await saveState()` を呼ぶ。自動同期 ON なら同時にクラウドへ PUT
 - **画面遷移**: SPA的に `screen-hidden` クラスの付け外しで切替。`showScreen(name)` 関数を経由
+- **iOS Safari の auto-zoom 対策**: フォーム入力の font-size は 16px 以上
+- **モーダル**: `openModal(id)` / `closeModal(id)`。`openModal` は `.modal` の scrollTop を 0 にリセット
 
-## Phase 2 への移行メモ
+## 既知の制約(プロトタイプ由来)
 
-本実装に進むときの想定:
+これらはすべて Phase 2 で解消予定。
 
-- **フレームワーク**: Next.js (App Router) + TypeScript
-- **認証**: Firebase Auth (Email + Google OAuth)
-- **DB**: Firestore
-  - `users` コレクション
-  - `events` コレクション (サブコレクションに `attendees`)
-- **セキュリティルール**: 管理者は自分が作ったイベントのみ編集可、ユーザーは自分のattendeeレコードのみ更新可
-- **QRトークン**: Cloud Functions で短期JWTを発行 → スキャン時にCloud Functionsで検証
-- **通知**: FCM (Firebase Cloud Messaging) でイベント前日リマインド
-- **PWA化**: manifest.json + Service Worker でホーム画面追加対応
+- `state.currentUserId` がクラウド同期に含まれてしまい、別端末で誰かが role 切替すると同期される
+- QRトークンに署名がない(`attend:<eventId>:<userId>` 平文)
+- 同じQRを複数回スキャンした時は「既に受付済」エラーを返すが、本番ではトークン無効化が必要
+- 削除操作の Undo がない
+- jsonbin.io の Master Key を端末ローカルに保存している(本番では削除)
+- 認証なし。ロール切替は role-pill から自由に変更可能(デモ用)
+
+## 作業ガイドライン
+
+- 既存ファイルの編集を優先(新規ファイル作成は最小限に)
+- ドキュメント(README/CLAUDE.md 等)は明示的に依頼があった時のみ更新
+- 絵文字は明示的な依頼がない限り使わない
+- 必要なときは ` python3 -m http.server` で動作確認、`node --check` でJS構文チェック
+- データ変更が伴う場合は **localStorage の状態に古いデータが残っている可能性** を考慮(loadState の後方互換移行で吸収)
+
+## Phase 2 着手時の最初の動き
+
+1. リポジトリを `/web` と `/api` に分割
+2. TypeScript 化(現状の state shape を型に書き起こす)
+3. AWS アカウント + Cognito + SES の準備
+4. Lightsail に Node.js + PostgreSQL を立てる
+5. 認証フローを実装し、フロントの I/O 層を `fetch('/api/...')` に置換
+6. 既存 cloud sync データを移行スクリプトで取り込み
+
+詳細は PRODUCTION.md の「本実装フェーズで着手する想定タスク」を参照。

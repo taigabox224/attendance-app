@@ -1801,6 +1801,11 @@
         </div>
       </div>
       <div class="form-group">
+        <label class="form-label">メールアドレス <span class="optional-mark">任意</span></label>
+        <input type="email" class="form-input" id="user-edit-email" placeholder="例: user@example.com" autocomplete="email">
+        <div style="font-size:11px;color:var(--text-mute);margin-top:4px">本番のログイン認証で必須になります。今のうちに登録しておくと移行がスムーズです。</div>
+      </div>
+      <div class="form-group">
         <label class="form-label">委員会</label>
         <select class="form-input" id="user-edit-department"></select>
       </div>
@@ -1996,8 +2001,8 @@ const SEED = () => {
     '田村 心春', '竹内 蓮', '金子 椿', '和田 智也', '中山 ひかり',
   ];
   const users = [
-    { id: 'u_admin', name: '田中 システム管理者', lastName: '田中', firstName: 'システム管理者', role: 'sysadmin', department: null, title: null, status: 'active' },
-    { id: 'u_editor', name: '佐々木 編集者', lastName: '佐々木', firstName: '編集者', role: 'editor', department: '正副・幹事', title: null, status: 'active' },
+    { id: 'u_admin', name: '田中 システム管理者', lastName: '田中', firstName: 'システム管理者', email: 'admin@example.com', role: 'sysadmin', department: null, title: null, status: 'active' },
+    { id: 'u_editor', name: '佐々木 編集者', lastName: '佐々木', firstName: '編集者', email: 'editor@example.com', role: 'editor', department: '正副・幹事', title: null, status: 'active' },
   ];
   // 先頭11名は「正副・幹事」の役員陣として配置、残りは他の6委員会を巡回
   const OFFICER_TITLES = [
@@ -2028,9 +2033,12 @@ const SEED = () => {
     if (i === 13) status = 'inactive';
     else if (i === 27) status = 'left';
     const { lastName, firstName } = splitFullName(name);
+    const id = 'u_' + String(i + 1).padStart(3, '0');
     users.push({
-      id: 'u_' + String(i + 1).padStart(3, '0'),
-      name, lastName, firstName, role: 'viewer',
+      id,
+      name, lastName, firstName,
+      email: `${id}@example.com`,
+      role: 'viewer',
       department, title, status,
     });
   });
@@ -2193,6 +2201,8 @@ async function loadState() {
           u.lastName = parts.lastName;
           u.firstName = parts.firstName;
         }
+        // 本番(認証導入)で email が必須キーになる予定。未設定なら null で揃える
+        if (u.email === undefined) u.email = null;
       });
       // 起動時はイベント詳細を開かない(URL ?event=... があれば別途処理)
       state.currentEventId = null;
@@ -2763,9 +2773,11 @@ function openUserEditModal(userId) {
     const fallback = (!u.lastName && !u.firstName) ? splitFullName(u.name) : { lastName: u.lastName || '', firstName: u.firstName || '' };
     $('user-edit-last-name').value = fallback.lastName;
     $('user-edit-first-name').value = fallback.firstName;
+    $('user-edit-email').value = u.email || '';
   } else {
     $('user-edit-last-name').value = '';
     $('user-edit-first-name').value = '';
+    $('user-edit-email').value = '';
   }
   $('user-edit-status').value = (u && u.status) ? u.status : 'active';
 
@@ -2864,6 +2876,11 @@ async function saveUserEdit() {
   const firstName = $('user-edit-first-name').value.trim();
   if (!lastName && !firstName) { alert('お名前(姓または名)は必須です'); return; }
   const name = joinFullName(lastName, firstName);
+  const email = $('user-edit-email').value.trim() || null;
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    alert('メールアドレスの形式が正しくありません');
+    return;
+  }
   const dept = $('user-edit-department').value || null;
   const titleVal = $('user-edit-title').value || null;
   const role = $('user-edit-role').value || 'viewer';
@@ -2879,6 +2896,7 @@ async function saveUserEdit() {
     u.lastName = lastName;
     u.firstName = firstName;
     u.name = name;
+    u.email = email;
     u.department = dept;
     u.title = titleVal;
     if (isSysadmin()) u.role = role;
@@ -2892,7 +2910,7 @@ async function saveUserEdit() {
   } else {
     state.users.push({
       id: 'u_' + Date.now(),
-      name, lastName, firstName,
+      name, lastName, firstName, email,
       role: isSysadmin() ? role : 'viewer',
       department: dept, title: titleVal, status,
     });
