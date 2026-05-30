@@ -1380,8 +1380,8 @@
   <section id="screen-user-list" class="screen screen-hidden">
     <div class="screen-header header-row">
       <div>
-        <h1 class="screen-title">あなたのイベント</h1>
-        <p class="screen-sub">招待されているイベントと、自分で作成したイベントを表示</p>
+        <h1 class="screen-title" id="user-list-title">あなたのイベント</h1>
+        <p class="screen-sub">招待または作成したイベントを表示</p>
       </div>
       <button class="btn btn-primary btn-sm" onclick="openCreateEventModal()">+ 新規作成</button>
     </div>
@@ -3400,6 +3400,12 @@ function renderUserEventList() {
   renderUserProfileCard();
   renderDateRangeFilter('user-event-filter');
   const me = currentUser();
+  // タイトルを「{姓}さんのイベント」に。姓が未設定なら名前全体、それもなければ既定の文言
+  const titleEl = $('user-list-title');
+  if (titleEl && me) {
+    const handle = (me.lastName || '').trim() || (me.name || '').trim();
+    titleEl.textContent = handle ? `${handle}さんのイベント` : 'あなたのイベント';
+  }
   // ユーザー画面の表示対象:
   // - 管理者/編集者: 「招待されているイベント」のみ(自作で未招待のものは管理者画面側で確認)
   // - 閲覧者: 招待 + 自作(自作は下書き含む。他人の下書きは非表示)
