@@ -709,6 +709,26 @@
     letter-spacing: 0.04em;
   }
 
+  /* オブザーバー(ゲスト)バッジ */
+  .badge-observer {
+    display: inline-block;
+    background: var(--surface-soft);
+    color: var(--text-mute);
+    border: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+  .attendee-row.is-observer { background: var(--surface-soft); }
+  .attendee-row.is-observer .avatar {
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    color: var(--text-mute);
+  }
+
   /* 下書きバッジ + カード表示 */
   /* 下書きは一目で分かるよう大きめ&強い色味で */
   .badge-draft {
@@ -1347,6 +1367,25 @@
           <label class="form-label">懇親会の説明 (任意)</label>
           <textarea class="form-textarea" id="new-event-afterparty-description" placeholder="会費、地図URL、注意事項など"></textarea>
           <div style="font-size:11px;color:var(--text-mute);margin-top:4px">URL は自動でリンクになります</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-row" style="background:var(--surface-soft);border:1px solid var(--border)">
+          <input type="checkbox" id="new-event-has-observers" onchange="toggleObserverFields(this.checked)">
+          <div>
+            <div class="name">オブザーバー(ゲスト)を追加</div>
+            <div style="font-size:11px;color:var(--text-mute);margin-top:2px">登録ユーザー以外のゲストを参加者に含めます。出席人数にカウントされます</div>
+          </div>
+        </label>
+      </div>
+      <div id="observer-fields" style="display:none">
+        <div class="form-group">
+          <label class="form-label">オブザーバー</label>
+          <div id="observer-list"></div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <input type="text" class="form-input" id="new-observer-name" placeholder="ゲストのお名前">
+            <button type="button" class="btn btn-outline btn-sm" onclick="addObserver()">追加</button>
+          </div>
         </div>
       </div>
       <div class="form-group">
@@ -2476,15 +2515,17 @@ function getFilteredAttendees(ev) {
     } else if (adminFilter.status !== 'all' && a.status !== adminFilter.status) {
       return false;
     }
-    const u = userById(a.userId);
+    const u = a.isObserver ? null : userById(a.userId);
+    const name = a.isObserver ? (a.name || '') : (u ? u.name : '');
     if (q) {
-      if (!u || !u.name.toLowerCase().includes(q)) return false;
+      if (!name.toLowerCase().includes(q)) return false;
     }
+    // 委員会・役職フィルタはオブザーバーには適用しない(値を持たないので)
     if (deptFilter.length) {
-      if (!u || !deptFilter.includes(u.department)) return false;
+      if (a.isObserver || !u || !deptFilter.includes(u.department)) return false;
     }
     if (adminFilter.title) {
-      if (!u || u.title !== adminFilter.title) return false;
+      if (a.isObserver || !u || u.title !== adminFilter.title) return false;
     }
     return true;
   });
@@ -2671,22 +2712,27 @@ function renderAdminAttendeeList() {
   }
   const hasAP = !!ev.hasAfterparty;
   target.innerHTML = filtered.map(a => {
-    const u = userById(a.userId);
-    if (!u) return '';
+    const isObs = !!a.isObserver;
+    const u = isObs ? null : userById(a.userId);
+    if (!isObs && !u) return '';
+    const name = isObs ? (a.name || '(ゲスト)') : u.name;
+    const dept = isObs ? null : u.department;
+    const title = isObs ? null : u.title;
     const af = a.afterStatus || 'pending';
     const checkedIn = !!a.checkedInAt;
     return `
-      <div class="attendee-row">
+      <div class="attendee-row ${isObs ? 'is-observer' : ''}">
         <div class="left">
-          <div class="avatar">${initial(u.name)}</div>
+          <div class="avatar">${initial(name)}</div>
           <div style="min-width:0">
             <div class="name-row">
-              <span class="name">${escapeHtml(u.name)}</span>
+              <span class="name">${escapeHtml(name)}</span>
+              ${isObs ? '<span class="badge-observer">ゲスト</span>' : ''}
               ${checkedIn
                 ? `<button class="badge-checked-in" onclick="toggleCheckedIn('${a.userId}')" title="受付済を取消">✓受付済</button>`
                 : `<button class="badge-not-checked-in" onclick="toggleCheckedIn('${a.userId}')" title="受付済にする">受付未</button>`}
             </div>
-            ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
+            ${(dept || title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(dept || '')}${dept && title ? ' · ' : ''}${escapeHtml(title || '')}</div>` : ''}
             <div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
               ${statusBadge(a.status)}
               ${hasAP ? `<span class="afterparty-mini-label">🍻</span>${statusBadge(af)}` : ''}
@@ -2731,7 +2777,7 @@ async function setStatus(userId, status) {
     return;
   }
   const u = userById(userId);
-  const name = u ? u.name : '';
+  const name = att.isObserver ? (att.name || '(ゲスト)') : (u ? u.name : '');
   const before = STATUS_LABEL[att.status] || att.status;
   const after = STATUS_LABEL[status] || status;
   if (!confirm(`${name} の出欠を変更します\n\n  ${before}  →  ${after}\n\nよろしいですか?`)) return;
@@ -2746,7 +2792,7 @@ async function toggleCheckedIn(userId) {
   const att = ev.attendees.find(a => a.userId === userId);
   if (!att) return;
   const u = userById(userId);
-  const name = u ? u.name : '';
+  const name = att.isObserver ? (att.name || '(ゲスト)') : (u ? u.name : '');
   if (att.checkedInAt) {
     if (!confirm(`${name} さんの受付済を取消します。\nよろしいですか?`)) return;
     att.checkedInAt = null;
@@ -2771,7 +2817,7 @@ async function setAfterStatus(userId, status) {
     return;
   }
   const u = userById(userId);
-  const name = u ? u.name : '';
+  const name = att.isObserver ? (att.name || '(ゲスト)') : (u ? u.name : '');
   const before = STATUS_LABEL[current] || current;
   const after = STATUS_LABEL[status] || status;
   const apTitle = ev.afterpartyTitle || '懇親会';
@@ -2796,6 +2842,42 @@ let inviteSelection = new Set();
 let inviteQuery = '';
 
 let editingEventId = null;
+// オブザーバーの未保存リスト: { id: 既存ならattendeeのuserId, name }
+let pendingObservers = [];
+
+function toggleObserverFields(on) {
+  const wrap = $('observer-fields');
+  if (wrap) wrap.style.display = on ? '' : 'none';
+}
+
+function renderObserverList() {
+  const target = $('observer-list');
+  if (!target) return;
+  if (!pendingObservers.length) {
+    target.innerHTML = '<div style="font-size:12px;color:var(--text-mute);padding:6px">まだ追加されていません</div>';
+    return;
+  }
+  target.innerHTML = pendingObservers.map((o, i) => `
+    <div class="master-row">
+      <div class="label">${escapeHtml(o.name)}</div>
+      <button class="icon-btn danger" onclick="removeObserver(${i})" title="削除">✕</button>
+    </div>
+  `).join('');
+}
+
+function addObserver() {
+  const input = $('new-observer-name');
+  const name = (input.value || '').trim();
+  if (!name) return;
+  pendingObservers.push({ id: null, name });
+  input.value = '';
+  renderObserverList();
+}
+
+function removeObserver(idx) {
+  pendingObservers.splice(idx, 1);
+  renderObserverList();
+}
 
 function toggleAfterpartyFields(on) {
   const wrap = $('afterparty-fields');
@@ -2814,6 +2896,11 @@ function openCreateEventModal() {
   $('new-event-afterparty-location').value = '';
   $('new-event-afterparty-description').value = '';
   toggleAfterpartyFields(false);
+  $('new-event-has-observers').checked = false;
+  $('new-observer-name').value = '';
+  pendingObservers = [];
+  toggleObserverFields(false);
+  renderObserverList();
   const tomorrow = new Date(Date.now() + 1000 * 60 * 60 * 24);
   tomorrow.setHours(19, 0, 0, 0);
   $('new-event-date').value = toLocalInputValue(tomorrow);
@@ -2842,10 +2929,19 @@ function openEditEventModal(eventId) {
   $('new-event-afterparty-location').value = ev.afterpartyLocation || '';
   $('new-event-afterparty-description').value = ev.afterpartyDescription || '';
   toggleAfterpartyFields(!!ev.hasAfterparty);
+  // 既存のオブザーバーを読み込み
+  $('new-observer-name').value = '';
+  pendingObservers = ev.attendees
+    .filter(a => a.isObserver)
+    .map(a => ({ id: a.userId, name: a.name }));
+  const hasObs = pendingObservers.length > 0;
+  $('new-event-has-observers').checked = hasObs;
+  toggleObserverFields(hasObs);
+  renderObserverList();
   $('new-event-date').value = toLocalInputValue(new Date(ev.date));
   $('new-event-deadline').value = ev.responseDeadline ? toLocalInputValue(new Date(ev.responseDeadline)) : '';
 
-  inviteSelection = new Set(ev.attendees.map(a => a.userId));
+  inviteSelection = new Set(ev.attendees.filter(a => !a.isObserver).map(a => a.userId));
   inviteQuery = '';
   inviteFilter = { departments: [], title: '' };
   renderInviteSection();
@@ -2986,6 +3082,10 @@ async function saveEventForm({ publish = true } = {}) {
     if (!confirm('日時設定に問題がある可能性があります:\n\n' + warnings.join('\n') + '\n\nこのまま保存しますか?')) return;
   }
 
+  // オブザーバーの最終リスト(チェックOFFなら空)
+  const useObservers = $('new-event-has-observers').checked;
+  const finalObservers = useObservers ? pendingObservers.slice() : [];
+
   if (editingEventId) {
     // 編集モード: 既存のRSVPは保持しつつフィールド更新+招待者の差分反映
     const ev = state.events.find(e => e.id === editingEventId);
@@ -3001,14 +3101,14 @@ async function saveEventForm({ publish = true } = {}) {
     ev.afterpartyDescription = hasAfterparty ? (afterpartyDescription || null) : null;
     ev.published = publish;
 
-    const currentIds = new Set(ev.attendees.map(a => a.userId));
+    // 通常ユーザの招待差分(オブザーバーには触らない)
+    const regulars = ev.attendees.filter(a => !a.isObserver);
+    const currentIds = new Set(regulars.map(a => a.userId));
     const newIds = inviteSelection;
-    // 削除されたユーザ
-    ev.attendees = ev.attendees.filter(a => newIds.has(a.userId));
-    // 追加されたユーザ
+    let newRegulars = regulars.filter(a => newIds.has(a.userId));
     newIds.forEach(id => {
       if (!currentIds.has(id)) {
-        ev.attendees.push({
+        newRegulars.push({
           userId: id,
           status: 'pending',
           afterStatus: hasAfterparty ? 'pending' : null,
@@ -3016,9 +3116,34 @@ async function saveEventForm({ publish = true } = {}) {
         });
       }
     });
+
+    // オブザーバーの差分: id があれば既存の attendee を再利用、なければ新規作成
+    const existingObservers = ev.attendees.filter(a => a.isObserver);
+    const newObservers = finalObservers.map((o, i) => {
+      if (o.id) {
+        const existing = existingObservers.find(a => a.userId === o.id);
+        if (existing) {
+          existing.name = o.name;
+          if (hasAfterparty && !existing.afterStatus) existing.afterStatus = 'yes';
+          if (!hasAfterparty) existing.afterStatus = null;
+          return existing;
+        }
+      }
+      return {
+        userId: 'obs_' + Date.now() + '_' + i,
+        isObserver: true,
+        name: o.name,
+        status: 'yes',
+        afterStatus: hasAfterparty ? 'yes' : null,
+        checkedInAt: null,
+      };
+    });
+
+    ev.attendees = newRegulars.concat(newObservers);
+
     // 懇親会フラグ切り替え時の afterStatus 補正
     if (hasAfterparty) {
-      ev.attendees.forEach(a => { if (!a.afterStatus) a.afterStatus = 'pending'; });
+      ev.attendees.forEach(a => { if (!a.afterStatus) a.afterStatus = a.isObserver ? 'yes' : 'pending'; });
     } else {
       ev.attendees.forEach(a => { a.afterStatus = null; });
     }
@@ -3036,6 +3161,16 @@ async function saveEventForm({ publish = true } = {}) {
       afterStatus: hasAfterparty ? 'pending' : null,
       checkedInAt: null,
     }));
+    finalObservers.forEach((o, i) => {
+      attendees.push({
+        userId: 'obs_' + Date.now() + '_' + i,
+        isObserver: true,
+        name: o.name,
+        status: 'yes',
+        afterStatus: hasAfterparty ? 'yes' : null,
+        checkedInAt: null,
+      });
+    });
     const newEvent = {
       id: 'e_' + Date.now(),
       title,
@@ -3208,12 +3343,15 @@ function sanitizeFilenamePart(s) {
 function exportAttendeesCsv() {
   const ev = state.events.find(e => e.id === state.currentEventId);
   if (!ev) return;
-  const header = ['ユーザーID', '名前', '委員会', '役職', '出欠', '懇親会'];
+  const header = ['ユーザーID', '名前', '委員会', '役職', '区分', '出欠', '懇親会'];
   const rows = ev.attendees.map(a => {
-    const u = userById(a.userId) || {};
     const main = STATUS_TO_JP[a.status] || '未回答';
     const after = ev.hasAfterparty ? (STATUS_TO_JP[a.afterStatus] || '未回答') : '';
-    return [a.userId, u.name || '', u.department || '', u.title || '', main, after];
+    if (a.isObserver) {
+      return [a.userId, a.name || '', '', '', 'ゲスト', main, after];
+    }
+    const u = userById(a.userId) || {};
+    return [a.userId, u.name || '', u.department || '', u.title || '', 'メンバー', main, after];
   });
   const csv = '﻿' + [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\r\n') + '\r\n';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
