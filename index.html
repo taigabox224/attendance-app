@@ -1828,6 +1828,40 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="modal-attendee-lists">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>参加者リスト</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
+        よく使うメンバーの組み合わせを保存して、イベント作成時に「リストから一括選択」で適用できます。
+      </p>
+      <div id="attendee-lists-list" style="margin-bottom:14px"></div>
+      <button class="btn btn-primary btn-full" onclick="openAttendeeListEditor(null)">+ 新規作成</button>
+      <div style="margin-top:14px">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-attendee-lists')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-attendee-list-editor">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2 id="attendee-list-editor-heading">リストを新規作成</h2>
+      <div class="form-group">
+        <label class="form-label">名称 <span style="color:var(--danger)">*</span></label>
+        <input type="text" class="form-input" id="attendee-list-name" placeholder="例: 理事会メンバー">
+      </div>
+      <div class="form-group">
+        <label class="form-label">参加者</label>
+        <div id="attendee-list-users"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px">
+        <button class="btn btn-primary btn-full" onclick="saveAttendeeList()">保存</button>
+        <button class="btn btn-outline btn-full" onclick="closeAttendeeListEditor()">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="modal-user-list-menu">
     <div class="modal">
       <div class="modal-handle"></div>
@@ -2069,6 +2103,7 @@ const SEED = () => {
     users, events,
     departments: [...DEFAULT_DEPARTMENTS],
     titles: [...DEFAULT_TITLES],
+    attendeeLists: [],
     currentUserId: 'u_admin', currentEventId: null,
   };
 };
@@ -2084,6 +2119,7 @@ async function loadState() {
       // 後方互換: 既存データに departments / titles が無ければデフォルトで埋める
       if (!Array.isArray(state.departments)) state.departments = [...DEFAULT_DEPARTMENTS];
       if (!Array.isArray(state.titles)) state.titles = [...DEFAULT_TITLES];
+      if (!Array.isArray(state.attendeeLists)) state.attendeeLists = [];
       // 後方互換: status='checked' は status='yes' + checkedInAt に分離
       (state.events || []).forEach(ev => {
         (ev.attendees || []).forEach(a => {
@@ -2215,6 +2251,7 @@ async function cloudPull({ force = false } = {}) {
     state.currentEventId = keepEventId;
     if (!Array.isArray(state.departments)) state.departments = [...DEFAULT_DEPARTMENTS];
     if (!Array.isArray(state.titles)) state.titles = [...DEFAULT_TITLES];
+    if (!Array.isArray(state.attendeeLists)) state.attendeeLists = [];
     (state.users || []).forEach(u => { if (!u.status) u.status = 'active'; });
     if (!state.users.find(u => u.id === state.currentUserId)) {
       const admin = state.users.find(u => u.role === 'sysadmin' && (u.status || 'active') === 'active');
@@ -3598,10 +3635,19 @@ function getActiveUserPoolSize() {
 
 function renderInviteSection() {
   const total = getActiveUserPoolSize();
+  const lists = state.attendeeLists || [];
   $('new-event-attendees').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-mute);margin-bottom:6px">
       <span>選択中 <strong id="invite-count" style="color:var(--text);font-family:'JetBrains Mono'">${inviteSelection.size}</strong> / ${total}</span>
     </div>
+    ${lists.length ? `
+      <div class="filter-selects" style="margin-bottom:8px">
+        <select id="invite-list-apply" onchange="applyAttendeeList(this.value); this.value='';">
+          <option value="">リストから一括選択…</option>
+          ${lists.map(l => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)} (${(l.userIds || []).length} 名)</option>`).join('')}
+        </select>
+      </div>
+    ` : ''}
     <input class="search-input" type="search" placeholder="名前で検索"
            value="${escapeHtml(inviteQuery)}"
            oninput="onInviteSearch(this.value)">
@@ -3629,6 +3675,18 @@ function renderInviteSection() {
     <div id="invite-list" style="max-height:280px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
   `;
   renderInviteList();
+}
+
+function applyAttendeeList(listId) {
+  if (!listId) return;
+  const list = (state.attendeeLists || []).find(l => l.id === listId);
+  if (!list) return;
+  // アクティブユーザのみ対象に置換
+  const activeIds = new Set(state.users.filter(u => (u.status || 'active') === 'active').map(u => u.id));
+  const validIds = (list.userIds || []).filter(id => activeIds.has(id));
+  inviteSelection = new Set(validIds);
+  renderInviteSection();
+  showToast(`「${list.name}」を反映しました (${validIds.length} 名)`);
 }
 
 function toggleInviteFilterDept(d) {
@@ -4412,12 +4470,183 @@ async function importStateJson(input) {
 }
 
 // ユーザー一覧の歯車メニュー
+// =================================================
+// ADMIN: 参加者リスト(よく使うメンバーの組み合わせを保存)
+// =================================================
+let editingAttendeeListId = null;
+let attendeeListSelection = new Set();
+let attendeeListQuery = '';
+let attendeeListFilter = { departments: [] };
+
+function openAttendeeListsModal() {
+  renderAttendeeListsList();
+  openModal('modal-attendee-lists');
+}
+
+function renderAttendeeListsList() {
+  const target = $('attendee-lists-list');
+  if (!target) return;
+  const lists = state.attendeeLists || [];
+  if (!lists.length) {
+    target.innerHTML = '<div style="font-size:12px;color:var(--text-mute);padding:14px;text-align:center;border:1px dashed var(--border);border-radius:var(--radius-sm)">リストはまだありません</div>';
+    return;
+  }
+  target.innerHTML = lists.map(list => `
+    <div class="master-row">
+      <div class="label" style="font-size:13px">
+        ${escapeHtml(list.name)}
+        <div style="font-size:11px;color:var(--text-mute);margin-top:2px">${(list.userIds || []).length} 名</div>
+      </div>
+      <button class="icon-btn" onclick="openAttendeeListEditor('${list.id}')" title="編集">✎</button>
+      <button class="icon-btn danger" onclick="deleteAttendeeList('${list.id}')" title="削除">✕</button>
+    </div>
+  `).join('');
+}
+
+function openAttendeeListEditor(listId) {
+  editingAttendeeListId = listId;
+  const list = listId ? (state.attendeeLists || []).find(l => l.id === listId) : null;
+  $('attendee-list-editor-heading').textContent = list ? 'リストを編集' : 'リストを新規作成';
+  $('attendee-list-name').value = list ? list.name : '';
+  attendeeListSelection = new Set(list ? (list.userIds || []) : []);
+  attendeeListQuery = '';
+  attendeeListFilter = { departments: [] };
+  renderAttendeeListUsers();
+  closeModal('modal-attendee-lists');
+  openModal('modal-attendee-list-editor');
+}
+
+function closeAttendeeListEditor() {
+  closeModal('modal-attendee-list-editor');
+  openAttendeeListsModal();
+}
+
+function renderAttendeeListUsers() {
+  const target = $('attendee-list-users');
+  if (!target) return;
+  target.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-mute);margin-bottom:6px">
+      <span>選択中 <strong id="attendee-list-count" style="color:var(--text);font-family:'JetBrains Mono'">${attendeeListSelection.size}</strong> 名</span>
+    </div>
+    <input class="search-input" type="search" placeholder="名前で検索"
+           value="${escapeHtml(attendeeListQuery)}" oninput="onAttendeeListSearch(this.value)">
+    ${getDepartments().length ? `
+      <div class="filter-section-label">委員会(複数選択可)</div>
+      <div class="multiselect-chips">
+        ${getDepartments().map(d => `
+          <button type="button" class="chip ${(attendeeListFilter.departments || []).includes(d) ? 'active' : ''}" onclick="toggleAttendeeListFilterDept('${escapeHtml(d).replace(/'/g, "\\'")}')">${escapeHtml(d)}</button>
+        `).join('')}
+      </div>
+    ` : ''}
+    <div class="bulk-actions">
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectAttendeeListUsers(true)">表示中を全選択</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectAttendeeListUsers(false)">表示中を全解除</button>
+    </div>
+    <div id="attendee-list-users-list" style="max-height:280px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
+  `;
+  renderAttendeeListUsersList();
+}
+
+function getFilteredAttendeeListUsers() {
+  const q = attendeeListQuery.trim().toLowerCase();
+  const depts = attendeeListFilter.departments || [];
+  const list = state.users
+    .filter(u => (u.status || 'active') === 'active')
+    .filter(u => !q || u.name.toLowerCase().includes(q))
+    .filter(u => !depts.length || depts.includes(u.department));
+  const cmp = userOrderComparator();
+  return cmp ? list.slice().sort(cmp) : list;
+}
+
+function renderAttendeeListUsersList() {
+  const target = $('attendee-list-users-list');
+  if (!target) return;
+  const users = getFilteredAttendeeListUsers();
+  if (!users.length) {
+    target.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text-mute);font-size:13px">該当するユーザーはいません</div>';
+    return;
+  }
+  target.innerHTML = users.map(u => `
+    <label class="checkbox-row">
+      <input type="checkbox" ${attendeeListSelection.has(u.id) ? 'checked' : ''}
+             onchange="toggleAttendeeListUser('${u.id}', this.checked)">
+      <div style="min-width:0">
+        <div class="name">${escapeHtml(u.name)}</div>
+        ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
+      </div>
+    </label>
+  `).join('');
+}
+
+function onAttendeeListSearch(v) {
+  attendeeListQuery = v;
+  renderAttendeeListUsersList();
+}
+
+function toggleAttendeeListFilterDept(d) {
+  const arr = attendeeListFilter.departments || (attendeeListFilter.departments = []);
+  const idx = arr.indexOf(d);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(d);
+  renderAttendeeListUsers();
+}
+
+function toggleAttendeeListUser(id, checked) {
+  if (checked) attendeeListSelection.add(id);
+  else attendeeListSelection.delete(id);
+  const el = $('attendee-list-count');
+  if (el) el.textContent = attendeeListSelection.size;
+}
+
+function bulkSelectAttendeeListUsers(select) {
+  getFilteredAttendeeListUsers().forEach(u => {
+    if (select) attendeeListSelection.add(u.id);
+    else attendeeListSelection.delete(u.id);
+  });
+  renderAttendeeListUsersList();
+  const el = $('attendee-list-count');
+  if (el) el.textContent = attendeeListSelection.size;
+}
+
+async function saveAttendeeList() {
+  const name = $('attendee-list-name').value.trim();
+  if (!name) { alert('名称は必須です'); return; }
+  if (!Array.isArray(state.attendeeLists)) state.attendeeLists = [];
+  if (editingAttendeeListId) {
+    const list = state.attendeeLists.find(l => l.id === editingAttendeeListId);
+    if (!list) return;
+    list.name = name;
+    list.userIds = Array.from(attendeeListSelection);
+  } else {
+    state.attendeeLists.push({
+      id: 'list_' + Date.now(),
+      name,
+      userIds: Array.from(attendeeListSelection),
+    });
+  }
+  await saveState();
+  editingAttendeeListId = null;
+  closeModal('modal-attendee-list-editor');
+  openAttendeeListsModal();
+  showToast(`「${name}」を保存しました`);
+}
+
+async function deleteAttendeeList(listId) {
+  const list = (state.attendeeLists || []).find(l => l.id === listId);
+  if (!list) return;
+  if (!confirm(`「${list.name}」を削除します。よろしいですか?`)) return;
+  state.attendeeLists = state.attendeeLists.filter(l => l.id !== listId);
+  await saveState();
+  renderAttendeeListsList();
+}
+
 function openUserListMenu() {
   const body = $('user-list-menu-body');
   if (!body) return;
   body.innerHTML = `
     ${canManageMaster() ? '<button class="btn btn-outline btn-full" onclick="closeModal(\'modal-user-list-menu\'); openMasterModal()">マスター編集</button>' : ''}
     ${canManageUsers() ? '<button class="btn btn-outline btn-full" onclick="closeModal(\'modal-user-list-menu\'); openUserOrderModal()">ユーザーの表示順</button>' : ''}
+    ${canManageUsers() ? '<button class="btn btn-outline btn-full" onclick="closeModal(\'modal-user-list-menu\'); openAttendeeListsModal()">参加者リスト</button>' : ''}
   `;
   openModal('modal-user-list-menu');
 }
