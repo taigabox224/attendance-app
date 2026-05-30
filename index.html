@@ -3478,6 +3478,7 @@ function openCreateEventModal() {
   inviteSelection = new Set(userList.map(u => u.id));
   inviteQuery = '';
   inviteFilter = { departments: [], title: '' };
+  inviteListApplied = null;
   renderInviteSection();
   // 作成者(=現在のユーザ)は必ず受付担当に含まれる
   receptionistSelection = new Set([state.currentUserId]);
@@ -3516,6 +3517,7 @@ function openEditEventModal(eventId) {
   inviteSelection = new Set(ev.attendees.filter(a => !a.isObserver).map(a => a.userId));
   inviteQuery = '';
   inviteFilter = { departments: [], title: '' };
+  inviteListApplied = null;
   renderInviteSection();
   receptionistSelection = new Set(ev.receptionists || []);
   // 作成者は必ず含める(誤って外せたとしても保存時に再追加)
@@ -3527,6 +3529,7 @@ function openEditEventModal(eventId) {
 }
 
 let inviteFilter = { departments: [], title: '' };
+let inviteListApplied = null;
 let receptionistSelection = new Set();
 let receptionistQuery = '';
 let receptionistFilter = { departments: [] };
@@ -3642,9 +3645,9 @@ function renderInviteSection() {
     </div>
     ${lists.length ? `
       <div class="filter-selects" style="margin-bottom:8px">
-        <select id="invite-list-apply" onchange="applyAttendeeList(this.value); this.value='';">
-          <option value="">リストから一括選択…</option>
-          ${lists.map(l => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)} (${(l.userIds || []).length} 名)</option>`).join('')}
+        <select id="invite-list-apply" onchange="applyAttendeeList(this.value)">
+          <option value="" ${!inviteListApplied ? 'selected' : ''}>リストから一括選択…</option>
+          ${lists.map(l => `<option value="${escapeHtml(l.id)}" ${inviteListApplied === l.id ? 'selected' : ''}>${escapeHtml(l.name)} (${(l.userIds || []).length} 名)</option>`).join('')}
         </select>
       </div>
     ` : ''}
@@ -3678,13 +3681,18 @@ function renderInviteSection() {
 }
 
 function applyAttendeeList(listId) {
-  if (!listId) return;
+  if (!listId) {
+    inviteListApplied = null;
+    renderInviteSection();
+    return;
+  }
   const list = (state.attendeeLists || []).find(l => l.id === listId);
   if (!list) return;
   // アクティブユーザのみ対象に置換
   const activeIds = new Set(state.users.filter(u => (u.status || 'active') === 'active').map(u => u.id));
   const validIds = (list.userIds || []).filter(id => activeIds.has(id));
   inviteSelection = new Set(validIds);
+  inviteListApplied = listId;
   renderInviteSection();
   showToast(`「${list.name}」を反映しました (${validIds.length} 名)`);
 }
