@@ -2706,13 +2706,13 @@ function renderAdminEventList() {
   }).join('');
 }
 
-let adminFilter = { status: 'all', query: '', departments: [], title: '' };
+let adminFilter = { status: 'all', query: '', departments: [], title: '', kind: 'all' };
 // removeMaster からも参照する別名(同じオブジェクトを指す)
 let adminAttendeeFilter = adminFilter;
 
 function openAdminEventDetail(eventId) {
   state.currentEventId = eventId;
-  adminFilter = { status: 'all', query: '', departments: [], title: '' };
+  adminFilter = { status: 'all', query: '', departments: [], title: '', kind: 'all' };
   adminAttendeeFilter = adminFilter;
   renderAdminEventDetail();
   showScreen('admin-detail');
@@ -2722,6 +2722,8 @@ function getFilteredAttendees(ev) {
   const q = adminFilter.query.trim().toLowerCase();
   const deptFilter = adminFilter.departments || [];
   return ev.attendees.filter(a => {
+    if (adminFilter.kind === 'member' && a.isObserver) return false;
+    if (adminFilter.kind === 'observer' && !a.isObserver) return false;
     if (adminFilter.status === 'checked-in') {
       if (!a.checkedInAt) return false;
     } else if (adminFilter.status !== 'all' && a.status !== adminFilter.status) {
@@ -2756,8 +2758,13 @@ function setAdminFilterTitle(v) {
   renderAdminEventDetail();
 }
 
+function setAdminFilterKind(k) {
+  adminFilter.kind = k;
+  renderAdminEventDetail();
+}
+
 function clearAdminAttendeeFilter() {
-  adminFilter = { status: 'all', query: '', departments: [], title: '' };
+  adminFilter = { status: 'all', query: '', departments: [], title: '', kind: 'all' };
   adminAttendeeFilter = adminFilter;
   renderAdminEventDetail();
 }
@@ -2860,7 +2867,13 @@ function renderAdminEventDetail() {
           </select>
         </div>
       ` : ''}
-      ${((adminFilter.departments || []).length || adminFilter.title || adminFilter.status !== 'all' || adminFilter.query) ? `
+      <div class="filter-section-label">区分</div>
+      <div class="filter-chips" style="margin-top:4px">
+        <button class="chip ${adminFilter.kind === 'all' ? 'active' : ''}" onclick="setAdminFilterKind('all')">全て</button>
+        <button class="chip ${adminFilter.kind === 'member' ? 'active' : ''}" onclick="setAdminFilterKind('member')">メンバー</button>
+        <button class="chip ${adminFilter.kind === 'observer' ? 'active' : ''}" onclick="setAdminFilterKind('observer')">オブザーバー</button>
+      </div>
+      ${((adminFilter.departments || []).length || adminFilter.title || adminFilter.status !== 'all' || adminFilter.query || adminFilter.kind !== 'all') ? `
         <div style="margin-top:8px;text-align:right">
           <button class="btn btn-outline btn-sm" onclick="clearAdminAttendeeFilter()">フィルタをリセット</button>
         </div>
