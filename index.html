@@ -1176,12 +1176,23 @@
       </div>
       <div class="form-group">
         <label class="checkbox-row" style="background:var(--surface-soft);border:1px solid var(--border)">
-          <input type="checkbox" id="new-event-has-afterparty">
+          <input type="checkbox" id="new-event-has-afterparty" onchange="toggleAfterpartyFields(this.checked)">
           <div>
             <div class="name">懇親会あり</div>
             <div style="font-size:11px;color:var(--text-mute);margin-top:2px">参加者は本編とは別に懇親会の出欠も回答できます</div>
           </div>
         </label>
+      </div>
+      <div id="afterparty-fields" style="display:none">
+        <div class="form-group">
+          <label class="form-label">懇親会の場所 (任意)</label>
+          <input type="text" class="form-input" id="new-event-afterparty-location" placeholder="例: 居酒屋 旬彩(本社から徒歩3分)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">懇親会の説明 (任意)</label>
+          <textarea class="form-textarea" id="new-event-afterparty-description" placeholder="会費、地図URL、注意事項など"></textarea>
+          <div style="font-size:11px;color:var(--text-mute);margin-top:4px">URL は自動でリンクになります</div>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">参加者を選択</label>
@@ -1490,6 +1501,8 @@ const SEED = () => {
       createdBy: 'u_admin',
       hasAfterparty: true,
       afterpartyTitle: '懇親会',
+      afterpartyLocation: '居酒屋 旬彩(本社から徒歩3分)',
+      afterpartyDescription: '会費 4,000円(現地支払)。\n会場地図: https://maps.example.com/shunsai\n予約状況確認: https://example.com/reserve/abc123',
       attendees: partyAttendees,
     },
     {
@@ -1705,6 +1718,13 @@ const fmtDateShort = iso => {
   return `${mm}/${dd}`;
 };
 const escapeHtml = s => (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// テキスト中の http(s):// URL を a タグに置換(HTMLは先にエスケープ)。改行は <br>。
+const linkify = s => {
+  if (!s) return '';
+  return escapeHtml(s)
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:underline;word-break:break-all">$1</a>')
+    .replace(/\n/g, '<br>');
+};
 const initial = name => (name || '?').trim().charAt(0);
 const userById = id => state.users.find(u => u.id === id);
 // datetime-local 入力欄用に Date をローカルタイムで YYYY-MM-DDTHH:mm 形式に変換
@@ -2130,12 +2150,13 @@ function renderAdminEventDetail() {
       <div class="date">${fmtDate(ev.date)}</div>
       <div class="title">${escapeHtml(ev.title)}</div>
       <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
-      ${ev.description ? `<div class="info-row"><span class="ico">📝</span>${escapeHtml(ev.description)}</div>` : ''}
+      ${ev.description ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.description)}</span></div>` : ''}
       ${ev.responseDeadline ? `
         <div class="info-row"><span class="ico">⏰</span>回答期限 ${fmtDate(ev.responseDeadline)}${isDeadlinePassed(ev) ? ' <span class="badge-expired">締切</span>' : ''}</div>
       ` : ''}
       ${ev.hasAfterparty ? `
-        <div class="info-row"><span class="ico">🍻</span>${escapeHtml(ev.afterpartyTitle || '懇親会')}あり</div>
+        <div class="info-row"><span class="ico">🍻</span>${escapeHtml(ev.afterpartyTitle || '懇親会')}あり${ev.afterpartyLocation ? ' · ' + escapeHtml(ev.afterpartyLocation) : ''}</div>
+        ${ev.afterpartyDescription ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.afterpartyDescription)}</span></div>` : ''}
       ` : ''}
     </div>
 
@@ -2359,6 +2380,11 @@ let inviteQuery = '';
 
 let editingEventId = null;
 
+function toggleAfterpartyFields(on) {
+  const wrap = $('afterparty-fields');
+  if (wrap) wrap.style.display = on ? '' : 'none';
+}
+
 function openCreateEventModal() {
   editingEventId = null;
   $('event-modal-heading').textContent = 'イベントを作成';
@@ -2367,6 +2393,9 @@ function openCreateEventModal() {
   $('new-event-location').value = '';
   $('new-event-description').value = '';
   $('new-event-has-afterparty').checked = false;
+  $('new-event-afterparty-location').value = '';
+  $('new-event-afterparty-description').value = '';
+  toggleAfterpartyFields(false);
   const tomorrow = new Date(Date.now() + 1000 * 60 * 60 * 24);
   tomorrow.setHours(19, 0, 0, 0);
   $('new-event-date').value = toLocalInputValue(tomorrow);
@@ -2391,6 +2420,9 @@ function openEditEventModal(eventId) {
   $('new-event-location').value = ev.location || '';
   $('new-event-description').value = ev.description || '';
   $('new-event-has-afterparty').checked = !!ev.hasAfterparty;
+  $('new-event-afterparty-location').value = ev.afterpartyLocation || '';
+  $('new-event-afterparty-description').value = ev.afterpartyDescription || '';
+  toggleAfterpartyFields(!!ev.hasAfterparty);
   $('new-event-date').value = toLocalInputValue(new Date(ev.date));
   $('new-event-deadline').value = ev.responseDeadline ? toLocalInputValue(new Date(ev.responseDeadline)) : '';
 
@@ -2518,6 +2550,8 @@ async function saveEventForm() {
   const location = $('new-event-location').value.trim();
   const description = $('new-event-description').value.trim();
   const hasAfterparty = $('new-event-has-afterparty').checked;
+  const afterpartyLocation = hasAfterparty ? $('new-event-afterparty-location').value.trim() : '';
+  const afterpartyDescription = hasAfterparty ? $('new-event-afterparty-description').value.trim() : '';
   if (!title || !date) {
     alert('タイトルと日時は必須です');
     return;
@@ -2539,6 +2573,8 @@ async function saveEventForm() {
     ev.description = description;
     ev.hasAfterparty = hasAfterparty;
     ev.afterpartyTitle = hasAfterparty ? (ev.afterpartyTitle || '懇親会') : null;
+    ev.afterpartyLocation = hasAfterparty ? (afterpartyLocation || null) : null;
+    ev.afterpartyDescription = hasAfterparty ? (afterpartyDescription || null) : null;
 
     const currentIds = new Set(ev.attendees.map(a => a.userId));
     const newIds = inviteSelection;
@@ -2584,6 +2620,8 @@ async function saveEventForm() {
       createdBy: state.currentUserId,
       hasAfterparty,
       afterpartyTitle: hasAfterparty ? '懇親会' : null,
+      afterpartyLocation: hasAfterparty ? (afterpartyLocation || null) : null,
+      afterpartyDescription: hasAfterparty ? (afterpartyDescription || null) : null,
       attendees,
     };
     state.events.unshift(newEvent);
@@ -3125,7 +3163,7 @@ function renderUserEventDetail() {
       <div class="date">${fmtDate(ev.date)}</div>
       <div class="title">${escapeHtml(ev.title)}</div>
       <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
-      ${ev.description ? `<div class="info-row"><span class="ico">📝</span>${escapeHtml(ev.description)}</div>` : ''}
+      ${ev.description ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.description)}</span></div>` : ''}
       ${ev.responseDeadline ? `
         <div class="info-row"><span class="ico">⏰</span>回答期限 ${fmtDate(ev.responseDeadline)}${locked ? ' <span class="badge-expired">締切</span>' : ''}</div>
       ` : ''}
@@ -3156,6 +3194,12 @@ function renderUserEventDetail() {
     ${ev.hasAfterparty ? `
       <div class="rsvp-card">
         <div class="label">${escapeHtml(ev.afterpartyTitle || '懇親会')} の出欠</div>
+        ${(ev.afterpartyLocation || ev.afterpartyDescription) ? `
+          <div style="font-size:12px;color:var(--text-mute);margin:-2px 0 10px;line-height:1.6">
+            ${ev.afterpartyLocation ? `<div><span style="opacity:0.6">📍</span> ${escapeHtml(ev.afterpartyLocation)}</div>` : ''}
+            ${ev.afterpartyDescription ? `<div style="margin-top:4px"><span style="opacity:0.6">📝</span> ${linkify(ev.afterpartyDescription)}</div>` : ''}
+          </div>
+        ` : ''}
         <div class="rsvp-buttons">
           <button class="rsvp-btn ${aSel === 'yes' ? 'active-yes' : ''}"
                   onclick="pickMyAfterparty('yes')" ${locked ? 'disabled' : ''}>
