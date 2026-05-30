@@ -1382,7 +1382,7 @@
 
   <!-- ========== USER: Event Detail ========== -->
   <section id="screen-user-detail" class="screen screen-hidden">
-    <button class="back-link" onclick="showScreen('user-list')">一覧に戻る</button>
+    <button class="back-link" onclick="backFromEventDetail()">一覧に戻る</button>
     <div id="user-detail-content"></div>
   </section>
 
@@ -2610,7 +2610,7 @@ function setDateRangeInput(which, value) {
 }
 
 function reRenderEventLists() {
-  if (canAccessAdminDashboard()) renderAdminEventList();
+  if (isAdminMode()) renderAdminEventList();
   else renderUserEventList();
 }
 
@@ -2870,13 +2870,13 @@ function renderEventMenu() {
 
 function backFromEventDetail() {
   state.currentEventId = null;
-  if (canAccessAdminDashboard()) showScreen('admin-list');
+  if (isAdminMode()) showScreen('admin-list');
   else showScreen('user-list');
 }
 
 function goHome() {
   state.currentEventId = null;
-  if (canAccessAdminDashboard()) showScreen('admin-list');
+  if (isAdminMode()) showScreen('admin-list');
   else showScreen('user-list');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -3378,7 +3378,7 @@ async function saveEventForm({ publish = true } = {}) {
     state.events.unshift(newEvent);
     await saveState();
     closeModal('modal-create-event');
-    if (canAccessAdminDashboard()) renderAdminEventList();
+    if (isAdminMode()) renderAdminEventList();
     else renderUserEventList();
     showToast(`「${title}」を${publish ? '公開しました' : '下書きで保存しました'}`);
   }
