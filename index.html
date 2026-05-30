@@ -3710,12 +3710,23 @@ function getActiveUserPoolSize() {
   return state.users.filter(u => (u.status || 'active') === 'active').length;
 }
 
+function getEffectiveInviteSize() {
+  // 非アクティブ(休会/退会)になったユーザは画面の合計人数から外れているので、
+  // 選択中件数の表示でもアクティブのみ数える(過去の招待データは内部で保持)
+  if (!inviteSelection.size) return 0;
+  const activeIds = new Set(state.users.filter(u => (u.status || 'active') === 'active').map(u => u.id));
+  let n = 0;
+  inviteSelection.forEach(id => { if (activeIds.has(id)) n++; });
+  return n;
+}
+
 function renderInviteSection() {
   const total = getActiveUserPoolSize();
   const lists = state.attendeeLists || [];
+  const effSize = getEffectiveInviteSize();
   $('new-event-attendees').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-mute);margin-bottom:6px">
-      <span>選択中 <strong id="invite-count" style="color:var(--text);font-family:'JetBrains Mono'">${inviteSelection.size}</strong> / ${total}</span>
+      <span>選択中 <strong id="invite-count" style="color:var(--text);font-family:'JetBrains Mono'">${effSize}</strong> / ${total}</span>
     </div>
     ${lists.length ? `
       <div class="filter-selects" style="margin-bottom:8px">
@@ -3741,7 +3752,7 @@ function renderInviteSection() {
       <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectInvites(false)">表示中を全解除</button>
     </div>
     <div id="invite-list" style="max-height:280px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
-    <div style="font-size:11px;color:var(--text-mute);margin-top:4px">選択中: <strong id="invite-count-bottom" style="color:var(--text);font-family:'JetBrains Mono'">${inviteSelection.size}</strong> / ${total}</div>
+    <div style="font-size:11px;color:var(--text-mute);margin-top:4px">選択中: <strong id="invite-count-bottom" style="color:var(--text);font-family:'JetBrains Mono'">${effSize}</strong> / ${total}</div>
   `;
   renderInviteList();
 }
@@ -3817,7 +3828,7 @@ function bulkSelectInvites(select) {
 }
 
 function updateInviteCount() {
-  const n = inviteSelection.size;
+  const n = getEffectiveInviteSize();
   const top = $('invite-count');
   if (top) top.textContent = n;
   const bottom = $('invite-count-bottom');
