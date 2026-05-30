@@ -999,7 +999,7 @@
   .master-row .icon-btn.danger:hover { color: var(--danger); border-color: var(--danger-soft); }
   .master-row .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  /* 参加者リストの追加フィルタ(所属の複数選択) */
+  /* 参加者リストの追加フィルタ(委員会の複数選択) */
   .multiselect-chips {
     display: flex;
     flex-wrap: wrap;
@@ -1160,7 +1160,7 @@
     <div class="screen-header header-row">
       <div>
         <h1 class="screen-title">ユーザー一覧</h1>
-        <p class="screen-sub">登録ユーザーを所属・役職で絞り込みできます</p>
+        <p class="screen-sub">登録ユーザーを委員会・役職で絞り込みできます</p>
       </div>
       <div id="admin-users-actions" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end"></div>
     </div>
@@ -1290,14 +1290,14 @@
       <div class="modal-handle"></div>
       <h2>プロフィール編集</h2>
       <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
-        所属と役職を登録できます。どちらも任意です。
+        委員会と役職を登録できます。どちらも任意です。
       </p>
       <div class="form-group">
         <label class="form-label">お名前</label>
         <div id="profile-name-display" style="font-size:14px;padding:10px 12px;background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-mute)"></div>
       </div>
       <div class="form-group">
-        <label class="form-label">所属</label>
+        <label class="form-label">委員会</label>
         <select class="form-input" id="profile-department"></select>
       </div>
       <div class="form-group">
@@ -1357,7 +1357,7 @@
         <input type="text" class="form-input" id="user-edit-name" placeholder="例: 山田 太郎">
       </div>
       <div class="form-group">
-        <label class="form-label">所属</label>
+        <label class="form-label">委員会</label>
         <select class="form-input" id="user-edit-department"></select>
       </div>
       <div class="form-group">
@@ -1392,13 +1392,13 @@
       <div class="modal-handle"></div>
       <h2>マスター編集</h2>
       <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
-        所属・役職の選択肢を編集できます。削除しても既存ユーザの登録値は残ります(選択肢から外れるだけ)。
+        委員会・役職の選択肢を編集できます。削除しても既存ユーザの登録値は残ります(選択肢から外れるだけ)。
       </p>
       <div class="form-group">
-        <label class="form-label">所属</label>
+        <label class="form-label">委員会</label>
         <div id="master-departments"></div>
         <div style="display:flex;gap:6px;margin-top:6px">
-          <input type="text" class="form-input" id="master-department-new" placeholder="新しい所属名">
+          <input type="text" class="form-input" id="master-department-new" placeholder="新しい委員会名">
           <button type="button" class="btn btn-outline btn-sm" onclick="addMaster('departments')">追加</button>
         </div>
       </div>
@@ -1447,7 +1447,7 @@ let state = {
   currentEventId: null,
 };
 
-// 所属・役職の初期値(マスターは state.departments / state.titles で管理し、管理者が編集可能)
+// 委員会・役職の初期値(マスターは state.departments / state.titles で管理し、管理者が編集可能)
 const DEFAULT_DEPARTMENTS = ['営業部', '開発部', '人事部', '経理部', 'マーケティング部', '総務部', '製造部'];
 const DEFAULT_TITLES = ['部長', '課長', '係長', '主任', '一般'];
 const getDepartments = () => state.departments || DEFAULT_DEPARTMENTS;
@@ -1471,7 +1471,7 @@ const SEED = () => {
     { id: 'u_editor', name: '佐々木 編集者', role: 'editor', department: '人事部', title: null, status: 'active' },
   ];
   SEED_NAMES.forEach((name, i) => {
-    // 所属はぐるぐる、役職は1/5の確率で付与(残りは"一般"扱いで未設定null)
+    // 委員会はぐるぐる、役職は1/5の確率で付与(残りは"一般"扱いで未設定null)
     const department = DEFAULT_DEPARTMENTS[i % DEFAULT_DEPARTMENTS.length];
     let title = null;
     if (i % 17 === 0) title = '部長';
@@ -1958,7 +1958,7 @@ function renderAdminUserList() {
       </div>
       <div class="filter-selects">
         <select onchange="setAdminUserFilter('department', this.value)">
-          <option value="">所属(全て)</option>
+          <option value="">委員会(全て)</option>
           ${getDepartments().map(d => `<option value="${escapeHtml(d)}" ${adminUserFilter.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
         </select>
         <select onchange="setAdminUserFilter('title', this.value)">
@@ -2003,7 +2003,7 @@ function renderAdminUserRows() {
         <div class="info">
           <div class="name">${escapeHtml(u.name)}${elevated ? ` <span class="role-pill-mini ${u.role}">${ROLE_LABEL[u.role]}</span>` : ''}${status !== 'active' ? ` <span class="user-status-pill ${status}">${USER_STATUS_LABEL[status]}</span>` : ''}</div>
           <div class="meta">
-            <span class="${u.department ? '' : 'placeholder'}">${escapeHtml(u.department || '所属未設定')}</span>
+            <span class="${u.department ? '' : 'placeholder'}">${escapeHtml(u.department || '委員会未設定')}</span>
             <span>·</span>
             <span class="${u.title ? '' : 'placeholder'}">${escapeHtml(u.title || '役職未設定')}</span>
           </div>
@@ -2373,7 +2373,7 @@ function renderAdminEventDetail() {
         ${chip('no', '欠席', noCount)}
       </div>
       ${getDepartments().length ? `
-        <div class="filter-section-label">所属(複数選択可)</div>
+        <div class="filter-section-label">委員会(複数選択可)</div>
         <div class="multiselect-chips">
           ${getDepartments().map(d => `
             <button class="chip ${(adminFilter.departments || []).includes(d) ? 'active' : ''}" onclick="toggleAdminFilterDept('${escapeHtml(d).replace(/'/g, "\\'")}')">${escapeHtml(d)}</button>
@@ -2654,7 +2654,7 @@ function renderInviteSection() {
            value="${escapeHtml(inviteQuery)}"
            oninput="onInviteSearch(this.value)">
     ${getDepartments().length ? `
-      <div class="filter-section-label">所属(複数選択可)</div>
+      <div class="filter-section-label">委員会(複数選択可)</div>
       <div class="multiselect-chips">
         ${getDepartments().map(d => `
           <button type="button" class="chip ${(inviteFilter.departments || []).includes(d) ? 'active' : ''}" onclick="toggleInviteFilterDept('${escapeHtml(d).replace(/'/g, "\\'")}')">${escapeHtml(d)}</button>
@@ -2904,7 +2904,7 @@ function renderUserProfileCard() {
           <span class="sep">·</span>
           <span class="${me.title ? '' : 'placeholder'}">${escapeHtml(title)}</span>
         </div>
-        ${empty ? '<div class="profile-hint">所属と役職を登録できます</div>' : ''}
+        ${empty ? '<div class="profile-hint">委員会と役職を登録できます</div>' : ''}
       </div>
       <button class="btn btn-outline btn-sm" onclick="openProfileModal()">編集</button>
     </div>
@@ -2935,7 +2935,7 @@ async function saveProfile() {
 }
 
 // =================================================
-// ADMIN: マスター(所属/役職)編集
+// ADMIN: マスター(委員会/役職)編集
 // =================================================
 // =================================================
 // ADMIN: 出欠CSV 書き出し/読み込み
@@ -2983,7 +2983,7 @@ function sanitizeFilenamePart(s) {
 function exportAttendeesCsv() {
   const ev = state.events.find(e => e.id === state.currentEventId);
   if (!ev) return;
-  const header = ['ユーザーID', '名前', '所属', '役職', '出欠', '懇親会'];
+  const header = ['ユーザーID', '名前', '委員会', '役職', '出欠', '懇親会'];
   const rows = ev.attendees.map(a => {
     const u = userById(a.userId) || {};
     const main = STATUS_TO_JP[a.status] || '未回答';
