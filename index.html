@@ -2045,7 +2045,7 @@ function renderAdminUserRows() {
           <div class="meta">
             <span class="${u.department ? '' : 'placeholder'}">${escapeHtml(u.department || '委員会未設定')}</span>
             <span>·</span>
-            <span class="${u.title ? '' : 'placeholder'}">${escapeHtml(u.title || '役職未設定')}</span>
+            <span>${escapeHtml(u.title || 'メンバー')}</span>
           </div>
         </div>
       </div>
@@ -2939,7 +2939,7 @@ function renderUserProfileCard() {
   const me = currentUser();
   if (!me) { target.innerHTML = ''; return; }
   const dept = me.department || '未設定';
-  const title = me.title || '未設定';
+  const title = me.title || 'メンバー';
   const empty = !me.department && !me.title;
   target.innerHTML = `
     <div class="profile-card">
@@ -2948,7 +2948,7 @@ function renderUserProfileCard() {
         <div class="profile-meta">
           <span class="${me.department ? '' : 'placeholder'}">${escapeHtml(dept)}</span>
           <span class="sep">·</span>
-          <span class="${me.title ? '' : 'placeholder'}">${escapeHtml(title)}</span>
+          <span>${escapeHtml(title)}</span>
         </div>
         ${empty ? '<div class="profile-hint">委員会と役職を登録できます</div>' : ''}
       </div>
