@@ -676,21 +676,39 @@
   }
 
   /* 下書きバッジ + カード表示 */
+  /* 下書きは一目で分かるよう大きめ&強い色味で */
   .badge-draft {
     display: inline-block;
-    background: var(--warning-soft);
-    color: var(--warning);
-    font-size: 10px;
+    background: var(--text);
+    color: var(--surface);
+    font-size: 13px;
     font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-left: 4px;
+    padding: 4px 12px;
+    border-radius: 6px;
+    margin-left: 6px;
     vertical-align: middle;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
   }
   .event-card.is-draft {
     background: var(--surface-soft);
     border-style: dashed;
+    border-width: 2px;
+    position: relative;
+  }
+  .event-card.is-draft::after {
+    content: 'DRAFT';
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: var(--text);
+    color: var(--surface);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 8px;
+    border-radius: 3px;
   }
 
   /* 懇親会バッジ */
@@ -2207,7 +2225,6 @@ function renderAdminEventList() {
       <div class="event-card ${ev.published === false ? 'is-draft' : ''}" onclick="openAdminEventDetail('${ev.id}')">
         <div class="date-row">
           <span class="date-tag">${fmtDate(ev.date)}</span>
-          ${ev.published === false ? '<span class="badge-draft">下書き</span>' : ''}
           ${ev.hasAfterparty ? '<span class="badge-afterparty">🍻 懇親会</span>' : ''}
         </div>
         <div class="title">${escapeHtml(ev.title)}</div>
@@ -2851,7 +2868,6 @@ function renderUserEventList() {
       <div class="event-card ${ev.published === false ? 'is-draft' : ''}" onclick="${opener}">
         <div class="date-row">
           <span class="date-tag">${fmtDate(ev.date)}</span>
-          ${ev.published === false ? '<span class="badge-draft">下書き</span>' : ''}
           ${isOwn ? '<span class="badge-own">自作</span>' : ''}
           ${ev.hasAfterparty ? '<span class="badge-afterparty">🍻 懇親会</span>' : ''}
           ${locked ? '<span class="badge-expired">回答締切</span>' : ''}
