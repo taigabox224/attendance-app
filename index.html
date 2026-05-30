@@ -586,6 +586,53 @@
     opacity: 0.7;
   }
 
+  /* 出席内訳 */
+  .breakdown-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  .breakdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-mute);
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  .breakdown-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: baseline;
+    padding: 6px 4px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 13px;
+  }
+  .breakdown-row:first-of-type { border-top: none; }
+  .breakdown-row .bd-label { color: var(--text); }
+  .breakdown-row .bd-count { font-family: 'JetBrains Mono', monospace; color: var(--text-mute); font-size: 12px; }
+  .breakdown-row .bd-rate { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text); min-width: 56px; text-align: right; }
+  .breakdown-row.breakdown-total {
+    border-top: none;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .breakdown-row.breakdown-total .bd-label { font-weight: 700; }
+  .breakdown-row.breakdown-total .bd-rate { color: var(--primary); }
+  .breakdown-row.breakdown-observer { border-top: 1px dashed var(--border); }
+  .breakdown-row.breakdown-observer .bd-rate { color: var(--text-soft); }
+  .breakdown-note {
+    font-size: 10px;
+    color: var(--text-soft);
+    margin-top: 6px;
+    text-align: right;
+  }
+
   /* 懇親会の集計バー */
   .afterparty-stats {
     background: var(--surface);
@@ -2876,6 +2923,38 @@ function renderAdminEventDetail() {
       </div>
     ` : ''}
 
+    ${(() => {
+      const bd = computeAttendanceBreakdown(ev);
+      return `
+        <div class="breakdown-card">
+          <div class="breakdown-header">
+            <span>出席内訳</span>
+            <button class="btn btn-outline btn-sm" onclick="exportBreakdownCsv()">CSV書き出し</button>
+          </div>
+          <div class="breakdown-row breakdown-total">
+            <span class="bd-label">全体</span>
+            <span class="bd-count">${bd.total.attending} / ${bd.total.members}</span>
+            <span class="bd-rate">${fmtRate(bd.total.rate)}</span>
+          </div>
+          ${bd.rows.map(r => `
+            <div class="breakdown-row">
+              <span class="bd-label">${escapeHtml(r.key)}</span>
+              <span class="bd-count">${r.attending} / ${r.members}</span>
+              <span class="bd-rate">${fmtRate(r.rate)}</span>
+            </div>
+          `).join('')}
+          ${bd.observerYes > 0 ? `
+            <div class="breakdown-row breakdown-observer">
+              <span class="bd-label">オブザーバー</span>
+              <span class="bd-count">${bd.observerYes} 名</span>
+              <span class="bd-rate">—</span>
+            </div>
+          ` : ''}
+          <div class="breakdown-note">参加率はアクティブユーザーから算出</div>
+        </div>
+      `;
+    })()}
+
     <button class="btn btn-accent btn-full" style="margin:14px 0" onclick="openScanner()">
       📷 QRコードをスキャン
     </button>
@@ -2946,6 +3025,7 @@ function renderEventMenu() {
     ${canEdit ? `<button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); openEditEventModal(state.currentEventId)">イベントを編集</button>` : ''}
     <button class="btn btn-primary btn-full" onclick="copyEventLink()">共有リンクをコピー</button>
     <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); exportAttendeesCsv()">出欠CSVを書き出す</button>
+    <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); exportBreakdownCsv()">出席内訳CSVを書き出す</button>
     ${canEdit ? `<button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); document.getElementById('attendee-csv-file').click()">出欠CSVを読み込む</button>` : ''}
     ${canEdit ? `<button class="btn btn-danger btn-full" style="margin-top:6px" onclick="closeModal('modal-event-menu'); deleteEvent()">このイベントを削除</button>` : ''}
   `;
@@ -3735,6 +3815,80 @@ function parseCsv(text) {
 
 function sanitizeFilenamePart(s) {
   return String(s || '').replace(/[\\/:*?"<>|\n\r]/g, '_').trim() || 'event';
+}
+
+// 出席内訳: 委員会別の出席数/総数(アクティブユーザベース)、全体、オブザーバー出席数
+function computeAttendanceBreakdown(ev) {
+  const activeUsers = state.users.filter(u => (u.status || 'active') === 'active');
+  const totalMembers = activeUsers.length;
+  // 委員会別の総人数(マスターの順序を保ちつつ、未設定 / マスターに無い委員会も拾う)
+  const order = [];
+  const seen = new Set();
+  getDepartments().forEach(d => { order.push(d); seen.add(d); });
+  const byCommittee = new Map();
+  order.forEach(d => byCommittee.set(d, { members: 0, attending: 0 }));
+  activeUsers.forEach(u => {
+    const key = u.department || '(未設定)';
+    if (!byCommittee.has(key)) { byCommittee.set(key, { members: 0, attending: 0 }); order.push(key); }
+    byCommittee.get(key).members++;
+  });
+  // 出席のカウント: status='yes' のメンバー(オブザーバー除く)、非アクティブは除外
+  let totalAttending = 0;
+  ev.attendees.forEach(a => {
+    if (a.isObserver) return;
+    if (a.status !== 'yes') return;
+    const u = state.users.find(x => x.id === a.userId);
+    if (!u || (u.status || 'active') !== 'active') return;
+    const key = u.department || '(未設定)';
+    if (!byCommittee.has(key)) { byCommittee.set(key, { members: 0, attending: 0 }); order.push(key); }
+    byCommittee.get(key).attending++;
+    totalAttending++;
+  });
+  const observerYes = ev.attendees.filter(a => a.isObserver && a.status === 'yes').length;
+  const rows = order
+    .filter(key => byCommittee.get(key).members > 0 || byCommittee.get(key).attending > 0)
+    .map(key => ({
+      key,
+      members: byCommittee.get(key).members,
+      attending: byCommittee.get(key).attending,
+      rate: byCommittee.get(key).members ? byCommittee.get(key).attending / byCommittee.get(key).members : 0,
+    }));
+  return {
+    rows,
+    total: {
+      members: totalMembers,
+      attending: totalAttending,
+      rate: totalMembers ? totalAttending / totalMembers : 0,
+    },
+    observerYes,
+  };
+}
+
+function fmtRate(r) { return (r * 100).toFixed(1) + '%'; }
+
+function exportBreakdownCsv() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const bd = computeAttendanceBreakdown(ev);
+  const header = ['区分', '委員会', '出席数', '委員会人数', '参加率'];
+  const rows = [];
+  rows.push(['全体', '', bd.total.attending, bd.total.members, fmtRate(bd.total.rate)]);
+  bd.rows.forEach(r => {
+    rows.push(['委員会別', r.key, r.attending, r.members, fmtRate(r.rate)]);
+  });
+  rows.push(['オブザーバー', '', bd.observerYes, '', '']);
+  const csv = '﻿' + [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\r\n') + '\r\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = toLocalDateValue(new Date(ev.date)).replace(/-/g, '');
+  a.href = url;
+  a.download = `${sanitizeFilenamePart(ev.title)}-${ts}-内訳.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('出席内訳CSVを書き出しました');
 }
 
 function exportAttendeesCsv() {
