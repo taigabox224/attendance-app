@@ -1607,6 +1607,10 @@
         </div>
       </div>
       <div class="form-group">
+        <label class="form-label">担当委員会</label>
+        <select class="form-input" id="new-event-committee"></select>
+      </div>
+      <div class="form-group">
         <label class="form-label">場所</label>
         <input type="text" class="form-input" id="new-event-location" placeholder="例: スターツおおたかの森ホール">
       </div>
@@ -3071,6 +3075,7 @@ function renderAdminEventDetail() {
     <div class="event-hero">
       <div class="date">${fmtDate(ev.date)}</div>
       <div class="title">${escapeHtml(ev.title)}${ev.published === false ? ' <span class="badge-draft">下書き</span>' : ''}</div>
+      ${ev.committee ? `<div class="info-row"><span class="ico">🏛️</span>担当: ${escapeHtml(ev.committee)}</div>` : ''}
       <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
       ${ev.description ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.description)}</span></div>` : ''}
       ${ev.responseDeadline ? `
@@ -3461,6 +3466,17 @@ function removeObserver(idx) {
   renderObserverList();
 }
 
+function renderEventCommitteeOptions(selected) {
+  const sel = $('new-event-committee');
+  if (!sel) return;
+  const value = selected || '';
+  sel.innerHTML = `
+    <option value="" ${value === '' ? 'selected' : ''}>(未選択)</option>
+    ${getDepartments().map(d => `<option value="${escapeHtml(d)}" ${value === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
+    <option value="その他" ${value === 'その他' ? 'selected' : ''}>その他</option>
+  `;
+}
+
 function toggleAfterpartyFields(on) {
   const wrap = $('afterparty-fields');
   if (wrap) wrap.style.display = on ? '' : 'none';
@@ -3474,6 +3490,7 @@ function openCreateEventModal() {
   $('new-event-title').value = '';
   $('new-event-location').value = '';
   $('new-event-description').value = '';
+  renderEventCommitteeOptions(null);
   $('new-event-has-afterparty').checked = false;
   $('new-event-afterparty-location').value = '';
   $('new-event-afterparty-description').value = '';
@@ -3514,6 +3531,7 @@ function openEditEventModal(eventId) {
   $('new-event-title').value = ev.title || '';
   $('new-event-location').value = ev.location || '';
   $('new-event-description').value = ev.description || '';
+  renderEventCommitteeOptions(ev.committee || null);
   $('new-event-has-afterparty').checked = !!ev.hasAfterparty;
   $('new-event-afterparty-location').value = ev.afterpartyLocation || '';
   $('new-event-afterparty-description').value = ev.afterpartyDescription || '';
@@ -3803,6 +3821,7 @@ async function saveEventForm({ publish = true } = {}) {
   const title = $('new-event-title').value.trim();
   const date = $('new-event-date').value;
   const deadlineRaw = $('new-event-deadline').value;
+  const committee = $('new-event-committee').value || null;
   const location = $('new-event-location').value.trim();
   const description = $('new-event-description').value.trim();
   const hasAfterparty = $('new-event-has-afterparty').checked;
@@ -3840,6 +3859,7 @@ async function saveEventForm({ publish = true } = {}) {
     ev.title = title;
     ev.date = eventDateISO;
     ev.responseDeadline = deadlineISO;
+    ev.committee = committee;
     ev.location = location;
     ev.description = description;
     ev.hasAfterparty = hasAfterparty;
@@ -3926,6 +3946,7 @@ async function saveEventForm({ publish = true } = {}) {
       title,
       date: eventDateISO,
       responseDeadline: deadlineISO,
+      committee,
       location, description,
       createdBy: state.currentUserId,
       published: publish,
@@ -4850,6 +4871,7 @@ function renderUserEventDetail() {
       <div class="event-hero">
         <div class="date">${fmtDate(ev.date)}</div>
         <div class="title">${escapeHtml(ev.title)}</div>
+        ${ev.committee ? `<div class="info-row"><span class="ico">🏛️</span>担当: ${escapeHtml(ev.committee)}</div>` : ''}
         <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
         ${ev.description ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.description)}</span></div>` : ''}
         ${ev.responseDeadline ? `<div class="info-row"><span class="ico">⏰</span>回答期限 ${fmtDate(ev.responseDeadline)}${locked0 ? ' <span class="badge-expired">締切</span>' : ''}</div>` : ''}
@@ -4876,6 +4898,7 @@ function renderUserEventDetail() {
     <div class="event-hero">
       <div class="date">${fmtDate(ev.date)}</div>
       <div class="title">${escapeHtml(ev.title)}</div>
+      ${ev.committee ? `<div class="info-row"><span class="ico">🏛️</span>担当: ${escapeHtml(ev.committee)}</div>` : ''}
       <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
       ${ev.description ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.description)}</span></div>` : ''}
       ${ev.responseDeadline ? `
