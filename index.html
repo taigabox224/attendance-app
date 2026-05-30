@@ -2167,8 +2167,9 @@ function renderAll() {
     renderUserEventList();
     if (state.currentEventId) {
       const ev = state.events.find(e => e.id === state.currentEventId);
-      // 自作イベントは管理者風の詳細(編集・QRスキャンなどができる)
-      if (ev && ev.createdBy === state.currentUserId) {
+      // 管理者/編集者がユーザー画面のときは常にユーザRSVP画面(自分のQRなどを確認できる)。
+      // 閲覧者の場合だけ、自作イベントは管理者風の詳細にして編集・QRスキャンを可能に。
+      if (ev && ev.createdBy === state.currentUserId && !canAccessAdminDashboard()) {
         renderAdminEventDetail();
         showScreen('admin-detail');
       } else {
@@ -3420,7 +3421,10 @@ function renderUserEventList() {
     const a = ev.attendees.find(x => x.userId === me.id);
     const locked = isDeadlinePassed(ev);
     const isOwn = ev.createdBy === me.id;
-    const opener = isOwn ? `openAdminEventDetail('${ev.id}')` : `openUserEventDetail('${ev.id}')`;
+    // 閲覧者は自作イベントを管理者風で開く。管理者/編集者がユーザー画面にいるときは常にユーザRSVP画面。
+    const opener = (isOwn && !canAccessAdminDashboard())
+      ? `openAdminEventDetail('${ev.id}')`
+      : `openUserEventDetail('${ev.id}')`;
     return `
       <div class="event-card ${ev.published === false ? 'is-draft' : ''}" onclick="${opener}">
         <div class="date-row">
@@ -3923,7 +3927,26 @@ function renderUserEventDetail() {
   if (!ev) return;
   const me = currentUser();
   const att = ev.attendees.find(a => a.userId === me.id);
-  if (!att) return;
+  // 招待されていない参加者向けのフォールバック画面(管理者がユーザー画面で他人のイベントを開いた場合など)
+  if (!att) {
+    const locked0 = isDeadlinePassed(ev);
+    $('user-detail-content').innerHTML = `
+      <div class="event-hero">
+        <div class="date">${fmtDate(ev.date)}</div>
+        <div class="title">${escapeHtml(ev.title)}</div>
+        <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
+        ${ev.description ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.description)}</span></div>` : ''}
+        ${ev.responseDeadline ? `<div class="info-row"><span class="ico">⏰</span>回答期限 ${fmtDate(ev.responseDeadline)}${locked0 ? ' <span class="badge-expired">締切</span>' : ''}</div>` : ''}
+      </div>
+      <div class="rsvp-card">
+        <div style="text-align:center;padding:14px 0;line-height:1.6">
+          <div style="font-size:14px;color:var(--text-mute);margin-bottom:6px">あなたはこのイベントに招待されていません</div>
+          ${canAccessAdminDashboard() ? '<div style="font-size:12px;color:var(--text-mute)">編集や受付を行う場合は上部の「管理者画面」に切替えてください</div>' : ''}
+        </div>
+      </div>
+    `;
+    return;
+  }
   const locked = isDeadlinePassed(ev);
   const sel = pendingRsvp.status;
   const aSel = pendingRsvp.afterStatus;
@@ -4290,17 +4313,14 @@ function navigateToEventFromUrl() {
     return true;
   }
   state.currentEventId = eventId;
-  if (canAccessAdminDashboard() || isOwner) {
+  // 表示モード優先: 管理者画面のときだけ管理者詳細。それ以外はユーザRSVP画面。
+  if (isAdminMode() || (isOwner && !canAccessAdminDashboard())) {
     renderAdminEventDetail();
     showScreen('admin-detail');
   } else {
     const me = currentUser();
     const att = me && ev.attendees.find(a => a.userId === me.id);
-    if (!att) {
-      alert('このイベントには招待されていません');
-      return true;
-    }
-    pendingRsvp = { status: att.status, afterStatus: att.afterStatus || null };
+    if (att) pendingRsvp = { status: att.status, afterStatus: att.afterStatus || null };
     renderUserEventDetail();
     showScreen('user-detail');
   }
