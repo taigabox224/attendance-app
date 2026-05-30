@@ -44,6 +44,7 @@
     color: var(--text);
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
+    overflow-x: hidden; /* 横スクロール(ぐらつき)を抑止 */
   }
 
   .app-frame {
@@ -53,6 +54,7 @@
     background: var(--bg);
     position: relative;
     padding-bottom: 100px;
+    overflow-x: hidden;
   }
 
   /* === Top bar (role switcher) === */
@@ -604,8 +606,12 @@
     padding: 22px 18px 26px;
     max-height: 90vh;
     overflow-y: auto;
+    overflow-x: hidden;
     animation: slideUp 0.25s ease;
   }
+  /* モーダル内のテキストや input が画面幅を超えないように */
+  .modal input, .modal textarea, .modal select { max-width: 100%; }
+  .modal .form-input, .modal .form-textarea, .modal .search-input { width: 100%; }
   @keyframes slideUp {
     from { transform: translateY(20px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
