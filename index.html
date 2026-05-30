@@ -342,6 +342,49 @@
 
   /* === Forms === */
   .form-group { margin-bottom: 14px; }
+
+  /* 参加者・受付担当を視覚的に区別するためのカード */
+  .picker-card {
+    margin-bottom: 16px;
+    padding: 12px 12px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .picker-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .picker-card-icon { font-size: 18px; line-height: 1; }
+  .picker-card-title { flex: 1; font-size: 14px; font-weight: 700; color: var(--text); }
+  .picker-card-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 100px;
+    letter-spacing: 0.04em;
+  }
+  .picker-card-tag.required { background: var(--primary-soft); color: var(--primary); }
+  .picker-card-tag.optional { background: var(--surface-soft); color: var(--text-mute); border: 1px solid var(--border); }
+  .picker-card-help {
+    font-size: 11px;
+    color: var(--text-mute);
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  /* 参加者は青系の左ボーダー、受付担当は warning(オレンジ)系で明確に区別 */
+  .picker-participants {
+    border-left: 4px solid var(--primary);
+    background: var(--surface);
+  }
+  .picker-receptionists {
+    border-left: 4px solid var(--warning);
+    background: var(--warning-soft);
+  }
+  .picker-receptionists .checkbox-row { background: var(--surface); }
+  .picker-receptionists #receptionist-list { background: var(--surface); }
   .form-label {
     display: block;
     font-size: 12px;
@@ -1558,13 +1601,22 @@
           </div>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">参加者を選択</label>
+      <div class="picker-card picker-participants">
+        <div class="picker-card-header">
+          <span class="picker-card-icon">👥</span>
+          <div class="picker-card-title">参加者を選択</div>
+          <span class="picker-card-tag required">必須</span>
+        </div>
+        <div class="picker-card-help">出欠回答を依頼するメンバーを選びます</div>
         <div id="new-event-attendees"></div>
       </div>
-      <div class="form-group">
-        <label class="form-label">受付担当を選択 (任意)</label>
-        <div style="font-size:11px;color:var(--text-mute);margin-bottom:6px">指定したユーザーは当日「受付」モードに切替えてQRスキャンや出欠変更ができます</div>
+      <div class="picker-card picker-receptionists">
+        <div class="picker-card-header">
+          <span class="picker-card-icon">🛡️</span>
+          <div class="picker-card-title">受付担当を選択</div>
+          <span class="picker-card-tag optional">任意</span>
+        </div>
+        <div class="picker-card-help">当日「受付」モードに切替えてQRスキャンや出欠変更ができるメンバーです</div>
         <div id="new-event-receptionists"></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px">
