@@ -3093,13 +3093,13 @@ function renderAdminEventList() {
   }).join('');
 }
 
-let adminFilter = { status: 'all', query: '', departments: [], title: '', kind: 'all' };
+let adminFilter = { status: 'all', query: '', departments: [], kind: 'all' };
 // removeMaster からも参照する別名(同じオブジェクトを指す)
 let adminAttendeeFilter = adminFilter;
 
 function openAdminEventDetail(eventId) {
   state.currentEventId = eventId;
-  adminFilter = { status: 'all', query: '', departments: [], title: '', kind: 'all' };
+  adminFilter = { status: 'all', query: '', departments: [], kind: 'all' };
   adminAttendeeFilter = adminFilter;
   receptionMode = 'reception';
   renderAdminEventDetail();
@@ -3122,12 +3122,9 @@ function getFilteredAttendees(ev) {
     if (q) {
       if (!name.toLowerCase().includes(q)) return false;
     }
-    // 委員会・役職フィルタはオブザーバーには適用しない(値を持たないので)
+    // 委員会フィルタはオブザーバーには適用しない(値を持たないので)
     if (deptFilter.length) {
       if (a.isObserver || !u || !deptFilter.includes(u.department)) return false;
-    }
-    if (adminFilter.title) {
-      if (a.isObserver || !u || u.title !== adminFilter.title) return false;
     }
     return true;
   });
@@ -3141,18 +3138,13 @@ function toggleAdminFilterDept(d) {
   renderAdminEventDetail();
 }
 
-function setAdminFilterTitle(v) {
-  adminFilter.title = v;
-  renderAdminEventDetail();
-}
-
 function setAdminFilterKind(k) {
   adminFilter.kind = k;
   renderAdminEventDetail();
 }
 
 function clearAdminAttendeeFilter() {
-  adminFilter = { status: 'all', query: '', departments: [], title: '', kind: 'all' };
+  adminFilter = { status: 'all', query: '', departments: [], kind: 'all' };
   adminAttendeeFilter = adminFilter;
   renderAdminEventDetail();
 }
@@ -3307,22 +3299,13 @@ function renderAdminEventDetail() {
           `).join('')}
         </div>
       ` : ''}
-      ${getTitles().length ? `
-        <div class="filter-section-label">役職</div>
-        <div class="filter-selects" style="margin-top:4px">
-          <select onchange="setAdminFilterTitle(this.value)">
-            <option value="">役職(全て)</option>
-            ${getTitles().map(t => `<option value="${escapeHtml(t)}" ${adminFilter.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
-          </select>
-        </div>
-      ` : ''}
       <div class="filter-section-label">区分</div>
       <div class="filter-chips" style="margin-top:4px">
         <button class="chip ${adminFilter.kind === 'all' ? 'active' : ''}" onclick="setAdminFilterKind('all')">全て</button>
         <button class="chip ${adminFilter.kind === 'member' ? 'active' : ''}" onclick="setAdminFilterKind('member')">メンバー</button>
         <button class="chip ${adminFilter.kind === 'observer' ? 'active' : ''}" onclick="setAdminFilterKind('observer')">オブザーバー</button>
       </div>
-      ${((adminFilter.departments || []).length || adminFilter.title || adminFilter.status !== 'all' || adminFilter.query || adminFilter.kind !== 'all') ? `
+      ${((adminFilter.departments || []).length || adminFilter.status !== 'all' || adminFilter.query || adminFilter.kind !== 'all') ? `
         <div style="margin-top:8px;text-align:right">
           <button class="btn btn-outline btn-sm" onclick="clearAdminAttendeeFilter()">フィルタをリセット</button>
         </div>
@@ -5030,7 +5013,6 @@ async function removeMaster(kind, index) {
     if (adminAttendeeFilter) adminAttendeeFilter.departments = (adminAttendeeFilter.departments || []).filter(d => d !== value);
   } else {
     adminUserFilter.title = '';
-    if (adminAttendeeFilter && adminAttendeeFilter.title === value) adminAttendeeFilter.title = '';
   }
   await saveState();
   renderMasterList(kind);
