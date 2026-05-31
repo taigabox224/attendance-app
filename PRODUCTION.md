@@ -18,7 +18,7 @@ Vercel は `vercel.json` の `outputDirectory: web` で `/web` を配信対象�
 - **フロント**: Phase 2 で React + TypeScript + Vite に置換予定(`/web` 配下)。現状の `index.html` をコンポーネントに分解しつつ、API 化に伴って I/O 層を fetch ベースに差し替え
 - **認証**: メールアドレス + メール認証(マジックリンク or パスワード + verify)
 - **バックエンド**: Node.js + TypeScript(Fastify or Express)、`/api` 配下
-- **DB**: 未確定。PostgreSQL or DynamoDB
+- **DB**: **MariaDB(MySQL互換)** を採用予定。Lightsail Bitnami スタックに同梱されているため構築が早い。ORM(Prisma / Drizzle)も MySQL を完全サポート。アプリ要件として PostgreSQL 固有機能(配列型・CTE等)は使わないため問題なし
 - **ホスティング**: ユーザ希望は AWS Lightsail(コスト重視)
 
 ## データスキーマ(現状)
@@ -139,7 +139,7 @@ per-device(本番では state に入れない、もしくは別経路):
 
 | 月額目安 | 構成 |
 | --- | --- |
-| **$5-10** | Lightsail 2GB プラン 1台で Node.js + SQLite or PostgreSQL を同居 |
+| **$5-10** | Lightsail 1〜2GB プラン 1台で Node.js + **MariaDB** を同居(Bitnami スタック利用) |
 | + $1 | Lightsail バックアップ自動取得 |
 | 別途 | ドメイン取得・更新($1〜/月) |
 
@@ -152,7 +152,7 @@ per-device(本番では state に入れない、もしくは別経路):
 | --- | --- |
 | **$0-2** | Amplify Hosting(静的)・月数千 PV 程度なら無料枠内 |
 | **$3-15** | Lambda + API Gateway(リクエスト数次第。月100万リクエストまで無料枠) |
-| **$13-20** | RDS PostgreSQL `db.t4g.micro`(24時間稼働。停止すれば下がる) |
+| **$13-20** | RDS for MySQL `db.t4g.micro`(24時間稼働。停止すれば下がる) |
 | **$0.50** | SES(月5,000通まで無料) |
 | **$0** | Cognito ユーザープール(MAU 5万まで無料) |
 

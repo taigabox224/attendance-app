@@ -40,7 +40,7 @@ Phase 2 完了時に、以下が動いている状態にしたい:
 |---|---|---|
 | ホスティング | **AWS Lightsail** | コスト重視。App Runner / EC2 / Elastic Beanstalk 等の代替提案歓迎 |
 | バックエンド | **Node.js + TypeScript**(Fastify or Express) | ランタイム要件以外は任意 |
-| DB | **PostgreSQL** | RDS / Lightsail同居 / Aurora Serverless v2 等、お任せ |
+| DB | **MariaDB(MySQL互換)** | Lightsail Bitnami スタックに同梱で構築が早い。同居 / Lightsail Managed DB / RDS for MySQL 等お任せ |
 | 認証 | **Amazon Cognito** | ユーザープール + メール認証。代替提案(自前認証等)も可 |
 | メール送信 | **Amazon SES** | 認証メール送信用。Sandbox→本番昇格申請必要 |
 | フロント | **静的サイト**(将来 React + Vite) | 現状は Vercel ホスティング。AWS側に統合するなら CloudFront + S3 等 |
@@ -56,8 +56,11 @@ Phase 2 完了時に、以下が動いている状態にしたい:
 
 - [ ] **既存AWSアカウント配下に本プロジェクト用の IAM / リソース分離**(プロジェクト識別タグや専用IAMロール等、運用ルールに沿って)
 - [ ] **コンピュート**(Lightsail or 代替案)の立ち上げ + Node.js ランタイム導入
-- [ ] **データベース**(PostgreSQL想定)構築 + 接続情報の安全な保管
-- [ ] **ドメイン取得**(命名は任せる。`xxx-jc.example` 等、流山JC関連を想起できる名前を希望)
+- [ ] **データベース**(MariaDB/MySQL想定)構築 + 接続情報の安全な保管
+- [ ] **独立したドメインを新規取得**(命名は任せる。`xxx-jc.example` 等、流山JC関連を想起できる名前を希望)
+  - 既存の流山JC ドメインは OB の会社が管理しているため、サブドメインを借りずに**完全に独立したドメインを新規取得**してほしい
+  - **WHOIS 登録者情報は組織アドレス推奨**(担当者個人メールにすると引き継ぎ時に更新通知が届かない事故が起きやすいため)
+  - 年額 $15 程度以内の TLD(`.com` / `.app` / `.jp` 等)で OK
 - [ ] **HTTPS化**(Let's Encrypt / ACM 等)
 - [ ] **Amazon Cognito ユーザープール作成**(メール認証フロー)
 - [ ] **Amazon SES 設定**(送信ドメイン認証 + Sandbox解除申請)
