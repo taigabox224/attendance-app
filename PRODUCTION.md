@@ -1,12 +1,23 @@
 # 本番化準備メモ
 
-プロトタイプ(`index.html` 単一ファイル + localStorage + jsonbin.io)から、本番運用(ログイン認証 + AWSホスティング)へ移行するときの準備事項。
+プロトタイプ(`web/index.html` 単一ファイル + localStorage + jsonbin.io)から、本番運用(ログイン認証 + AWSホスティング)へ移行するときの準備事項。
+
+## リポジトリ構成
+
+Phase 2 を見越してモノレポ構成にしてある:
+
+```
+/web   ... フロントエンド (Phase 1: index.html 単一ファイル / Phase 2: React + TypeScript + Vite 想定)
+/api   ... バックエンド (Phase 1: 空 / Phase 2: Node.js + TypeScript + Fastify/Express)
+```
+
+Vercel は `vercel.json` の `outputDirectory: web` で `/web` を配信対象に指定している。Phase 2 で React に置き換えても `/web` のまま(ビルド成果物は `/web/dist`)。
 
 ## 想定構成
 
-- **フロント**: 現状の `index.html` をベースにしつつ、API 化に備えて段階的に分離する
+- **フロント**: Phase 2 で React + TypeScript + Vite に置換予定(`/web` 配下)。現状の `index.html` をコンポーネントに分解しつつ、API 化に伴って I/O 層を fetch ベースに差し替え
 - **認証**: メールアドレス + メール認証(マジックリンク or パスワード + verify)
-- **バックエンド**: 未確定。Node.js / TypeScript 想定
+- **バックエンド**: Node.js + TypeScript(Fastify or Express)、`/api` 配下
 - **DB**: 未確定。PostgreSQL or DynamoDB
 - **ホスティング**: ユーザ希望は AWS Lightsail(コスト重視)
 
@@ -173,6 +184,7 @@ per-device(本番では state に入れない、もしくは別経路):
 
 - [x] `user.email` フィールド追加(任意、本番で必須に昇格)
 - [x] PRODUCTION.md(これ)で構成・移行リスクを書面化
+- [x] リポジトリを `/web` + `/api` のモノレポ構成に再編成
 - [ ] イベント作成時の入力バリデーションをサーバ側でも掛けられるよう、ロジックを純関数化(後の小改修で OK)
 - [ ] 既存のクラウド sync(jsonbin.io)で運用中のデータがあれば、フィールド完備のために一度エクスポート → 確認しておく
 - [ ] 委員会・役職マスターを「最終決定版」にする(本番ではユーザー数が一気に増えるので、最初の master が大事)
@@ -183,11 +195,12 @@ per-device(本番では state に入れない、もしくは別経路):
 
 順番の目安:
 
-1. リポジトリ分割: `/web`(フロント)と `/api`(バックエンド)に分ける
-2. TypeScript 化 + 上記スキーマを型として書き起こす
-3. Cognito で email 認証フロー実装(サインアップ/サインイン/招待)
-4. API 実装(Express or Fastify)+ DB スキーマ
-5. フロントの I/O 層を fetch ベースに置換(`loadState`/`saveState` を分解)
-6. Lightsail にデプロイ + Let's Encrypt
-7. SES 設定(送信ドメインの認証)
-8. 既存 cloud sync データを移行スクリプトで取り込み
+1. ~~リポジトリ分割: `/web`(フロント)と `/api`(バックエンド)に分ける~~(済: モノレポ構成にしてある)
+2. `/web` を React + TypeScript + Vite に置換(index.html をコンポーネント分解)
+3. TypeScript 化 + 上記スキーマを型として書き起こす
+4. Cognito で email 認証フロー実装(サインアップ/サインイン/招待)
+5. API 実装(Express or Fastify)+ DB スキーマ
+6. フロントの I/O 層を fetch ベースに置換(`loadState`/`saveState` を分解)
+7. Lightsail にデプロイ + Let's Encrypt
+8. SES 設定(送信ドメインの認証)
+9. 既存 cloud sync データを移行スクリプトで取り込み

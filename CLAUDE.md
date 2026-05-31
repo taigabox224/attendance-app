@@ -11,19 +11,19 @@
 ## 現状とフェーズ
 
 ### Phase 1: プロトタイプ (現在)
-- 単一HTMLファイル (`index.html`) で完結
+- 単一HTMLファイル (`web/index.html`) で完結
 - 全ロジックがインラインの `<script>` 内
 - データはブラウザの localStorage に保存
 - 端末間同期は **jsonbin.io** 経由(Master Key + Bin ID を各端末に保存)
-- ホスティングは **Vercel**(静的サイト)
+- ホスティングは **Vercel**(静的サイト、`outputDirectory: web`)
 - 目的: UI/UX検証、フロー確認、スマホでのQRスキャン動作確認
 
 ### Phase 2: 本実装(未着手)
 - **ホスティング**: AWS Lightsail(コスト優先) or Amplify Hosting
 - **認証**: メールアドレス + メール認証(Cognito + SES を想定)
 - **DB**: PostgreSQL(Lightsail 同居 or RDS) or DynamoDB
-- **バックエンド**: Node.js + TypeScript(Fastify / Express)
-- **フロント**: 現状の `index.html` をベースに、API 化に伴い分離
+- **バックエンド**: Node.js + TypeScript(Fastify / Express)。`/api` 配下に構築
+- **フロント**: React + TypeScript + Vite を想定。`/web` 配下に構築
 
 本番化の準備事項・スキーマ・移行リスクは [PRODUCTION.md](./PRODUCTION.md) にまとめている。
 
@@ -40,25 +40,31 @@
 
 ```
 .
-├── index.html        # 本体 (HTML + CSS + JS 全部入り)
+├── web/
+│   └── index.html    # プロトタイプ本体 (HTML + CSS + JS 全部入り)
+├── api/
+│   └── .gitkeep      # Phase 2 でバックエンド (Node.js + TypeScript) を入れる
+├── vercel.json       # Vercel に web/ を配信対象として指定 (outputDirectory)
 ├── README.md
 ├── CLAUDE.md         # このファイル
 ├── PRODUCTION.md     # 本番化に向けた準備メモ
 └── .gitignore
 ```
 
+リポジトリは Phase 2 を見越して **モノレポ構成**(`/web` + `/api`)。Phase 1 の現時点では `/api` は空。
+
 ## 開発・デプロイ
 
 ### ローカルで開く
 ```bash
-python3 -m http.server 8000
+cd web && python3 -m http.server 8000
 # → http://localhost:8000
 ```
 
 カメラAPIはHTTPSが必須なため、QRスキャンを試したい場合は Vercel デプロイ後のURLで検証する。
 
 ### デプロイ
-`main` ブランチに push すると Vercel が自動で再デプロイ。設定不要。
+`main` ブランチに push すると Vercel が自動で再デプロイ。`vercel.json` の `outputDirectory: web` で `/web` 配下を配信。
 
 ```bash
 git add .
@@ -129,11 +135,12 @@ state = {
 
 ## Phase 2 着手時の最初の動き
 
-1. リポジトリを `/web` と `/api` に分割
-2. TypeScript 化(現状の state shape を型に書き起こす)
-3. AWS アカウント + Cognito + SES の準備
-4. Lightsail に Node.js + PostgreSQL を立てる
-5. 認証フローを実装し、フロントの I/O 層を `fetch('/api/...')` に置換
-6. 既存 cloud sync データを移行スクリプトで取り込み
+1. ~~リポジトリを `/web` と `/api` に分割~~(済: モノレポ構成にしてある)
+2. `/web` を React + TypeScript + Vite に置換(現状の `index.html` をコンポーネントに分解)
+3. TypeScript で `state` shape / Entity 型を起こす(PRODUCTION.md のスキーマを移植)
+4. AWS アカウント + Cognito + SES の準備
+5. Lightsail に Node.js + PostgreSQL を立て、`/api` に Fastify/Express で実装
+6. 認証フローを実装し、フロントの I/O 層を `fetch('/api/...')` に置換
+7. 既存 cloud sync データを移行スクリプトで取り込み
 
 詳細は PRODUCTION.md の「本実装フェーズで着手する想定タスク」を参照。
