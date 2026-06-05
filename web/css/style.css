@@ -1,0 +1,1517 @@
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Shippori+Mincho:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #F4F1EA;
+    --surface: #FFFFFF;
+    --surface-soft: #FBF9F4;
+    --border: #E5DFD2;
+    --border-soft: #EFEAE0;
+    --text: #1A1A1A;
+    --text-mute: #6E6760;
+    --text-soft: #9B948B;
+    --accent: #C7522A;
+    --accent-soft: #F4DCD0;
+    --primary: #355282;
+    --primary-hover: #2A4570;
+    --primary-soft: #DEE6F0;
+    --success: #4F7A4D;
+    --success-soft: #DDE8DC;
+    --danger: #B84A3E;
+    --danger-soft: #F0D5D1;
+    --warning: #B8893E;
+    --warning-soft: #F0E2C9;
+    --shadow-sm: 0 1px 2px rgba(20, 15, 5, 0.04);
+    --shadow-md: 0 4px 14px rgba(20, 15, 5, 0.08);
+    --shadow-lg: 0 12px 32px rgba(20, 15, 5, 0.12);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --radius-lg: 22px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    font-family: 'Noto Sans JP', sans-serif;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    overflow-x: hidden; /* 横スクロール(ぐらつき)を抑止 */
+  }
+
+  .app-frame {
+    max-width: 440px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--bg);
+    position: relative;
+    padding-bottom: 100px;
+    overflow-x: hidden;
+  }
+
+  /* === Top bar (role switcher) === */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .topbar .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text);
+    text-align: left;
+  }
+  .topbar .brand-logo {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: var(--surface-soft);
+    /* ロゴ画像が決まったら background-image をここに指定 */
+  }
+  .topbar .brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+  }
+  .topbar .brand-text-line1 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 13px;
+    color: var(--text-mute);
+    letter-spacing: 0.02em;
+  }
+  .topbar .brand-text-line2 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+
+  /* 表示モード(ユーザー/管理者)切替バー — sysadmin/editor のみ表示 */
+  .mode-toggle-bar {
+    background: var(--surface-soft);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .mode-toggle {
+    flex: 1;
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 3px;
+    box-shadow: var(--shadow-sm);
+  }
+  .mode-toggle button {
+    flex: 1;
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    font-size: 12px;
+    color: var(--text-mute);
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 100px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .mode-toggle button.active {
+    background: var(--primary);
+    color: white;
+    font-weight: 500;
+  }
+  .mode-toggle button:not(.active):hover { color: var(--text); }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .user-menu-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--text-mute);
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .user-menu-btn:hover { background: var(--surface-soft); color: var(--text); }
+
+  .role-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    padding: 6px 12px 6px 6px;
+    border-radius: 100px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .role-pill:hover { background: var(--bg); }
+  .role-pill .avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 500;
+  }
+  .role-pill .label .name { font-weight: 500; }
+  .role-pill .label .role { color: var(--text-mute); font-size: 10px; line-height: 1; }
+
+  /* === Section wrapper === */
+  .screen { padding: 20px 18px 0; }
+  .screen-hidden { display: none; }
+
+  .screen-header {
+    margin-bottom: 18px;
+  }
+  .screen-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 26px;
+    font-weight: 500;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .screen-sub {
+    font-size: 13px;
+    color: var(--text-mute);
+  }
+
+  /* === Cards === */
+  .event-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .event-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  .event-card .date-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .event-card .date-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-mute);
+    background: var(--surface-soft);
+    border: 1px solid var(--border-soft);
+    padding: 3px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+  }
+  .event-card .title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .event-card .meta {
+    font-size: 12px;
+    color: var(--text-mute);
+    display: flex;
+    gap: 12px;
+  }
+  .event-card .meta span::before {
+    content: '· ';
+    color: var(--text-soft);
+    margin-right: 2px;
+  }
+  .event-card .meta span:first-child::before { content: ''; margin: 0; }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 10px;
+  }
+  .status-badge::before {
+    content: '';
+    display: block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .badge-pending { background: var(--surface-soft); color: var(--text-mute); border: 1px solid var(--border); }
+  .badge-pending::before { background: var(--text-soft); }
+  .badge-yes { background: var(--success-soft); color: var(--success); }
+  .badge-yes::before { background: var(--success); }
+  .badge-no { background: var(--danger-soft); color: var(--danger); }
+  .badge-no::before { background: var(--danger); }
+  .badge-checked { background: var(--accent-soft); color: var(--accent); }
+  .badge-checked::before { background: var(--accent); }
+
+  /* === Buttons === */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 18px;
+    border-radius: var(--radius-sm);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: none;
+    color: var(--text);
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+  .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .btn-primary:disabled { background: var(--text-soft); border-color: var(--text-soft); cursor: not-allowed; }
+  .btn-accent {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-accent:hover { background: #B0451F; }
+  .btn-outline {
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .btn-outline:hover { background: var(--surface-soft); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-mute);
+  }
+  .btn-ghost:hover { color: var(--text); }
+  .btn-full { width: 100%; }
+  .btn-sm { padding: 7px 12px; font-size: 12px; }
+  .btn-danger { color: var(--danger); border-color: var(--danger-soft); background: var(--surface); }
+
+  /* 画面ヘッダ右側に新規作成などのアクションを置く時のレイアウト */
+  .screen-header.header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .screen-header.header-row > div:first-child { min-width: 0; flex: 1; }
+
+  /* === Forms === */
+  .form-group { margin-bottom: 14px; }
+
+  /* 参加者・受付担当を視覚的に区別するためのカード */
+  .picker-card {
+    margin-bottom: 16px;
+    padding: 12px 12px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .picker-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .picker-card-icon { font-size: 18px; line-height: 1; }
+  .picker-card-title { flex: 1; font-size: 14px; font-weight: 700; color: var(--text); }
+  .picker-card-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 100px;
+    letter-spacing: 0.04em;
+  }
+  .picker-card-tag.required { background: var(--warning); color: white; }
+  .picker-card-tag.optional { background: var(--surface-soft); color: var(--text-mute); border: 1px solid var(--border); }
+  .picker-card-help {
+    font-size: 11px;
+    color: var(--text-mute);
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  /* 必須(参加者)を強めに目立たせ、任意(受付担当)は控えめに表示 */
+  .picker-participants {
+    border-left: 4px solid var(--warning);
+    background: var(--warning-soft);
+  }
+  .picker-participants .checkbox-row { background: var(--surface); }
+  .picker-participants #invite-list { background: var(--surface); }
+  .picker-receptionists {
+    border-left: 4px solid var(--primary);
+    background: var(--surface);
+  }
+  .form-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-mute);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .required-mark {
+    color: var(--danger);
+    font-weight: 700;
+    margin-left: 2px;
+  }
+  .optional-mark {
+    display: inline-block;
+    background: var(--surface-soft);
+    color: var(--text-soft);
+    border: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .form-input, .form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 16px; /* iOS Safari の自動ズーム回避 */
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus, .form-textarea:focus { border-color: var(--text); }
+  .form-textarea { resize: vertical; min-height: 70px; }
+  .readonly-field {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-soft);
+    color: var(--text-mute);
+    font-size: 14px;
+    min-height: 1.5em;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .checkbox-row:hover { background: var(--surface-soft); }
+  .checkbox-row input { width: 16px; height: 16px; accent-color: var(--text); }
+  .checkbox-row .name { font-size: 14px; }
+
+  /* === Event detail === */
+  .back-link {
+    background: none;
+    border: none;
+    color: var(--text-mute);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 14px;
+    font-family: inherit;
+  }
+  .back-link::before { content: '← '; }
+  .back-link:hover { color: var(--text); }
+
+  /* イベント詳細上部のツールバー(戻る + 歯車) — スクロール中も先頭固定 */
+  .detail-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 64px;
+    z-index: 30;
+    background: var(--bg);
+    padding: 8px 0;
+    margin-bottom: 6px;
+  }
+  .detail-toolbar .back-link { margin-bottom: 0; }
+  .gear-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--text-mute);
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+  }
+  .gear-btn:hover { background: var(--surface-soft); color: var(--text); }
+
+  /* 受付モード(通常/受付)トグル */
+  .reception-toggle-bar {
+    margin: 0 0 12px;
+  }
+  .reception-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 3px;
+    box-shadow: var(--shadow-sm);
+  }
+  .reception-toggle button {
+    flex: 1;
+    padding: 8px 10px;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    color: var(--text-mute);
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 100px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .reception-toggle button.active {
+    background: var(--accent);
+    color: white;
+    font-weight: 500;
+  }
+  .reception-toggle button:not(.active):hover { color: var(--text); }
+
+  .event-hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .event-hero .date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+    margin-bottom: 8px;
+    line-height: 1.35;
+    white-space: pre-line;
+  }
+  .event-hero .title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1.25;
+    margin-bottom: 12px;
+  }
+  .event-hero .info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-mute);
+    margin-bottom: 4px;
+  }
+  .event-hero .info-row .ico { font-size: 12px; opacity: 0.6; }
+
+  /* === Attendee list === */
+  .section-label {
+    font-size: 12px;
+    color: var(--text-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+    margin-top: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .section-label .count {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-size: 10px;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .attendee-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .attendee-row .left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .attendee-row .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 500;
+    flex-shrink: 0;
+  }
+  .attendee-row .name {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .attendee-row .actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .status-btn {
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text-mute);
+  }
+  .status-btn.active.yes { background: var(--success-soft); color: var(--success); border-color: var(--success-soft); }
+  .status-btn.active.no { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft); }
+  .status-btn.active.checked { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+
+  /* 参加者行で本編とは別に懇親会の出欠ボタンを縦に並べる */
+  .actions-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+    align-items: flex-end;
+  }
+  .actions-secondary { align-items: center; }
+  .actions-prefix {
+    font-size: 10px;
+    color: var(--text-mute);
+    margin-right: 2px;
+  }
+  .afterparty-mini-label {
+    font-size: 11px;
+    opacity: 0.7;
+  }
+
+  /* 出席内訳 */
+  .breakdown-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  .breakdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-mute);
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  .breakdown-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: baseline;
+    padding: 6px 4px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 13px;
+  }
+  .breakdown-row:first-of-type { border-top: none; }
+  .breakdown-row .bd-label { color: var(--text); }
+  .breakdown-row .bd-count { font-family: 'JetBrains Mono', monospace; color: var(--text-mute); font-size: 12px; text-align: right; }
+  .breakdown-row .bd-rate { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text); min-width: 56px; text-align: right; }
+  .breakdown-row .bd-sub { font-size: 10px; color: var(--text-soft); font-weight: normal; margin-top: 2px; }
+  .breakdown-row.breakdown-total {
+    border-top: none;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .breakdown-row.breakdown-total .bd-label { font-weight: 700; }
+  .breakdown-row.breakdown-total .bd-rate { color: var(--primary); }
+  .breakdown-row.breakdown-observer { border-top: 1px dashed var(--border); }
+  .breakdown-row.breakdown-observer .bd-rate { color: var(--text-soft); }
+  .breakdown-note {
+    font-size: 10px;
+    color: var(--text-soft);
+    margin-top: 6px;
+    text-align: right;
+  }
+
+  /* 懇親会の集計バー */
+  .afterparty-stats {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .afterparty-stats-label {
+    font-size: 11px;
+    color: var(--text-mute);
+    flex-shrink: 0;
+  }
+  .afterparty-stats-label::before { content: '🍻 '; }
+  .afterparty-stats-grid {
+    display: flex;
+    gap: 12px;
+    flex: 1;
+    justify-content: flex-end;
+  }
+  .afterparty-stats-grid > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.1;
+  }
+  .afterparty-stats-grid .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .afterparty-stats-grid span:last-child {
+    font-size: 9px;
+    color: var(--text-mute);
+    margin-top: 2px;
+  }
+
+  /* === Modal === */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 12, 8, 0.45);
+    z-index: 100;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    width: 100%;
+    max-width: 440px;
+    padding: 22px 18px 26px;
+    max-height: 90vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    animation: slideUp 0.25s ease;
+  }
+  /* モーダル内のテキストや input が画面幅を超えないように */
+  .modal input, .modal textarea, .modal select { max-width: 100%; }
+  .modal .form-input, .modal .form-textarea, .modal .search-input { width: 100%; }
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 100px;
+    margin: -8px auto 18px;
+  }
+  .modal { position: relative; }
+  .modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-mute);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    z-index: 2;
+    transition: background 0.15s, color 0.15s;
+  }
+  .modal-close:hover { background: var(--surface-soft); color: var(--text); }
+  .modal h2 {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+
+  /* === QR === */
+  .qr-display {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-align: center;
+    margin: 14px 0;
+  }
+  .qr-display .qr-box {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    display: inline-block;
+    margin-bottom: 14px;
+  }
+  .qr-display .qr-code img,
+  .qr-display .qr-code canvas {
+    display: block;
+  }
+  .qr-display .qr-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-mute);
+    letter-spacing: 0.05em;
+  }
+  .qr-display .qr-hint {
+    font-size: 13px;
+    color: var(--text-mute);
+    margin-top: 4px;
+  }
+
+  /* === Scanner === */
+  #scanner-region {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #111;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  #scanner-region video { width: 100% !important; height: 100% !important; object-fit: cover; }
+  .scanner-fallback {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-mute);
+    font-size: 13px;
+    background: var(--surface-soft);
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+  }
+  .scan-result {
+    background: var(--success-soft);
+    color: var(--success);
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+  .scan-result.error {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  /* === User self-RSVP === */
+  .rsvp-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .rsvp-card .label {
+    font-size: 12px;
+    color: var(--text-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+  .rsvp-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .rsvp-btn {
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text);
+    transition: all 0.15s;
+  }
+  .rsvp-btn:hover { background: var(--surface-soft); }
+  .rsvp-btn.active-yes { background: var(--success); color: white; border-color: var(--success); }
+  .rsvp-btn.active-no { background: var(--danger); color: white; border-color: var(--danger); }
+  .rsvp-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+  .rsvp-btn:disabled:hover { background: var(--surface); }
+  .rsvp-btn.active-yes:disabled:hover { background: var(--success); }
+  .rsvp-btn.active-no:disabled:hover { background: var(--danger); }
+
+  /* 期間フィルタ(イベント一覧) */
+  .date-range-filter {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  .date-range-filter .filter-chips { margin-bottom: 8px; }
+  .date-range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .date-range-inputs input[type="date"] {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    font-family: inherit;
+    font-size: 16px; /* iOS Safari の自動ズーム回避 */
+    color: var(--text);
+    outline: none;
+    min-width: 0;
+  }
+  .date-range-inputs input[type="date"]:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .date-range-inputs .sep { color: var(--text-mute); font-size: 12px; }
+
+  /* 自作イベントバッジ */
+  .badge-own {
+    display: inline-block;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+
+  /* オブザーバー(ゲスト)バッジ */
+  .badge-observer {
+    display: inline-block;
+    background: var(--surface-soft);
+    color: var(--text-mute);
+    border: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+  .attendee-row.is-observer { background: var(--surface-soft); }
+  .attendee-row.is-observer .avatar {
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    color: var(--text-mute);
+  }
+
+  /* 下書きバッジ + カード表示 */
+  /* 下書きは一目で分かるよう大きめ&強い色味で */
+  .badge-draft {
+    display: inline-block;
+    background: var(--text);
+    color: var(--surface);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+  }
+  .event-card.is-draft {
+    background: var(--surface-soft);
+    border-style: dashed;
+    border-width: 2px;
+    position: relative;
+  }
+  .event-card.is-draft::after {
+    content: 'DRAFT';
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: var(--text);
+    color: var(--surface);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+
+  /* 懇親会バッジ */
+  /* ピッカー内の「作成者」ラベル(必ず受付担当に含まれる) */
+  .badge-creator {
+    display: inline-block;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+
+  /* 受付担当バッジ(自分が受付に指定されているイベント) */
+  .badge-reception {
+    display: inline-block;
+    background: var(--warning);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+
+  .badge-afterparty {
+    display: inline-block;
+    background: var(--warning-soft);
+    color: var(--warning);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  /* 締切バッジ */
+  .badge-expired {
+    display: inline-block;
+    background: var(--danger-soft);
+    color: var(--danger);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+
+  /* === Empty === */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-mute);
+  }
+  .empty-state .glyph {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 36px;
+    color: var(--border);
+    margin-bottom: 8px;
+  }
+  .empty-state .hint { font-size: 13px; }
+
+  /* Notice */
+  .notice {
+    background: var(--warning-soft);
+    color: var(--warning);
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    margin-bottom: 14px;
+    border: 1px solid rgba(184, 137, 62, 0.2);
+  }
+
+  /* Demo banner */
+  .demo-banner {
+    background: var(--text);
+    color: var(--bg);
+    padding: 8px 14px;
+    font-size: 11px;
+    text-align: center;
+    letter-spacing: 0.04em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .demo-banner span { opacity: 0.6; }
+
+  /* Inline grid for user list */
+  .user-grid { display: grid; gap: 6px; margin-top: 10px; }
+
+  /* === Search + filter (for large attendee lists) === */
+  .filter-bar {
+    position: sticky;
+    top: 64px; /* topbar 高さに合わせて調整 */
+    z-index: 20;
+    background: var(--bg);
+    padding: 10px 0 8px;
+    margin-bottom: 6px;
+  }
+  .search-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-family: inherit;
+    font-size: 16px; /* iOS Safari の自動ズーム回避 */
+    color: var(--text);
+    outline: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .filter-chips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    margin-top: 8px;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    font-size: 12px;
+    color: var(--text-mute);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .chip:hover { background: var(--surface-soft); }
+  .chip.active {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--surface);
+  }
+  .chip .num {
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: 4px;
+    opacity: 0.7;
+  }
+  .chip.active .num { opacity: 1; }
+
+  /* Bulk select buttons in invite modal */
+  .bulk-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+  }
+  .bulk-actions .btn-sm { flex: 1; }
+
+  /* === User profile summary card === */
+  .profile-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 14px;
+  }
+  .profile-info { min-width: 0; flex: 1; }
+  .profile-name { font-weight: 500; font-size: 14px; }
+  .profile-meta {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--text);
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .profile-meta .placeholder { color: var(--text-soft); font-style: italic; }
+  .profile-meta .sep { color: var(--text-soft); }
+  .profile-hint { font-size: 11px; color: var(--accent); margin-top: 4px; }
+
+  /* === Admin user list === */
+  .admin-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    margin-bottom: 14px;
+  }
+  .admin-tab {
+    flex: 1;
+    padding: 8px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-mute);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .admin-tab.active {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+  }
+  .user-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+  }
+  .user-row.is-selected { background: var(--primary-soft); border-color: var(--primary); }
+  .user-row .user-select {
+    width: 18px; height: 18px;
+    margin: 0;
+    accent-color: var(--primary);
+    flex-shrink: 0;
+  }
+
+  /* 一括変更バー */
+  .bulk-bar {
+    position: sticky;
+    top: 64px;
+    z-index: 25;
+    background: var(--primary);
+    color: white;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow-md);
+  }
+  .bulk-bar-left {
+    font-size: 13px;
+    flex: 1;
+    min-width: 110px;
+  }
+  .bulk-bar-left strong {
+    font-size: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    margin-right: 4px;
+  }
+  .bulk-bar-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .bulk-bar .btn-outline {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: white;
+  }
+  .bulk-bar .btn-outline:hover { background: rgba(255, 255, 255, 0.25); }
+  .bulk-bar .btn-primary {
+    background: white;
+    color: var(--primary);
+    border-color: white;
+  }
+  .bulk-bar .btn-primary:hover { background: rgba(255,255,255,0.9); }
+  .user-row .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-mute);
+    flex: 0 0 auto;
+  }
+  .user-row .info { min-width: 0; flex: 1; }
+  .user-row .name { font-size: 14px; font-weight: 500; }
+  .user-row .meta {
+    font-size: 11px;
+    color: var(--text-mute);
+    margin-top: 2px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .user-row .meta .placeholder { color: var(--text-soft); font-style: italic; }
+  .filter-selects {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .filter-selects select {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-family: inherit;
+    font-size: 16px; /* iOS Safari の自動ズーム回避 */
+    color: var(--text);
+    outline: none;
+  }
+
+  /* ユーザロールのピル(管理者一覧で表示) */
+  .role-pill-mini {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+  .role-pill-mini.sysadmin { background: var(--text); color: var(--surface); }
+  .role-pill-mini.editor { background: var(--primary-soft); color: var(--primary); }
+  .role-pill-mini.viewer { background: var(--surface-soft); color: var(--text-mute); border: 1px solid var(--border); }
+
+  /* ユーザステータスのピル(休会/退会) */
+  .user-status-pill {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .user-status-pill.inactive { background: var(--warning-soft); color: var(--warning); }
+  .user-status-pill.left { background: var(--surface-soft); color: var(--text-mute); border: 1px solid var(--border); }
+
+  /* マスター編集モーダル */
+  .master-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 4px;
+  }
+  .master-row .label { flex: 1; font-size: 13px; }
+  .master-row .icon-btn {
+    width: 28px; height: 28px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-mute);
+  }
+  .master-row .icon-btn:hover { background: var(--surface); color: var(--text); }
+  .master-row .icon-btn.danger:hover { color: var(--danger); border-color: var(--danger-soft); }
+  .master-row .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* 参加者リストの追加フィルタ(委員会の複数選択) */
+  .multiselect-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .multiselect-chips .chip { padding: 4px 10px; font-size: 11px; }
+  .filter-section-label {
+    font-size: 10px;
+    color: var(--text-mute);
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* 汎用トースト(中央寄せ) */
+  .toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--text);
+    color: var(--bg);
+    padding: 14px 20px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    z-index: 200;
+    font-size: 14px;
+    max-width: 80vw;
+    text-align: center;
+    line-height: 1.5;
+    animation: scanPop 0.2s ease;
+  }
+
+  .name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .name-row .name { font-weight: 500; }
+
+  .badge-checked-in {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    vertical-align: middle;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.badge-checked-in:hover { border-color: var(--accent); }
+
+  .badge-not-checked-in {
+    display: inline-block;
+    background: var(--surface-soft);
+    color: var(--text-mute);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px dashed var(--border);
+    vertical-align: middle;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.badge-not-checked-in:hover {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--text-mute);
+  }
+
+  /* 会費受領済 / 未収バッジ */
+  .badge-paid {
+    display: inline-block;
+    background: var(--success-soft);
+    color: var(--success);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    vertical-align: middle;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.badge-paid:hover { border-color: var(--success); }
+  .badge-unpaid {
+    display: inline-block;
+    background: var(--warn-soft, #fff4d6);
+    color: var(--warn, #b35400);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px dashed var(--warn, #b35400);
+    vertical-align: middle;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.badge-unpaid:hover { background: var(--warn, #b35400); color: white; }
+
+  /* QRスキャン成功トースト */
+  .scan-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--success);
+    color: white;
+    padding: 22px 28px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    z-index: 200;
+    text-align: center;
+    min-width: 220px;
+    animation: scanPop 0.25s ease;
+  }
+  .scan-toast.error { background: var(--danger); }
+  .scan-toast .icon {
+    font-size: 36px;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .scan-toast .name {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .scan-toast .sub {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-top: 6px;
+  }
+  @keyframes scanPop {
+    from { transform: translate(-50%, -50%) scale(0.85); opacity: 0; }
+    to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  }
+
