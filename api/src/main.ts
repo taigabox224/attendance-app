@@ -2,12 +2,35 @@ import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
 
 const defaultPort = 3001;
+const defaultCorsOrigin = "http://localhost:8000";
 
 export function buildServer() {
+  const allowedOrigin = process.env.CORS_ORIGIN ?? defaultCorsOrigin;
+
   return createServer((req, res) => {
     const url = req.url ?? "/";
+    const origin = req.headers.origin;
+
+    if (origin === allowedOrigin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+      res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    }
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
 
     if (url === "/health") {
+      if (req.method !== "GET") {
+        res.writeHead(405, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ message: "Method Not Allowed" }));
+        return;
+      }
+
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ ok: true }));
       return;
@@ -35,4 +58,3 @@ if (isDirectRun) {
   const port = Number(process.env.PORT ?? defaultPort);
   startServer(port);
 }
-
