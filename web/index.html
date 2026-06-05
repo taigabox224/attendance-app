@@ -495,8 +495,12 @@
 // State
 // =================================================
 
+const API_BASE_URL = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+                ? 'http://localhost:3001'
+                : '/api'
+
 async function test() {
-  await fetch('http://localhost:3001/health').then(res => console.log(res.json()))
+  await fetch(`${API_BASE_URL}/health`).then(res => console.log(res.json()))
 }
 
 test()
