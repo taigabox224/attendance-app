@@ -10,6 +10,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "seed:sysadmin": "tsx scripts/seed-sysadmin.ts",
+    "seed:defaults": "tsx scripts/seed-defaults.ts",
     "seed:users": "tsx scripts/seed-users.ts",
     "seed:events": "tsx scripts/seed-events.ts"
   },
