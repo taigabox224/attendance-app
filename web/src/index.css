@@ -1782,6 +1782,43 @@ button.badge-unpaid:hover:not(:disabled) {
   border: 1px solid var(--danger);
 }
 
+/* ========== Reception view 内のフォントを 2px 縮小 ==========
+   admin / 受付モードの content だけ落として情報密度を上げる。
+   normal モードは現状維持 (ユーザ向けの読みやすさを優先) */
+.reception-view .event-hero .title {
+  font-size: 22px;
+}
+.reception-view .event-hero .date {
+  font-size: 16px;
+}
+.reception-view .event-hero .info-row {
+  font-size: 12px;
+}
+.reception-view .event-hero .desc {
+  font-size: 12px;
+}
+.reception-view .count-cell .num {
+  font-size: 16px;
+}
+.reception-view .breakdown-row {
+  font-size: 12px;
+}
+.reception-view .breakdown-row .bd-count {
+  font-size: 11px;
+}
+.reception-view .breakdown-row .bd-sub {
+  font-size: 9px;
+}
+.reception-view .breakdown-header {
+  font-size: 11px;
+}
+.reception-view .attendee-row .name {
+  font-size: 12px;
+}
+.reception-view .section-label {
+  font-size: 11px;
+}
+
 /* ========== Reception mode toggle (legacy パリティ) ========== */
 .reception-toggle-bar {
   margin: 0 0 12px;

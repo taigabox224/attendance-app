@@ -605,10 +605,12 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
           .send({ error: 'このイベントの QR コードではありません' });
       }
 
+      // 懇親会会費モーダル用に after_status / fee_paid / dept / title も同時に返す
       const row = db
         .prepare(
           `SELECT a.id, a.checked_in_at, a.is_observer, a.observer_name,
-                  a.user_id, u.name AS user_name
+                  a.user_id, a.after_status, a.fee_paid,
+                  u.name AS user_name, u.department, u.title
            FROM event_attendees a
            LEFT JOIN users u ON u.id = a.user_id
            WHERE a.id = ? AND a.event_id = ?`,
@@ -620,7 +622,11 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
             is_observer: number;
             observer_name: string | null;
             user_id: string | null;
+            after_status: string | null;
+            fee_paid: number;
             user_name: string | null;
+            department: string | null;
+            title: string | null;
           }
         | undefined;
 
@@ -640,6 +646,10 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
             id: row.id,
             name: displayName,
             checked_in_at: row.checked_in_at,
+            after_status: row.after_status,
+            fee_paid: !!row.fee_paid,
+            department: row.department,
+            title: row.title,
           },
         });
       }
@@ -657,6 +667,10 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
           id: row.id,
           name: displayName,
           checked_in_at: now,
+          after_status: row.after_status,
+          fee_paid: !!row.fee_paid,
+          department: row.department,
+          title: row.title,
         },
       };
     },

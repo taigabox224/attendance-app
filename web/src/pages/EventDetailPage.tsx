@@ -283,6 +283,9 @@ export function EventDetailPage() {
         <Suspense fallback={<div className="toast">カメラを準備中...</div>}>
           <QrScannerModal
             eventId={ev.id}
+            eventTitle={ev.title}
+            hasAfterparty={ev.has_afterparty}
+            afterpartyDescription={ev.afterparty_description}
             onClose={() => setShowScanner(false)}
             onScanned={load}
           />
@@ -748,7 +751,7 @@ function ReceptionView({
   }
 
   return (
-    <>
+    <div className="reception-view">
       <EventHero ev={ev} locked={locked} />
 
       <div className="count-grid">
@@ -894,7 +897,7 @@ function ReceptionView({
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -1291,7 +1294,7 @@ function AfterpartyStats({ attendees }: { attendees: Attendee[] }) {
 
   return (
     <div className="afterparty-stats">
-      <span className="afterparty-stats-label">🍻 二次会</span>
+      <span className="afterparty-stats-label">🍻 懇親会</span>
       <div className="afterparty-stats-grid">
         <div>
           <span className="num">{counts.yes}</span>
