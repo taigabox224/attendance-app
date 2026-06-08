@@ -6,7 +6,7 @@
 
 出欠記録Webアプリ。管理者がイベントを作成して参加者を招待し、ユーザーは出欠を回答、出席時はQRコードを生成して当日受付で提示する。受付では管理者がQRをスキャンして参加者をチェックインする。スマホ利用が前提。
 
-現在は **プロトタイプ段階** (単一HTMLファイル + localStorage + jsonbin.io によるクラウド同期)。本実装では認証 + 専用バックエンドに置き換える予定。詳細は [PRODUCTION.md](./PRODUCTION.md) 参照。
+現在は **プロトタイプ段階** (単一HTMLファイル + localStorage + jsonbin.io によるクラウド同期)。本実装では認証 + 専用バックエンドに置き換える予定。詳細は [PRODUCTION.md](./PRODUCTION.md) 参照。認証機能の実装仕様は [AUTH_FEATURE.md](./AUTH_FEATURE.md) を参照。
 
 ## 現状とフェーズ
 
@@ -18,10 +18,14 @@
 - ホスティングは **Vercel**(静的サイト、`outputDirectory: web`)
 - 目的: UI/UX検証、フロー確認、スマホでのQRスキャン動作確認
 
-### Phase 2: 本実装(未着手)
-- **ホスティング**: AWS Lightsail(コスト優先) or Amplify Hosting
-- **認証**: メールアドレス + メール認証(Cognito + SES を想定)
-- **DB**: PostgreSQL(Lightsail 同居 or RDS) or DynamoDB
+### Phase 2: 本実装(進行中)
+- **ホスティング**: AWS Lightsail(コスト優先)
+- **認証**: **自作JWT + Amazon SES**(メール認証 + 仮パスワード方式)
+  - 管理者経由: 仮パスワードをメール送付 → 初回ログイン時に変更必須
+  - 一般登録: 認証URLをメール送付 → クリックで完了
+  - ログイン後のパスワード変更機能
+  - 詳細は [AUTH_FEATURE.md](./AUTH_FEATURE.md)
+- **DB**: PostgreSQL(Lightsail 同居)。MVP期間は SQLite 開始 → PostgreSQL 移行も可
 - **バックエンド**: Node.js + TypeScript(Fastify / Express)。`/api` 配下に構築
 - **フロント**: React + TypeScript + Vite を想定。`/web` 配下に構築
 
@@ -48,6 +52,7 @@
 ├── README.md
 ├── CLAUDE.md         # このファイル
 ├── PRODUCTION.md     # 本番化に向けた準備メモ
+├── AUTH_FEATURE.md   # 認証機能の実装仕様
 └── .gitignore
 ```
 
@@ -138,9 +143,10 @@ state = {
 1. ~~リポジトリを `/web` と `/api` に分割~~(済: モノレポ構成にしてある)
 2. `/web` を React + TypeScript + Vite に置換(現状の `index.html` をコンポーネントに分解)
 3. TypeScript で `state` shape / Entity 型を起こす(PRODUCTION.md のスキーマを移植)
-4. AWS アカウント + Cognito + SES の準備
-5. Lightsail に Node.js + PostgreSQL を立て、`/api` に Fastify/Express で実装
-6. 認証フローを実装し、フロントの I/O 層を `fetch('/api/...')` に置換
-7. 既存 cloud sync データを移行スクリプトで取り込み
+4. AWS アカウント + Amazon SES の準備(ドメイン認証 + サンドボックス解除申請)
+5. Lightsail に Node.js + PostgreSQL(または SQLite で先行)を立て、`/api` に Fastify/Express で実装
+6. **AUTH_FEATURE.md に従って認証フローを実装**(自作JWT + bcrypt + SES のメール認証)
+7. フロントの I/O 層を `fetch('/api/...')` に置換
+8. 既存 cloud sync データを移行スクリプトで取り込み
 
 詳細は PRODUCTION.md の「本実装フェーズで着手する想定タスク」を参照。
