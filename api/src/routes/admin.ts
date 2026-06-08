@@ -12,14 +12,16 @@ const nullableString = z.string().nullable().optional();
 
 const createUserSchema = z.object({
   email: z.string().email(),
-  name: z.string().min(1).max(80),
+  family_name: z.string().min(1).max(40),
+  given_name: z.string().min(1).max(40),
   role: z.enum(ROLES),
   department: nullableString,
   title: nullableString,
 });
 
+// 名前(苗字 / 名前)の編集は当面 UI から提供しないので update schema 対象外。
+// 必要になったら family_name / given_name を入れて name を再構築する。
 const updateUserSchema = z.object({
-  name: z.string().min(1).max(80).optional(),
   role: z.enum(ROLES).optional(),
   department: nullableString,
   title: nullableString,
@@ -29,6 +31,8 @@ interface UserListRow {
   id: string;
   email: string;
   name: string;
+  family_name: string | null;
+  given_name: string | null;
   role: string;
   department: string | null;
   title: string | null;
@@ -45,7 +49,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     async (req, reply) => {
       const parsed = createUserSchema.safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: '入力が不正です' });
-      const { email, name, role, department, title } = parsed.data;
+      const { email, family_name, given_name, role, department, title } = parsed.data;
+      const name = `${family_name}${given_name}`;
       const normalized = email.toLowerCase();
       const now = new Date().toISOString();
 
@@ -64,16 +69,18 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
       db.prepare(
         `INSERT INTO users (
-           id, email, email_normalized, name, password_hash, role,
-           department, title, email_verified_at, must_change_password,
-           created_at, updated_at
+           id, email, email_normalized, name, family_name, given_name,
+           password_hash, role, department, title, email_verified_at,
+           must_change_password, created_at, updated_at
          )
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
       ).run(
         id,
         email,
         normalized,
         name,
+        family_name,
+        given_name,
         passwordHash,
         role,
         department ?? null,
@@ -91,6 +98,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           id,
           email,
           name,
+          family_name,
+          given_name,
           role,
           department: department ?? null,
           title: title ?? null,
@@ -105,7 +114,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     async () => {
       const rows = db
         .prepare(
-          `SELECT id, email, name, role, department, title,
+          `SELECT id, email, name, family_name, given_name, role, department, title,
                   email_verified_at, must_change_password, created_at, updated_at
            FROM users ORDER BY created_at DESC`,
         )
@@ -115,6 +124,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           id: u.id,
           email: u.email,
           name: u.name,
+          family_name: u.family_name,
+          given_name: u.given_name,
           role: u.role,
           department: u.department,
           title: u.title,
@@ -143,10 +154,6 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       const params: unknown[] = [];
       const data = parsed.data;
 
-      if (data.name !== undefined) {
-        sets.push('name = ?');
-        params.push(data.name);
-      }
       if (data.role !== undefined) {
         sets.push('role = ?');
         params.push(data.role);

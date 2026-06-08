@@ -4,7 +4,8 @@ import { ApiError, api } from '../api/client';
 
 export function RegisterPage() {
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
+  const [familyName, setFamilyName] = useState('');
+  const [givenName, setGivenName] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +18,12 @@ export function RegisterPage() {
     try {
       await api('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email, name, password }),
+        body: JSON.stringify({
+          email,
+          family_name: familyName,
+          given_name: givenName,
+          password,
+        }),
       });
       setSent(true);
     } catch (err) {
@@ -58,16 +64,31 @@ export function RegisterPage() {
             required
           />
         </div>
-        <div className="field">
-          <label htmlFor="name">お名前</label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoComplete="name"
-            required
-          />
+        <div className="field-row">
+          <div className="field">
+            <label htmlFor="family_name">苗字</label>
+            <input
+              id="family_name"
+              type="text"
+              value={familyName}
+              onChange={(e) => setFamilyName(e.target.value)}
+              autoComplete="family-name"
+              maxLength={40}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="given_name">名前</label>
+            <input
+              id="given_name"
+              type="text"
+              value={givenName}
+              onChange={(e) => setGivenName(e.target.value)}
+              autoComplete="given-name"
+              maxLength={40}
+              required
+            />
+          </div>
         </div>
         <div className="field">
           <label htmlFor="password">パスワード (8文字以上)</label>

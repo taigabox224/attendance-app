@@ -12,7 +12,8 @@ import { verificationEmail } from '../mail/templates.js';
 
 const registerSchema = z.object({
   email: z.string().email(),
-  name: z.string().min(1).max(80),
+  family_name: z.string().min(1).max(40),
+  given_name: z.string().min(1).max(40),
   password: z.string().min(8).max(128),
 });
 
@@ -54,7 +55,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.post('/api/auth/register', async (req, reply) => {
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: '入力が不正です' });
-    const { email, name, password } = parsed.data;
+    const { email, family_name, given_name, password } = parsed.data;
+    const name = `${family_name}${given_name}`;
     const normalized = email.toLowerCase();
     const now = new Date().toISOString();
 
@@ -70,11 +72,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     db.prepare(
       `INSERT INTO users (
-         id, email, email_normalized, name, password_hash, role,
-         must_change_password, created_at, updated_at
+         id, email, email_normalized, name, family_name, given_name,
+         password_hash, role, must_change_password, created_at, updated_at
        )
-       VALUES (?, ?, ?, ?, ?, 'viewer', 0, ?, ?)`,
-    ).run(id, email, normalized, name, passwordHash, now, now);
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'viewer', 0, ?, ?)`,
+    ).run(id, email, normalized, name, family_name, given_name, passwordHash, now, now);
 
     const token = generateToken();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
@@ -193,7 +195,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/auth/me', { preHandler: requireAuth }, async (req, reply) => {
     const user = db
       .prepare(
-        `SELECT id, email, name, role, department, title,
+        `SELECT id, email, name, family_name, given_name, role, department, title,
                 email_verified_at, must_change_password
          FROM users WHERE id = ?`,
       )
@@ -202,6 +204,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
           id: string;
           email: string;
           name: string;
+          family_name: string | null;
+          given_name: string | null;
           role: string;
           department: string | null;
           title: string | null;
@@ -215,6 +219,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         id: user.id,
         email: user.email,
         name: user.name,
+        family_name: user.family_name,
+        given_name: user.given_name,
         role: user.role,
         department: user.department,
         title: user.title,

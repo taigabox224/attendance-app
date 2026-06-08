@@ -144,7 +144,8 @@ interface CreateUserFormProps {
 
 function CreateUserForm({ onCreated, onCancel }: CreateUserFormProps) {
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
+  const [familyName, setFamilyName] = useState('');
+  const [givenName, setGivenName] = useState('');
   const [role, setRole] = useState<Role>('viewer');
   const [department, setDepartment] = useState('');
   const [title, setTitle] = useState('');
@@ -160,7 +161,8 @@ function CreateUserForm({ onCreated, onCancel }: CreateUserFormProps) {
         method: 'POST',
         body: JSON.stringify({
           email,
-          name,
+          family_name: familyName,
+          given_name: givenName,
           role,
           department: department || null,
           title: title || null,
@@ -188,9 +190,31 @@ function CreateUserForm({ onCreated, onCancel }: CreateUserFormProps) {
         <label htmlFor="cu-email">メールアドレス</label>
         <input id="cu-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       </div>
-      <div className="field">
-        <label htmlFor="cu-name">お名前</label>
-        <input id="cu-name" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+      <div className="field-row">
+        <div className="field">
+          <label htmlFor="cu-family">苗字</label>
+          <input
+            id="cu-family"
+            type="text"
+            value={familyName}
+            onChange={(e) => setFamilyName(e.target.value)}
+            autoComplete="family-name"
+            maxLength={40}
+            required
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="cu-given">名前</label>
+          <input
+            id="cu-given"
+            type="text"
+            value={givenName}
+            onChange={(e) => setGivenName(e.target.value)}
+            autoComplete="given-name"
+            maxLength={40}
+            required
+          />
+        </div>
       </div>
       <div className="field">
         <label htmlFor="cu-role">ロール</label>

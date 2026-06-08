@@ -24,12 +24,34 @@ db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
 export function runMigrations(): void {
+  // 既に適用済みのファイル名を追跡するテーブル。SQLite は ALTER TABLE ADD COLUMN
+  // が冪等でないため、ファイル単位の二度適用を防ぐ仕組みが必要。
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      filename    TEXT PRIMARY KEY,
+      applied_at  TEXT NOT NULL
+    );
+  `);
+
   const migrationsDir = resolve(__dirname, '../migrations');
   const files = readdirSync(migrationsDir)
     .filter((f) => f.endsWith('.sql'))
     .sort();
+
+  const isApplied = db.prepare(
+    'SELECT 1 FROM schema_migrations WHERE filename = ?',
+  );
+  const markApplied = db.prepare(
+    'INSERT INTO schema_migrations (filename, applied_at) VALUES (?, ?)',
+  );
+
   for (const file of files) {
+    if (isApplied.get(file)) continue;
     const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
-    db.exec(sql);
+    const apply = db.transaction(() => {
+      db.exec(sql);
+      markApplied.run(file, new Date().toISOString());
+    });
+    apply();
   }
 }

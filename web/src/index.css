@@ -160,6 +160,16 @@ code,
   flex-direction: column;
 }
 
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.field-row > .field {
+  flex: 1;
+  min-width: 0;
+}
+
 .action-stack {
   display: flex;
   flex-direction: column;
