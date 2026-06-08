@@ -74,6 +74,24 @@ export function EventDetailPage() {
   const [showQr, setShowQr] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
+  // 参加者フィルタ (editor+ かつ admin モードの時に表示)
+  type AStatusFilter = 'all' | 'yes' | 'no' | 'pending' | 'checked';
+  type AKindFilter = 'all' | 'member' | 'observer';
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<AStatusFilter>('all');
+  const [kindFilter, setKindFilter] = useState<AKindFilter>('all');
+  const [deptFilter, setDeptFilter] = useState<Set<string>>(new Set());
+  const [departments, setDepartments] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!canEdit) return;
+    api<{ departments: string[] }>('/api/masters')
+      .then((d) => setDepartments(d.departments))
+      .catch(() => {
+        /* マスターなしならフィルタは出さない */
+      });
+  }, [canEdit]);
+
   const load = useCallback(async () => {
     if (!id) return;
     setError(null);
@@ -101,6 +119,51 @@ export function EventDetailPage() {
       setError(e instanceof ApiError ? e.message : '通信エラー');
     }
   }
+
+  const visibleAttendees = useMemo(() => {
+    if (!data) return [] as Attendee[];
+    const q = query.trim().toLowerCase();
+    return data.attendees.filter((a) => {
+      // ステータス
+      if (statusFilter === 'checked') {
+        if (!a.checked_in_at) return false;
+      } else if (statusFilter !== 'all') {
+        if (a.status !== statusFilter) return false;
+      }
+      // 区分
+      if (kindFilter === 'member' && a.is_observer) return false;
+      if (kindFilter === 'observer' && !a.is_observer) return false;
+      // 委員会 (ゲストは委員会無いので、deptFilter があるとゲストは除外される)
+      if (deptFilter.size > 0) {
+        if (!a.department || !deptFilter.has(a.department)) return false;
+      }
+      // 名前検索
+      if (q && !a.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [data, query, statusFilter, kindFilter, deptFilter]);
+
+  function toggleDept(d: string) {
+    setDeptFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(d)) next.delete(d);
+      else next.add(d);
+      return next;
+    });
+  }
+
+  function resetAttendeeFilter() {
+    setQuery('');
+    setStatusFilter('all');
+    setKindFilter('all');
+    setDeptFilter(new Set());
+  }
+
+  const hasAttendeeFilter =
+    query !== '' ||
+    statusFilter !== 'all' ||
+    kindFilter !== 'all' ||
+    deptFilter.size > 0;
 
   if (error && !data) {
     return (
@@ -208,8 +271,9 @@ export function EventDetailPage() {
       <div className="section-label">
         参加者
         <span className="count">
-          {data.attendees.filter((a) => a.checked_in_at).length} 受付 /{' '}
-          {data.attendees.length} 名
+          {hasAttendeeFilter
+            ? `${visibleAttendees.length} / ${data.attendees.length} 名`
+            : `${data.attendees.filter((a) => a.checked_in_at).length} 受付 / ${data.attendees.length} 名`}
         </span>
       </div>
 
@@ -217,11 +281,93 @@ export function EventDetailPage() {
         <AfterpartyStats attendees={data.attendees} />
       )}
 
+      {canEdit && data.attendees.length > 0 && (
+        <div className="user-filter" style={{ marginBottom: 8 }}>
+          <input
+            type="search"
+            className="search-input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="参加者名で検索..."
+          />
+
+          <div className="filter-label">出欠</div>
+          <div className="filter-chips">
+            {(['all', 'yes', 'no', 'pending', 'checked'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`chip ${statusFilter === s ? 'active' : ''}`}
+                onClick={() => setStatusFilter(s)}
+              >
+                {s === 'all'
+                  ? '全て'
+                  : s === 'yes'
+                    ? '出席'
+                    : s === 'no'
+                      ? '欠席'
+                      : s === 'pending'
+                        ? '未回答'
+                        : '受付済'}
+              </button>
+            ))}
+          </div>
+
+          <div className="filter-label">区分</div>
+          <div className="filter-chips">
+            {(['all', 'member', 'observer'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                className={`chip ${kindFilter === k ? 'active' : ''}`}
+                onClick={() => setKindFilter(k)}
+              >
+                {k === 'all' ? '全て' : k === 'member' ? '会員' : 'ゲスト'}
+              </button>
+            ))}
+          </div>
+
+          {departments.length > 0 && (
+            <>
+              <div className="filter-label">委員会</div>
+              <div className="filter-chips">
+                {departments.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={`chip ${deptFilter.has(d) ? 'active' : ''}`}
+                    onClick={() => toggleDept(d)}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {hasAttendeeFilter && (
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              onClick={resetAttendeeFilter}
+              style={{ marginTop: 4 }}
+            >
+              フィルタを解除
+            </button>
+          )}
+        </div>
+      )}
+
       {data.attendees.length === 0 ? (
         <p className="note">まだ参加者がいません。</p>
+      ) : visibleAttendees.length === 0 ? (
+        <div className="empty-state">
+          <div className="glyph">○</div>
+          <div className="hint">該当する参加者がいません</div>
+        </div>
       ) : (
         <ul className="attendee-list">
-          {data.attendees.map((a) => (
+          {visibleAttendees.map((a) => (
             <li key={a.id} className="attendee-row">
               <div className="attendee-main">
                 <span>{a.name}</span>
