@@ -41,11 +41,11 @@ export interface EventFormPayload {
 export const emptyEventForm: EventFormValues = {
   title: '',
   start_date: '',
-  start_time: '18:00', // JC の例会は夕方開始が定番なのでデフォ値を入れる
+  start_time: '',
   end_date: '',
   end_time: '',
   deadline_date: '',
-  deadline_time: '',
+  deadline_time: '18:00', // 回答締切は当日 18:00 が定番なのでデフォ値を入れる
   committee: '',
   location: '',
   description: '',
