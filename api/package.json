@@ -9,7 +9,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "seed:sysadmin": "tsx scripts/seed-sysadmin.ts"
+    "seed:sysadmin": "tsx scripts/seed-sysadmin.ts",
+    "seed:events": "tsx scripts/seed-events.ts"
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.658.1",
