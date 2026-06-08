@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { AttendeeManager } from '../components/AttendeeManager';
@@ -64,6 +64,7 @@ const STATUS_LABEL: Record<RsvpStatus, string> = {
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user, viewMode } = useAuth();
   const isPrivileged = user?.role === 'sysadmin' || user?.role === 'editor';
   // ユーザー画面プレビュー中はビューアー扱い
@@ -73,6 +74,42 @@ export function EventDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [showQr, setShowQr] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+
+  // Toast (簡易、自動で 2 秒後に消える)
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const toastTimer = useRef<number | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => {
+      setToastMsg(null);
+    }, 2000);
+  }, []);
+
+  async function copyShareLink() {
+    if (!id) return;
+    const url = `${window.location.origin}/events/${id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('共有リンクをコピーしました');
+    } catch {
+      showToast('コピーに失敗しました');
+    }
+  }
+
+  async function deleteEvent() {
+    if (!id) return;
+    const ok = window.confirm(
+      'このイベントを削除しますか?\nこの操作は取り消せません。',
+    );
+    if (!ok) return;
+    try {
+      await api(`/api/events/${id}`, { method: 'DELETE' });
+      navigate('/', { replace: true });
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : '削除に失敗しました');
+    }
+  }
 
   // 参加者フィルタ (editor+ かつ admin モードの時に表示)
   type AStatusFilter = 'all' | 'yes' | 'no' | 'pending' | 'checked';
@@ -439,8 +476,12 @@ export function EventDetailPage() {
         <EventActionsMenu
           eventId={ev.id}
           onClose={() => setShowMenu(false)}
+          onCopyLink={copyShareLink}
+          onDelete={deleteEvent}
         />
       )}
+
+      {toastMsg && <div className="toast">{toastMsg}</div>}
     </div>
   );
 }
@@ -637,9 +678,13 @@ function AfterpartyStats({ attendees }: { attendees: Attendee[] }) {
 function EventActionsMenu({
   eventId,
   onClose,
+  onCopyLink,
+  onDelete,
 }: {
   eventId: string;
   onClose: () => void;
+  onCopyLink: () => void;
+  onDelete: () => void;
 }) {
   return (
     <div
@@ -660,12 +705,40 @@ function EventActionsMenu({
         </button>
         <h2>イベント操作</h2>
         <div className="action-stack" style={{ marginTop: 0 }}>
-          <Link to={`/events/${eventId}/reception`} className="link-button">
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => {
+              onClose();
+              void onCopyLink();
+            }}
+          >
+            共有リンクをコピー
+          </button>
+          <Link
+            to={`/events/${eventId}/reception`}
+            className="link-button"
+            onClick={onClose}
+          >
             受付モード(QR スキャン)
           </Link>
-          <Link to={`/events/${eventId}/edit`} className="link-button">
+          <Link
+            to={`/events/${eventId}/edit`}
+            className="link-button"
+            onClick={onClose}
+          >
             編集
           </Link>
+          <button
+            type="button"
+            className="danger"
+            onClick={() => {
+              onClose();
+              onDelete();
+            }}
+          >
+            このイベントを削除
+          </button>
         </div>
       </div>
     </div>
