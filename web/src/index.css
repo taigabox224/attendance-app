@@ -2578,3 +2578,128 @@ button.badge-unpaid:hover:not(:disabled) {
   padding: 10px 0 8px;
   margin-bottom: 6px;
 }
+
+/* ========== Login screen ==========
+   Topbar 無しの認証前画面。中央寄せの card + JC blue グラデ背景 + 明朝の
+   見出し + 左上に細い JC blue アクセントバーで「お堅い・公式」感を出す。 */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(
+      ellipse at top,
+      var(--primary-soft) 0%,
+      transparent 60%
+    ),
+    linear-gradient(
+      180deg,
+      var(--surface) 0%,
+      var(--bg) 50%,
+      var(--surface-soft) 100%
+    );
+}
+
+.login-card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 36px 28px 28px;
+  box-shadow:
+    0 1px 2px rgba(0, 30, 60, 0.05),
+    0 12px 32px rgba(0, 30, 60, 0.1);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* 左に JC blue の縦線 (legacy サイトの 12px 左ボーダー見出しを彷彿とさせるアクセント) */
+.login-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(
+    180deg,
+    var(--primary) 0%,
+    var(--primary-hover) 100%
+  );
+}
+
+.login-brand {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-logo {
+  display: block;
+  width: 260px;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto 12px;
+}
+
+.login-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 500;
+  margin: 0 0 4px;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.login-tagline {
+  font-family: var(--font-serif);
+  font-size: 12px;
+  color: var(--text-mute);
+  letter-spacing: 0.16em;
+  margin: 0;
+}
+
+/* SIGN IN ラベル + 左右の細い罫線 */
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.login-card .form-stack {
+  gap: 14px;
+}
+
+.login-card input {
+  background: var(--surface-soft);
+}
+.login-card input:focus {
+  background: var(--surface);
+  border-color: var(--primary);
+}
+
+.login-footer {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-mute);
+}
+.login-footer a {
+  color: var(--primary);
+  font-weight: 500;
+}

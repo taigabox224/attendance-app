@@ -33,39 +33,61 @@ export function LoginPage() {
   }
 
   return (
-    <div className="app-frame">
-      <h1>ログイン</h1>
-      <form onSubmit={onSubmit} className="form-stack">
-        <div className="field">
-          <label htmlFor="email">メールアドレス <span className="required-mark">*</span></label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
+    <div className="login-screen">
+      <div className="login-card">
+        <div className="login-brand">
+          <img
+            src="/jc-logo.jpg"
+            alt="流山青年会議所"
+            className="login-logo"
           />
+          <h1 className="login-title">イベント管理アプリ</h1>
+          <p className="login-tagline">流山青年会議所</p>
         </div>
-        <div className="field">
-          <label htmlFor="password">パスワード <span className="required-mark">*</span></label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
+
+        <div className="login-divider" aria-hidden="true">
+          <span>SIGN&nbsp;IN</span>
         </div>
-        {error && <p className="error">{error}</p>}
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'ログイン中...' : 'ログイン'}
-        </button>
-      </form>
-      <p className="note" style={{ marginTop: 24 }}>
-        アカウントが無い場合は <Link to="/register">新規登録</Link> へ
-      </p>
+
+        <form onSubmit={onSubmit} className="form-stack">
+          <div className="field">
+            <label htmlFor="email">メールアドレス</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="password">パスワード</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          {error && <p className="error">{error}</p>}
+          <button
+            type="submit"
+            disabled={submitting}
+            style={{ width: '100%' }}
+          >
+            {submitting ? 'ログイン中...' : 'ログイン'}
+          </button>
+        </form>
+
+        <p className="login-footer">
+          アカウントが無い場合は <Link to="/register">新規登録</Link>
+        </p>
+      </div>
     </div>
   );
 }
