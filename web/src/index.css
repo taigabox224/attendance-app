@@ -1598,6 +1598,63 @@ textarea {
   color: var(--text-soft);
 }
 
+/* ========== User order list ========== */
+.order-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.order-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.order-index {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-mute);
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.order-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.order-sub {
+  font-size: 11px;
+  color: var(--text-mute);
+  margin-left: 6px;
+}
+
+.order-actions {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.order-actions button {
+  min-width: 32px;
+  padding: 4px 6px;
+  font-size: 14px;
+}
+
 /* ========== Master list (委員会 / 役職 編集) ========== */
 .master-section {
   background: var(--surface);

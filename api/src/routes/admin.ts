@@ -42,6 +42,7 @@ interface UserListRow {
   department: string | null;
   title: string | null;
   status: string;
+  display_order: number | null;
   email_verified_at: string | null;
   must_change_password: number;
   created_at: string;
@@ -121,7 +122,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       const rows = db
         .prepare(
           `SELECT id, email, name, family_name, given_name, role, department, title,
-                  status, email_verified_at, must_change_password, created_at, updated_at
+                  status, display_order,
+                  email_verified_at, must_change_password, created_at, updated_at
            FROM users ORDER BY created_at DESC`,
         )
         .all() as UserListRow[];
@@ -136,6 +138,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           department: u.department,
           title: u.title,
           status: u.status,
+          display_order: u.display_order,
           email_verified_at: u.email_verified_at,
           must_change_password: u.must_change_password === 1,
           created_at: u.created_at,
@@ -251,6 +254,44 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(404).send({ error: 'User not found' });
       }
       return { ok: true };
+    },
+  );
+
+  // ユーザー表示順をまとめて設定 (sysadmin)。
+  // 送られてきた配列の index がそのまま display_order になる。
+  // 配列に含まれない user の display_order は NULL に戻す (新規追加された
+  // ユーザーは末尾扱いになる)。
+  const setOrderSchema = z.object({
+    user_ids: z.array(z.string()),
+  });
+
+  app.put(
+    '/api/admin/users/order',
+    { preHandler: requireRole('sysadmin') },
+    async (req, reply) => {
+      const parsed = setOrderSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: '入力が不正です' });
+      }
+      const now = new Date().toISOString();
+      const unique = Array.from(new Set(parsed.data.user_ids));
+
+      const apply = db.transaction(() => {
+        // 一旦全員 NULL に戻す
+        db.prepare(
+          `UPDATE users SET display_order = NULL, updated_at = ?`,
+        ).run(now);
+        // 指定 ID に 1..N をセット
+        const set = db.prepare(
+          `UPDATE users SET display_order = ?, updated_at = ? WHERE id = ?`,
+        );
+        unique.forEach((id, idx) => {
+          set.run(idx + 1, now, id);
+        });
+      });
+      apply();
+
+      return { ok: true, count: unique.length };
     },
   );
 }
