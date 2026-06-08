@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { DateInput } from './DateInput';
 
 // Phase 1 の「イベントを作成 / 編集」モーダルを再現する共通フォーム。
 // create / edit を mode で切り替える。
@@ -609,11 +610,10 @@ export function EventFormFull({ mode, eventId }: Props) {
             <label htmlFor="ef-start-date">
               開始日 <span className="required-mark">*</span>
             </label>
-            <input
+            <DateInput
               id="ef-start-date"
-              type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={setStartDate}
             />
           </div>
           <div className="field" style={{ flex: 1 }}>
@@ -632,11 +632,10 @@ export function EventFormFull({ mode, eventId }: Props) {
             <label htmlFor="ef-end-date">
               終了日 <span className="optional-mark">任意</span>
             </label>
-            <input
+            <DateInput
               id="ef-end-date"
-              type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={setEndDate}
             />
           </div>
           <div className="field" style={{ flex: 1 }}>
@@ -654,11 +653,10 @@ export function EventFormFull({ mode, eventId }: Props) {
           <div className="field-row">
             <div className="field" style={{ flex: 2 }}>
               <label htmlFor="ef-deadline-date">回答期限</label>
-              <input
+              <DateInput
                 id="ef-deadline-date"
-                type="date"
                 value={deadlineDate}
-                onChange={(e) => setDeadlineDate(e.target.value)}
+                onChange={setDeadlineDate}
               />
             </div>
             <div className="field" style={{ flex: 1 }}>

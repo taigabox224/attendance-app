@@ -73,8 +73,11 @@ function rowToEvent(r: EventRow) {
 
 export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
   // 一覧。viewer は公開済みのみ、editor 以上は全件 (下書き含む)
+  // 各イベントに「自分の出欠ステータス」と「受付担当フラグ」も同梱する
+  // (HomePage のバッジ表示用)
   app.get('/api/events', { preHandler: requireAuth }, async (req) => {
     const userRole = req.user!.role as Role;
+    const userId = req.user!.sub;
     const includeAll = hasMinimumRole(userRole, 'editor');
     const rows = includeAll
       ? (db
@@ -85,7 +88,26 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
             `SELECT * FROM events WHERE published = 1 ORDER BY start_at DESC`,
           )
           .all() as EventRow[]);
-    return { events: rows.map(rowToEvent) };
+
+    const attendeeStmt = db.prepare(
+      `SELECT status FROM event_attendees WHERE event_id = ? AND user_id = ?`,
+    );
+    const receptionistStmt = db.prepare(
+      `SELECT 1 FROM event_receptionists WHERE event_id = ? AND user_id = ?`,
+    );
+
+    const events = rows.map((r) => {
+      const att = attendeeStmt.get(r.id, userId) as
+        | { status: string }
+        | undefined;
+      const rec = receptionistStmt.get(r.id, userId);
+      return {
+        ...rowToEvent(r),
+        your_status: att?.status ?? null,
+        is_receptionist: !!rec,
+      };
+    });
+    return { events };
   });
 
   // 詳細。viewer も公開済みなら閲覧可。

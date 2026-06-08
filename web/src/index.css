@@ -910,6 +910,42 @@ code,
   font-size: 13px;
 }
 
+/* ========== Date input with 年/月/日 placeholder ========== */
+.date-input-wrap {
+  position: relative;
+  width: 100%;
+  display: block;
+}
+
+.date-input-wrap input[type='date'] {
+  width: 100%;
+}
+
+.date-input-wrap[data-has-value='false'] input[type='date'] {
+  color: transparent;
+}
+
+.date-input-wrap[data-has-value='false']::before {
+  content: '年 / 月 / 日';
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--text-soft);
+  font-size: 16px;
+  font-family: inherit;
+  line-height: 1;
+}
+
+/* フォーカス中は overlay を消して native の picker UI に任せる */
+.date-input-wrap[data-has-value='false']:focus-within::before {
+  content: none;
+}
+.date-input-wrap[data-has-value='false'] input[type='date']:focus {
+  color: var(--text);
+}
+
 /* ========== Event list (card) ========== */
 .event-list {
   list-style: none;
@@ -1149,6 +1185,45 @@ code,
 .badge.warn {
   background: var(--warning-soft);
   color: var(--warning);
+}
+
+/* イベントカード用の小バッジ群 (Phase 1 模倣) */
+.event-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.event-badge.own {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.event-badge.reception {
+  background: var(--warning);
+  color: white;
+}
+
+.event-badge.afterparty {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.event-badge.expired {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.event-badge.draft {
+  background: var(--text);
+  color: var(--surface);
+  font-family: var(--font-mono);
+  letter-spacing: 0.12em;
 }
 
 /* ========== Event form ========== */
