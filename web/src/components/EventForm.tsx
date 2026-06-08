@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError, api } from '../api/client';
 
 // datetime-local が macOS Safari 等で時刻入力しづらいので、
@@ -159,6 +159,14 @@ interface Props {
   submittingLabel: string;
   onSubmit: (payload: EventFormPayload) => Promise<void>;
   onCancel?: () => void;
+  // 'single': 既存 (公開 checkbox + 単一ボタン)
+  // 'split':  「作成 (公開)」と「下書きとして保存」の 2 ボタン (公開 checkbox 非表示)
+  buttonMode?: 'single' | 'split';
+  draftLabel?: string;
+  draftSubmittingLabel?: string;
+  // フォーム末尾、ボタンの直前に挿入する追加要素 (新規作成画面で
+  // 参加者/受付担当ピッカーを差し込む用)
+  children?: ReactNode;
 }
 
 export function EventForm({
@@ -167,9 +175,14 @@ export function EventForm({
   submittingLabel,
   onSubmit,
   onCancel,
+  buttonMode = 'single',
+  draftLabel = '下書きとして保存',
+  draftSubmittingLabel = '保存中...',
+  children,
 }: Props) {
   const [v, setV] = useState<EventFormValues>(initialValues);
   const [submitting, setSubmitting] = useState(false);
+  const [submitVariant, setSubmitVariant] = useState<'publish' | 'draft' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [departments, setDepartments] = useState<string[]>([]);
 
@@ -185,8 +198,7 @@ export function EventForm({
     setV((prev) => ({ ...prev, [key]: value }));
   };
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function runSubmit(variant: 'publish' | 'draft' | null) {
     setError(null);
 
     if (!v.title.trim()) {
@@ -199,13 +211,25 @@ export function EventForm({
     }
 
     setSubmitting(true);
+    setSubmitVariant(variant);
     try {
-      await onSubmit(valuesToPayload(v));
+      const payload = valuesToPayload(v);
+      // split-button モードでは v.published を無視し、押されたボタンで決定
+      if (variant === 'publish') payload.published = true;
+      else if (variant === 'draft') payload.published = false;
+      await onSubmit(payload);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '通信エラーが発生しました');
     } finally {
       setSubmitting(false);
+      setSubmitVariant(null);
     }
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    // form の onSubmit (Enter キー含む): split モードでは primary = publish
+    await runSubmit(buttonMode === 'split' ? 'publish' : null);
   }
 
   return (
@@ -347,23 +371,37 @@ export function EventForm({
         </div>
       )}
 
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={v.published}
-          onChange={(e) => update('published', e.target.checked)}
-        />
-        <span>公開する(チェックを外すと下書き)</span>
-      </label>
+      {buttonMode === 'single' && (
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={v.published}
+            onChange={(e) => update('published', e.target.checked)}
+          />
+          <span>公開する(チェックを外すと下書き)</span>
+        </label>
+      )}
+
+      {children}
 
       {error && <p className="error">{error}</p>}
 
       <div className="action-row">
         <button type="submit" disabled={submitting}>
-          {submitting ? submittingLabel : submitLabel}
+          {submitting && submitVariant !== 'draft' ? submittingLabel : submitLabel}
         </button>
+        {buttonMode === 'split' && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => runSubmit('draft')}
+            disabled={submitting}
+          >
+            {submitting && submitVariant === 'draft' ? draftSubmittingLabel : draftLabel}
+          </button>
+        )}
         {onCancel && (
-          <button type="button" className="secondary" onClick={onCancel} disabled={submitting}>
+          <button type="button" className="btn-ghost" onClick={onCancel} disabled={submitting}>
             キャンセル
           </button>
         )}
