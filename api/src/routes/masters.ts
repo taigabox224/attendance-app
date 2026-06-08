@@ -36,7 +36,7 @@ export async function registerMasterRoutes(app: FastifyInstance): Promise<void> 
   // 書き込みは sysadmin のみ
   app.put<{ Params: { kind: string } }>(
     '/api/masters/:kind',
-    { preHandler: requireRole('sysadmin') },
+    { preHandler: requireRole('editor') },
     async (req, reply) => {
       const kind = req.params.kind;
       if (kind !== 'department' && kind !== 'title') {

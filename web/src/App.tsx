@@ -5,10 +5,7 @@ import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { EventCreatePage } from './pages/EventCreatePage';
 import { EventDetailPage } from './pages/EventDetailPage';
 import { EventEditPage } from './pages/EventEditPage';
-import { AttendeeListsPage } from './pages/AttendeeListsPage';
 import { HomePage } from './pages/HomePage';
-import { MastersPage } from './pages/MastersPage';
-import { UserOrderPage } from './pages/UserOrderPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
@@ -41,10 +38,21 @@ export function App() {
             />
             <Route element={<RequireRole minimum="editor" />}>
               <Route path="/admin/users" element={<AdminUsersPage />} />
-              <Route path="/admin/users/order" element={<UserOrderPage />} />
-              <Route path="/admin/masters" element={<MastersPage />} />
-              <Route path="/admin/attendee-lists" element={<AttendeeListsPage />} />
             </Route>
+            {/* legacy 互換: 旧 page ルートは /admin/users にリダイレクト
+               (設定系は歯車メニュー → モーダルに統合されたため) */}
+            <Route
+              path="/admin/users/order"
+              element={<Navigate to="/admin/users" replace />}
+            />
+            <Route
+              path="/admin/masters"
+              element={<Navigate to="/admin/users" replace />}
+            />
+            <Route
+              path="/admin/attendee-lists"
+              element={<Navigate to="/admin/users" replace />}
+            />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

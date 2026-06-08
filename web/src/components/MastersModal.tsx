@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
-import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 
 interface MastersResponse {
@@ -14,7 +13,12 @@ const KIND_LABEL: Record<Kind, string> = {
   title: '役職',
 };
 
-export function MastersPage() {
+interface Props {
+  onClose: () => void;
+}
+
+// 委員会・役職マスター編集モーダル (legacy modal-master 相当)
+export function MastersModal({ onClose }: Props) {
   const [departments, setDepartments] = useState<string[]>([]);
   const [titles, setTitles] = useState<string[]>([]);
   const [originalDepartments, setOriginalDepartments] = useState<string[]>([]);
@@ -73,41 +77,66 @@ export function MastersPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="screen">
-        <p>読込中...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="screen">
-      <Link to="/admin/users" className="back-link">ユーザー管理へ</Link>
-      <header className="screen-header">
-        <h1 className="screen-title">マスター設定</h1>
-        <p className="screen-sub">委員会と役職の選択肢を管理します</p>
-      </header>
-
-      {error && <p className="error">{error}</p>}
-      {savedMsg && <p className="success">{savedMsg}</p>}
-
-      <ListSection
-        kind="department"
-        values={departments}
-        onChange={setDepartments}
-      />
-
-      <ListSection kind="title" values={titles} onChange={setTitles} />
-
-      <div className="action-row" style={{ marginTop: 24, position: 'sticky', bottom: 0, paddingTop: 8, background: 'var(--bg)' }}>
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-handle" aria-hidden="true" />
         <button
-          onClick={save}
-          disabled={!dirty || saving}
-          style={{ flex: 1 }}
+          type="button"
+          className="modal-close"
+          onClick={onClose}
+          aria-label="閉じる"
         >
-          {saving ? '保存中...' : dirty ? '変更を保存' : '変更なし'}
+          ×
         </button>
+        <h2>マスター設定</h2>
+        <p
+          className="note"
+          style={{ margin: '0 0 14px', fontSize: 12 }}
+        >
+          委員会と役職の選択肢を管理します。
+        </p>
+
+        {error && <p className="error">{error}</p>}
+        {savedMsg && <p className="success">{savedMsg}</p>}
+
+        {loading ? (
+          <p>読込中...</p>
+        ) : (
+          <>
+            <ListSection
+              kind="department"
+              values={departments}
+              onChange={setDepartments}
+            />
+            <ListSection kind="title" values={titles} onChange={setTitles} />
+          </>
+        )}
+
+        <div className="action-row" style={{ marginTop: 16, gap: 8 }}>
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={onClose}
+            disabled={saving}
+            style={{ flex: 1 }}
+          >
+            閉じる
+          </button>
+          <button
+            type="button"
+            onClick={save}
+            disabled={!dirty || saving}
+            style={{ flex: 1 }}
+          >
+            {saving ? '保存中...' : dirty ? '変更を保存' : '変更なし'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -137,7 +166,12 @@ function ListSection({
 
   function remove(i: number) {
     const v = values[i];
-    if (!window.confirm(`「${v}」を削除しますか?\n既存のユーザー/イベントの委員会・役職表示には残ります。`)) return;
+    if (
+      !window.confirm(
+        `「${v}」を削除しますか?\n既存のユーザー/イベントの委員会・役職表示には残ります。`,
+      )
+    )
+      return;
     onChange(values.filter((_, idx) => idx !== i));
   }
 
@@ -162,7 +196,7 @@ function ListSection({
 
   return (
     <section className="master-section">
-      <h2>{KIND_LABEL[kind]}</h2>
+      <h2 style={{ fontSize: 16, margin: '12px 0' }}>{KIND_LABEL[kind]}</h2>
       {values.length === 0 ? (
         <p className="note" style={{ margin: '0 0 12px' }}>
           まだ登録がありません。

@@ -1,5 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from 'react';
 import { ApiError, api } from '../api/client';
 import { formatDateTime } from '../lib/format';
 
@@ -25,10 +30,17 @@ interface ListDetail {
   updated_at: string;
 }
 
-export function AttendeeListsPage() {
+interface Props {
+  onClose: () => void;
+}
+
+// 参加者リスト管理モーダル (legacy modal-attendee-lists)
+// 一覧ビュー <-> エディタビューを内部で切替える (新規モーダルを重ねない)
+export function AttendeeListsModal({ onClose }: Props) {
   const [lists, setLists] = useState<ListSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // null = 一覧ビュー, 'new' = 新規, string = id 編集
   const [editingId, setEditingId] = useState<string | 'new' | null>(null);
 
   const load = useCallback(async () => {
@@ -57,87 +69,127 @@ export function AttendeeListsPage() {
     }
   }
 
-  if (editingId) {
-    return (
-      <ListEditor
-        listId={editingId === 'new' ? null : editingId}
-        onClose={() => setEditingId(null)}
-        onSaved={async () => {
-          setEditingId(null);
-          await load();
-        }}
-      />
-    );
-  }
-
   return (
-    <div className="screen">
-      <Link to="/admin/users" className="back-link">ユーザー管理へ</Link>
-      <header className="screen-header">
-        <h1 className="screen-title">参加者リスト</h1>
-        <p className="screen-sub">
-          理事会メンバー等、繰り返し使う参加者集合を保存して、イベント作成時に一括適用できます
-        </p>
-      </header>
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-handle" aria-hidden="true" />
+        <button
+          type="button"
+          className="modal-close"
+          onClick={onClose}
+          aria-label="閉じる"
+        >
+          ×
+        </button>
 
-      {error && <p className="error">{error}</p>}
+        {editingId ? (
+          <ListEditor
+            listId={editingId === 'new' ? null : editingId}
+            onBack={() => setEditingId(null)}
+            onSaved={async () => {
+              setEditingId(null);
+              await load();
+            }}
+          />
+        ) : (
+          <>
+            <h2>参加者リスト</h2>
+            <p
+              className="note"
+              style={{ margin: '0 0 14px', fontSize: 12 }}
+            >
+              繰り返し使う参加者集合を保存して、イベント作成時に一括適用できます。
+            </p>
 
-      <button
-        onClick={() => setEditingId('new')}
-        style={{ marginBottom: 16, width: '100%' }}
-      >
-        + 新規リスト作成
-      </button>
+            {error && <p className="error">{error}</p>}
 
-      {loading ? (
-        <p>読込中...</p>
-      ) : lists.length === 0 ? (
-        <div className="empty-state">
-          <div className="glyph">○</div>
-          <div className="hint">まだリストがありません</div>
-        </div>
-      ) : (
-        <ul className="attendee-list">
-          {lists.map((l) => (
-            <li key={l.id} className="attendee-row">
-              <div>
-                <strong>{l.name}</strong>
-                <div
-                  className="mono"
-                  style={{ fontSize: 11, color: 'var(--text-mute)' }}
-                >
-                  {l.member_count}名 · 更新 {formatDateTime(l.updated_at)}
-                </div>
+            <button
+              type="button"
+              onClick={() => setEditingId('new')}
+              style={{ marginBottom: 12, width: '100%' }}
+            >
+              + 新規リスト作成
+            </button>
+
+            {loading ? (
+              <p>読込中...</p>
+            ) : lists.length === 0 ? (
+              <div className="empty-state" style={{ padding: '24px 0' }}>
+                <div className="glyph">○</div>
+                <div className="hint">まだリストがありません</div>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  className="btn-outline btn-sm"
-                  onClick={() => setEditingId(l.id)}
-                >
-                  編集
-                </button>
-                <button
-                  className="danger btn-sm"
-                  onClick={() => onDelete(l)}
-                >
-                  削除
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+            ) : (
+              <ul className="attendee-list">
+                {lists.map((l) => (
+                  <li key={l.id} className="attendee-row">
+                    <div className="left" style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600 }}>{l.name}</div>
+                        <div
+                          className="mono"
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--text-mute)',
+                            marginTop: 2,
+                          }}
+                        >
+                          {l.member_count}名 ・ 更新{' '}
+                          {formatDateTime(l.updated_at)}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        type="button"
+                        className="btn-outline btn-sm"
+                        onClick={() => setEditingId(l.id)}
+                      >
+                        編集
+                      </button>
+                      <button
+                        type="button"
+                        className="danger btn-sm"
+                        onClick={() => onDelete(l)}
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="action-row" style={{ marginTop: 16 }}>
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={onClose}
+                style={{ flex: 1 }}
+              >
+                閉じる
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-interface ListEditorProps {
-  listId: string | null; // null = 新規
-  onClose: () => void;
-  onSaved: () => void | Promise<void>;
-}
-
-function ListEditor({ listId, onClose, onSaved }: ListEditorProps) {
+function ListEditor({
+  listId,
+  onBack,
+  onSaved,
+}: {
+  listId: string | null;
+  onBack: () => void;
+  onSaved: () => Promise<void>;
+}) {
   const [name, setName] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [users, setUsers] = useState<PickerUser[]>([]);
@@ -226,15 +278,16 @@ function ListEditor({ listId, onClose, onSaved }: ListEditorProps) {
   }
 
   return (
-    <div className="screen">
-      <button type="button" className="back-link" onClick={onClose}>
+    <>
+      <button
+        type="button"
+        className="back-link"
+        onClick={onBack}
+        style={{ marginBottom: 8 }}
+      >
         参加者リスト一覧へ
       </button>
-      <header className="screen-header">
-        <h1 className="screen-title">
-          {listId ? 'リスト編集' : '新規リスト作成'}
-        </h1>
-      </header>
+      <h2>{listId ? 'リスト編集' : '新規リスト作成'}</h2>
 
       {error && <p className="error">{error}</p>}
 
@@ -308,7 +361,7 @@ function ListEditor({ listId, onClose, onSaved }: ListEditorProps) {
             <button
               type="button"
               className="secondary"
-              onClick={onClose}
+              onClick={onBack}
               disabled={saving || deleting}
             >
               キャンセル
@@ -328,6 +381,6 @@ function ListEditor({ listId, onClose, onSaved }: ListEditorProps) {
           )}
         </form>
       )}
-    </div>
+    </>
   );
 }
