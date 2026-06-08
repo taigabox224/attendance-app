@@ -156,10 +156,23 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
           }
         : null;
 
+      const receptionists = db
+        .prepare(
+          `SELECT er.user_id, u.name FROM event_receptionists er
+           LEFT JOIN users u ON u.id = er.user_id
+           WHERE er.event_id = ?
+           ORDER BY er.created_at`,
+        )
+        .all(req.params.id) as Array<{ user_id: string; name: string | null }>;
+
       return {
         event: rowToEvent(row),
         attendees: attendeesJson,
         your_rsvp,
+        receptionists: receptionists.map((r) => ({
+          user_id: r.user_id,
+          name: r.name ?? '(削除済)',
+        })),
       };
     },
   );
@@ -473,6 +486,47 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
         attendee_id: myRow.id,
       });
       return { token };
+    },
+  );
+
+  // 受付担当をまとめて差し替え (editor+)。
+  // 既存全削除 → 新しい user_id を全部 INSERT。
+  const setReceptionistsSchema = z.object({
+    user_ids: z.array(z.string()).default([]),
+  });
+
+  app.put<{ Params: { id: string } }>(
+    '/api/events/:id/receptionists',
+    { preHandler: requireRole('editor') },
+    async (req, reply) => {
+      const parsed = setReceptionistsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: '入力が不正です' });
+      }
+      const eventRow = db
+        .prepare(`SELECT id FROM events WHERE id = ?`)
+        .get(req.params.id) as { id: string } | undefined;
+      if (!eventRow) return reply.code(404).send({ error: 'Event not found' });
+
+      // 重複除外
+      const unique = Array.from(new Set(parsed.data.user_ids));
+      const now = new Date().toISOString();
+
+      const apply = db.transaction(() => {
+        db.prepare(`DELETE FROM event_receptionists WHERE event_id = ?`).run(
+          req.params.id,
+        );
+        const insert = db.prepare(
+          `INSERT OR IGNORE INTO event_receptionists (event_id, user_id, created_at)
+           VALUES (?, ?, ?)`,
+        );
+        for (const uid of unique) {
+          insert.run(req.params.id, uid, now);
+        }
+      });
+      apply();
+
+      return { ok: true, count: unique.length };
     },
   );
 

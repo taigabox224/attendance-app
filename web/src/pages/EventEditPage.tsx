@@ -8,6 +8,7 @@ import {
   type EventFormPayload,
   type EventFormValues,
 } from '../components/EventForm';
+import { ReceptionistPicker } from '../components/ReceptionistPicker';
 
 interface EventDetail {
   id: string;
@@ -45,16 +46,30 @@ function eventToForm(e: EventDetail): EventFormValues {
   };
 }
 
+interface Receptionist {
+  user_id: string;
+  name: string;
+}
+
+interface EventDetailResponse {
+  event: EventDetail;
+  receptionists: Receptionist[];
+}
+
 export function EventEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [initial, setInitial] = useState<EventFormValues | null>(null);
+  const [receptionists, setReceptionists] = useState<Receptionist[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    api<{ event: EventDetail }>(`/api/events/${id}`)
-      .then((data) => setInitial(eventToForm(data.event)))
+    api<EventDetailResponse>(`/api/events/${id}`)
+      .then((data) => {
+        setInitial(eventToForm(data.event));
+        setReceptionists(data.receptionists ?? []);
+      })
       .catch((e) => setLoadError(e instanceof ApiError ? e.message : '通信エラー'));
   }, [id]);
 
@@ -99,6 +114,11 @@ export function EventEditPage() {
             onSubmit={onSubmit}
             onCancel={() => navigate('/')}
           />
+          {id && (
+            <div style={{ marginTop: 16 }}>
+              <ReceptionistPicker eventId={id} initial={receptionists} />
+            </div>
+          )}
           <hr style={{ margin: '32px 0 16px', border: 'none', borderTop: '1px solid var(--border)' }} />
           <button className="danger" onClick={onDelete} style={{ width: '100%' }}>
             このイベントを削除
