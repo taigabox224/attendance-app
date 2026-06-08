@@ -26,6 +26,12 @@ const verifyQuerySchema = z.object({
   token: z.string().min(1),
 });
 
+// 自身のプロフィール (姓・名) 更新用。委員会・役職は管理者経由でしか変えられない。
+const updateProfileSchema = z.object({
+  family_name: z.string().trim().min(1).max(40),
+  given_name: z.string().trim().min(1).max(40),
+});
+
 const changePasswordSchema = z.object({
   current_password: z.string().min(1),
   new_password: z.string().min(8).max(128),
@@ -228,6 +234,27 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         must_change_password: user.must_change_password === 1,
       },
     };
+  });
+
+  // 自身のプロフィール (姓・名) を更新する。
+  // 委員会・役職・ロール・メール等は変更不可 (legacy openProfileModal 仕様)。
+  app.patch('/api/auth/me', { preHandler: requireAuth }, async (req, reply) => {
+    const parsed = updateProfileSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: '姓と名は必須です' });
+    const { family_name, given_name } = parsed.data;
+    const name = `${family_name}${given_name}`.trim();
+    if (!name) return reply.code(400).send({ error: '氏名が空です' });
+    const now = new Date().toISOString();
+    const result = db
+      .prepare(
+        `UPDATE users
+         SET family_name = ?, given_name = ?, name = ?, updated_at = ?
+         WHERE id = ?`,
+      )
+      .run(family_name, given_name, name, now, req.user!.sub);
+    if (result.changes === 0)
+      return reply.code(404).send({ error: 'User not found' });
+    return { ok: true };
   });
 
   app.post(
