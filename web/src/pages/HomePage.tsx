@@ -30,6 +30,9 @@ export function HomePage() {
       </dl>
 
       <div className="action-stack">
+        <Link to="/events" className="link-button">
+          イベント
+        </Link>
         <Link to="/change-password" className="link-button">
           パスワードを変更
         </Link>
@@ -42,11 +45,6 @@ export function HomePage() {
           ログアウト
         </button>
       </div>
-
-      <p className="note" style={{ marginTop: 32 }}>
-        Phase 2 着手中。出欠機能は Phase 1 のプロトタイプ (web/legacy/) から
-        順次移植予定です。
-      </p>
     </div>
   );
 }
