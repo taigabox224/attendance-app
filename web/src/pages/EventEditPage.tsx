@@ -79,7 +79,7 @@ export function EventEditPage() {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
-    navigate('/', { replace: true });
+    navigate('/events', { replace: true });
   }
 
   async function onDelete() {
@@ -88,7 +88,7 @@ export function EventEditPage() {
     if (!ok) return;
     try {
       await api(`/api/events/${id}`, { method: 'DELETE' });
-      navigate('/', { replace: true });
+      navigate('/events', { replace: true });
     } catch (e) {
       window.alert(e instanceof ApiError ? e.message : '通信エラー');
     }
@@ -96,7 +96,7 @@ export function EventEditPage() {
 
   return (
     <div className="screen">
-      <Link to="/" className="back-link">イベント一覧へ</Link>
+      <Link to="/events" className="back-link">イベント一覧へ</Link>
       <header className="screen-header">
         <h1 className="screen-title">イベント編集</h1>
       </header>
@@ -112,7 +112,7 @@ export function EventEditPage() {
             submitLabel="更新"
             submittingLabel="更新中..."
             onSubmit={onSubmit}
-            onCancel={() => navigate('/')}
+            onCancel={() => navigate('/events')}
           />
           {id && (
             <div style={{ marginTop: 16 }}>

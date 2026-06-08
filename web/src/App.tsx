@@ -46,9 +46,9 @@ export function App() {
         <Route element={<RequireAuth />}>
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route element={<RequirePasswordChanged />}>
-            <Route path="/" element={<HomePage />} />
-            {/* /events は HomePage と統合されたので / にリダイレクト */}
-            <Route path="/events" element={<Navigate to="/" replace />} />
+            {/* イベント一覧 (= ホーム) を /events に正規化し、/ はそこに redirect */}
+            <Route path="/" element={<Navigate to="/events" replace />} />
+            <Route path="/events" element={<HomePage />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route element={<RequireRole minimum="editor" />}>
               <Route path="/events/new" element={<EventCreatePage />} />

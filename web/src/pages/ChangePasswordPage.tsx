@@ -34,7 +34,7 @@ export function ChangePasswordPage() {
         }),
       });
       await refresh();
-      navigate('/', { replace: true });
+      navigate('/events', { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '通信エラーが発生しました');
     } finally {

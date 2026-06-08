@@ -11,8 +11,7 @@ export function AdminTabs() {
   return (
     <div className="admin-tabs">
       <NavLink
-        to="/"
-        end
+        to="/events"
         className={({ isActive }) => 'admin-tab' + (isActive ? ' active' : '')}
       >
         イベント

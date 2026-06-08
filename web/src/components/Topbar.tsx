@@ -21,7 +21,7 @@ export function Topbar() {
   return (
     <>
       <header className="topbar">
-        <Link to="/" className="brand">
+        <Link to="/events" className="brand">
           <span className="brand-logo" aria-hidden="true" />
           <span className="brand-text">
             <span className="brand-text-line1">流山青年会議所</span>

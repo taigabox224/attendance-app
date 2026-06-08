@@ -112,7 +112,7 @@ export function EventDetailPage() {
     if (!ok) return;
     try {
       await api(`/api/events/${id}`, { method: 'DELETE' });
-      navigate('/', { replace: true });
+      navigate('/events', { replace: true });
     } catch (e) {
       showToast(e instanceof ApiError ? e.message : '削除に失敗しました');
     }
@@ -213,7 +213,7 @@ export function EventDetailPage() {
     return (
       <div className="screen">
         <div className="detail-toolbar">
-          <Link to="/" className="back-link">イベント一覧へ</Link>
+          <Link to="/events" className="back-link">イベント一覧へ</Link>
         </div>
         <p className="error">{error}</p>
       </div>
@@ -237,7 +237,7 @@ export function EventDetailPage() {
   return (
     <div className="screen">
       <div className="detail-toolbar">
-        <Link to="/" className="back-link">イベント一覧へ</Link>
+        <Link to="/events" className="back-link">イベント一覧へ</Link>
         {(canEdit || canScanReception) && (
           <button
             className="gear-btn"

@@ -83,7 +83,7 @@ export function MastersPage() {
 
   return (
     <div className="screen">
-      <Link to="/" className="back-link">ホームへ</Link>
+      <Link to="/admin/users" className="back-link">ユーザー管理へ</Link>
       <header className="screen-header">
         <h1 className="screen-title">マスター設定</h1>
         <p className="screen-sub">委員会と役職の選択肢を管理します</p>
