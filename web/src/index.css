@@ -427,6 +427,12 @@ body {
   border-color: var(--accent-soft);
 }
 
+.status-btn.active.fee {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary-soft);
+}
+
 .actions-stack {
   display: flex;
   flex-direction: column;

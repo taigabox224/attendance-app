@@ -107,7 +107,8 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
       const attendees = db
         .prepare(
           `SELECT a.id, a.user_id, a.is_observer, a.observer_name,
-                  a.status, a.after_status, a.checked_in_at, a.created_at,
+                  a.status, a.after_status, a.checked_in_at, a.fee_paid,
+                  a.created_at,
                   u.name AS user_name,
                   u.department AS user_department,
                   u.title AS user_title
@@ -124,6 +125,7 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
         status: string;
         after_status: string | null;
         checked_in_at: string | null;
+        fee_paid: number;
         created_at: string;
         user_name: string | null;
         user_department: string | null;
@@ -142,6 +144,7 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
           status: a.status,
           after_status: a.after_status,
           checked_in_at: a.checked_in_at,
+          fee_paid: a.fee_paid === 1,
         };
       });
 
@@ -379,6 +382,7 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
     checked_in_at: z
       .union([z.string(), z.null(), z.literal('now')])
       .optional(),
+    fee_paid: z.boolean().optional(),
   });
 
   app.patch<{ Params: { id: string; attendee_id: string } }>(
@@ -412,6 +416,10 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
           d.checked_in_at === 'now' ? new Date().toISOString() : d.checked_in_at;
         sets.push('checked_in_at = ?');
         params.push(v);
+      }
+      if (d.fee_paid !== undefined) {
+        sets.push('fee_paid = ?');
+        params.push(d.fee_paid ? 1 : 0);
       }
       if (sets.length === 0) {
         return reply.code(400).send({ error: '変更項目がありません' });

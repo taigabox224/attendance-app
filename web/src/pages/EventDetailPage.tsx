@@ -25,6 +25,7 @@ interface Attendee {
   status: RsvpStatus;
   after_status: RsvpStatus | null;
   checked_in_at: string | null;
+  fee_paid: boolean;
 }
 
 interface YourRsvp {
@@ -460,11 +461,25 @@ export function EventDetailPage() {
                   >
                     受付
                   </button>
+                  <button
+                    type="button"
+                    className={`status-btn ${a.fee_paid ? 'active fee' : ''}`}
+                    onClick={() =>
+                      patchAttendee(a.id, { fee_paid: !a.fee_paid })
+                    }
+                  >
+                    会費
+                  </button>
                 </div>
               ) : (
-                <span className={`status-badge badge-${a.status}`}>
-                  {a.checked_in_at ? '受付済' : STATUS_LABEL[a.status]}
-                </span>
+                <div className="actions-stack">
+                  <span className={`status-badge badge-${a.status}`}>
+                    {a.checked_in_at ? '受付済' : STATUS_LABEL[a.status]}
+                  </span>
+                  {a.fee_paid && (
+                    <span className="status-badge badge-checked">会費済</span>
+                  )}
+                </div>
               )}
             </li>
           ))}
