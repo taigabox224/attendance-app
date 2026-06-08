@@ -179,7 +179,7 @@ MVP 期間に SQLite を使う場合、以下を読み替える。`pg` → `bett
 # サーバー
 PORT=3000
 NODE_ENV=production
-APP_URL=https://event.nagareyama-jc.jp
+APP_URL=https://attendance.nagareyama-jc.com
 
 # DB (PostgreSQL想定)
 DATABASE_URL=postgres://user:pass@localhost:5432/attendance
@@ -665,7 +665,7 @@ export async function api<T = unknown>(
 AWSコンソール → Amazon SES → Verified identities → Create identity
 
 - Identity type: **Domain**
-- Domain: `nagareyama-jc.jp`
+- Domain: `nagareyama-jc.com`
 - DKIM: **Easy DKIM** を有効化
 
 表示されるCNAMEレコード3つをDNSに追加。数分〜数十分で `Verified`。
@@ -677,7 +677,7 @@ AWSコンソール → Amazon SES → Verified identities → Create identity
 AWSコンソール → SES → Account dashboard → Request production access
 
 - Mail type: **Transactional**
-- Website URL: `https://event.nagareyama-jc.jp`
+- Website URL: `https://attendance.nagareyama-jc.com`
 - Use case description: メンバー向け出欠管理システムのメール認証通知
 - Expected volume: 月数百通
 
@@ -704,7 +704,7 @@ SES送信専用ユーザーを作成し、最小権限ポリシーを付与:
 
 ```
 TXT  @                "v=spf1 include:amazonses.com ~all"
-TXT  _dmarc           "v=DMARC1; p=none; rua=mailto:dmarc@nagareyama-jc.jp"
+TXT  _dmarc           "v=DMARC1; p=none; rua=mailto:dmarc@nagareyama-jc.com"
 ```
 
 ### 5. コスト
