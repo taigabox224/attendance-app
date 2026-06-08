@@ -147,3 +147,93 @@ code,
 .mono {
   font-family: var(--font-mono);
 }
+
+/* ========== Forms & feedback ========== */
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.note {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+
+.error {
+  background: rgba(176, 58, 46, 0.08);
+  color: var(--error);
+  border-left: 3px solid var(--error);
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.success {
+  background: rgba(46, 125, 50, 0.08);
+  color: var(--success);
+  border-left: 3px solid var(--success);
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.link-button {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 16px;
+  min-height: 44px;
+  padding: 11px 18px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  color: var(--primary);
+  background: transparent;
+  transition: background-color 0.15s;
+}
+
+.link-button:hover {
+  background: rgba(53, 82, 130, 0.06);
+  text-decoration: none;
+}
+
+.user-info {
+  font-size: 14px;
+  margin: 0 0 24px;
+}
+
+.user-info dt {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+.user-info dt:first-child {
+  margin-top: 0;
+}
+
+.user-info dd {
+  margin: 4px 0 0;
+}
