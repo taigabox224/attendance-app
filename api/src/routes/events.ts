@@ -363,30 +363,53 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const eventRow = db
-        .prepare(`SELECT id FROM events WHERE id = ?`)
-        .get(req.params.id) as { id: string } | undefined;
+        .prepare(`SELECT id, has_afterparty FROM events WHERE id = ?`)
+        .get(req.params.id) as
+        | { id: string; has_afterparty: number }
+        | undefined;
       if (!eventRow) return reply.code(404).send({ error: 'Event not found' });
+      const hasAP = eventRow.has_afterparty === 1;
 
       const now = new Date().toISOString();
+      // 一般メンバーは pending (本人が回答する想定)。
+      // member の after_status はイベントの has_afterparty に従い pending or NULL。
+      const memberAfter = hasAP ? 'pending' : null;
       const addUser = db.prepare(
         `INSERT OR IGNORE INTO event_attendees
-           (id, event_id, user_id, is_observer, status, created_at, updated_at)
-         VALUES (?, ?, ?, 0, 'pending', ?, ?)`,
+           (id, event_id, user_id, is_observer, status, after_status, created_at, updated_at)
+         VALUES (?, ?, ?, 0, 'pending', ?, ?, ?)`,
       );
+      // オブザーバー(ゲスト)は本人が本システムを使わないため、
+      // 追加時点で「出席」「(懇親会あれば) 出席」 を自動セット (legacy 仕様)。
+      const observerAfter = hasAP ? 'yes' : null;
       const addObserver = db.prepare(
         `INSERT INTO event_attendees
-           (id, event_id, user_id, is_observer, observer_name, status, created_at, updated_at)
-         VALUES (?, ?, NULL, 1, ?, 'pending', ?, ?)`,
+           (id, event_id, user_id, is_observer, observer_name, status, after_status, created_at, updated_at)
+         VALUES (?, ?, NULL, 1, ?, 'yes', ?, ?, ?)`,
       );
 
       let added = 0;
       const txn = db.transaction(() => {
         for (const uid of user_ids) {
-          const r = addUser.run(generateAttendeeId(), req.params.id, uid, now, now);
+          const r = addUser.run(
+            generateAttendeeId(),
+            req.params.id,
+            uid,
+            memberAfter,
+            now,
+            now,
+          );
           if (r.changes === 1) added++;
         }
         for (const obs of observers) {
-          const r = addObserver.run(generateAttendeeId(), req.params.id, obs.name, now, now);
+          const r = addObserver.run(
+            generateAttendeeId(),
+            req.params.id,
+            obs.name,
+            observerAfter,
+            now,
+            now,
+          );
           if (r.changes === 1) added++;
         }
       });

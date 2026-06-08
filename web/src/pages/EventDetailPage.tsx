@@ -277,7 +277,7 @@ export function EventDetailPage() {
           eventId={ev.id}
           ev={ev}
           yourRsvp={data.your_rsvp}
-          onSaved={load}
+          onAfterSaveNavigate={() => navigate('/events')}
           onShowQr={() => setShowQr(true)}
         />
       )}
@@ -324,13 +324,13 @@ function NormalView({
   eventId,
   ev,
   yourRsvp,
-  onSaved,
+  onAfterSaveNavigate,
   onShowQr,
 }: {
   eventId: string;
   ev: EventDetail;
   yourRsvp: YourRsvp | null;
-  onSaved: () => Promise<void>;
+  onAfterSaveNavigate: () => void;
   onShowQr: () => void;
 }) {
   const locked = !!(
@@ -372,7 +372,7 @@ function NormalView({
         afterpartyTitle={ev.afterparty_title}
         afterpartyLocation={ev.afterparty_location}
         afterpartyDescription={ev.afterparty_description}
-        onSaved={onSaved}
+        onAfterSaveNavigate={onAfterSaveNavigate}
         onShowQr={onShowQr}
       />
     </>
@@ -452,7 +452,7 @@ function RsvpCard({
   afterpartyTitle,
   afterpartyLocation,
   afterpartyDescription,
-  onSaved,
+  onAfterSaveNavigate,
   onShowQr,
 }: {
   eventId: string;
@@ -463,7 +463,7 @@ function RsvpCard({
   afterpartyTitle: string | null;
   afterpartyLocation: string | null;
   afterpartyDescription: string | null;
-  onSaved: () => Promise<void>;
+  onAfterSaveNavigate: () => void;
   onShowQr: () => void;
 }) {
   // pending を含めて選択候補は yes/no/pending。
@@ -492,7 +492,9 @@ function RsvpCard({
           after_status: hasAfterparty ? afterStatus : null,
         }),
       });
-      await onSaved();
+      // 保存後は /events 一覧に戻る (ユーザー指示)。
+      // onSaved は呼ばない (詳細を再取得するより遷移を優先)。
+      onAfterSaveNavigate();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : '通信エラー');
     } finally {
@@ -903,6 +905,7 @@ function ReceptionView({
               key={a.id}
               attendee={a}
               hasAfterparty={ev.has_afterparty}
+              afterpartyTitle={ev.afterparty_title}
               canDoReception={canDoReception}
               onPatch={(body) => patchAttendee(a.id, body)}
             />
@@ -917,11 +920,13 @@ function ReceptionView({
 function AttendeeRow({
   attendee,
   hasAfterparty,
+  afterpartyTitle,
   canDoReception,
   onPatch,
 }: {
   attendee: Attendee;
   hasAfterparty: boolean;
+  afterpartyTitle: string | null;
   canDoReception: boolean;
   onPatch: (body: Record<string, unknown>) => Promise<void>;
 }) {
@@ -929,6 +934,57 @@ function AttendeeRow({
   const showFee = hasAfterparty && a.after_status === 'yes';
   const name = a.name || (a.is_observer ? '(ゲスト)' : '');
   const initial = (name || '?').trim().charAt(0);
+
+  // legacy renderAdminAttendeeList 同様、出欠 / 受付 / 会費 の手動変更は
+  // すべて confirm ダイアログを挟む。誤タップでの状態変更を防ぐため。
+  function confirmStatus(next: RsvpStatus) {
+    const before = STATUS_LABEL[a.status];
+    const after = STATUS_LABEL[next];
+    if (a.status === next) return;
+    if (!window.confirm(`${name} の出欠を変更します\n\n  ${before}  →  ${after}\n\nよろしいですか?`))
+      return;
+    void onPatch({ status: next });
+  }
+  function confirmAfterStatus(next: RsvpStatus) {
+    const current = a.after_status ?? 'pending';
+    if (current === next) return;
+    const before = STATUS_LABEL[current];
+    const after = STATUS_LABEL[next];
+    const apTitle = afterpartyTitle || '懇親会';
+    if (!window.confirm(`${name} の${apTitle}を変更します\n\n  ${before}  →  ${after}\n\nよろしいですか?`))
+      return;
+    void onPatch({ after_status: next });
+  }
+  function confirmCheckin(setTo: boolean) {
+    if (setTo) {
+      if (!window.confirm(`${name} さんを受付済にします。\nよろしいですか?`))
+        return;
+      void onPatch({ checked_in_at: 'now' });
+    } else {
+      if (!window.confirm(`${name} さんの受付済を取消します。\nよろしいですか?`))
+        return;
+      void onPatch({ checked_in_at: null });
+    }
+  }
+  function confirmFee(setTo: boolean) {
+    if (setTo) {
+      if (
+        !window.confirm(
+          `${name} さんの懇親会会費を受領済にします。\nよろしいですか?`,
+        )
+      )
+        return;
+      void onPatch({ fee_paid: true });
+    } else {
+      if (
+        !window.confirm(
+          `${name} さんの懇親会会費「受領済」を取消します。\nよろしいですか?`,
+        )
+      )
+        return;
+      void onPatch({ fee_paid: false });
+    }
+  }
 
   return (
     <div className={`attendee-row ${a.is_observer ? 'is-observer' : ''}`}>
@@ -943,7 +999,7 @@ function AttendeeRow({
                 <button
                   type="button"
                   className="badge-checked-in"
-                  onClick={() => onPatch({ checked_in_at: null })}
+                  onClick={() => confirmCheckin(false)}
                   title="受付済を取消"
                 >
                   ✓受付済
@@ -952,7 +1008,7 @@ function AttendeeRow({
                 <button
                   type="button"
                   className="badge-not-checked-in"
-                  onClick={() => onPatch({ checked_in_at: 'now' })}
+                  onClick={() => confirmCheckin(true)}
                   title="受付済にする"
                 >
                   受付未
@@ -971,7 +1027,7 @@ function AttendeeRow({
                 <button
                   type="button"
                   className="badge-paid"
-                  onClick={() => onPatch({ fee_paid: false })}
+                  onClick={() => confirmFee(false)}
                   title="会費受領を取消"
                 >
                   💰受領済
@@ -980,7 +1036,7 @@ function AttendeeRow({
                 <button
                   type="button"
                   className="badge-unpaid"
-                  onClick={() => onPatch({ fee_paid: true })}
+                  onClick={() => confirmFee(true)}
                   title="会費を受領済にする"
                 >
                   💰未収
@@ -1029,18 +1085,14 @@ function AttendeeRow({
           <button
             type="button"
             className={`status-btn ${a.status === 'yes' ? 'active yes' : ''}`}
-            onClick={() =>
-              onPatch({ status: a.status === 'yes' ? 'pending' : 'yes' })
-            }
+            onClick={() => confirmStatus(a.status === 'yes' ? 'pending' : 'yes')}
           >
             出
           </button>
           <button
             type="button"
             className={`status-btn ${a.status === 'no' ? 'active no' : ''}`}
-            onClick={() =>
-              onPatch({ status: a.status === 'no' ? 'pending' : 'no' })
-            }
+            onClick={() => confirmStatus(a.status === 'no' ? 'pending' : 'no')}
           >
             欠
           </button>
@@ -1052,9 +1104,7 @@ function AttendeeRow({
               type="button"
               className={`status-btn ${a.after_status === 'yes' ? 'active yes' : ''}`}
               onClick={() =>
-                onPatch({
-                  after_status: a.after_status === 'yes' ? 'pending' : 'yes',
-                })
+                confirmAfterStatus(a.after_status === 'yes' ? 'pending' : 'yes')
               }
             >
               出
@@ -1063,9 +1113,7 @@ function AttendeeRow({
               type="button"
               className={`status-btn ${a.after_status === 'no' ? 'active no' : ''}`}
               onClick={() =>
-                onPatch({
-                  after_status: a.after_status === 'no' ? 'pending' : 'no',
-                })
+                confirmAfterStatus(a.after_status === 'no' ? 'pending' : 'no')
               }
             >
               欠

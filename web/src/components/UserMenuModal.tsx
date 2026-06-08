@@ -19,8 +19,9 @@ export function UserMenuModal({ onClose }: Props) {
   function toggleMode() {
     const next = viewMode === 'admin' ? 'user' : 'admin';
     setViewMode(next);
-    // ユーザーモードに戻る時は /admin/* に居られないので /events に逃がす
-    if (next === 'user' && location.pathname.startsWith('/admin')) {
+    // モード切替時は必ず /events に戻す。途中の画面でモード切替が起きると
+    // 表示中のデータと権限が噛み合わずバグの温床になるため。
+    if (location.pathname !== '/events') {
       navigate('/events');
     }
     onClose();
