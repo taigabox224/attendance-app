@@ -19,7 +19,7 @@ const QrScannerModal = lazy(() =>
   })),
 );
 import {
-  checkInRate,
+  attendanceRate,
   computeBreakdown,
   feeRate,
   type AttendeeStats,
@@ -1172,6 +1172,12 @@ function BreakdownSection({
   attendees: Attendee[];
 }) {
   const [committeeOrder, setCommitteeOrder] = useState<string[]>([]);
+  // 委員会別の母数を出すための active ユーザー一覧。
+  // /api/users は status='left' を除外 + system account を除外して返してくれる
+  // ので、そのままの長さで「active メンバー数」に使える。
+  const [activeUsers, setActiveUsers] = useState<
+    Array<{ id: string; department: string | null }>
+  >([]);
 
   useEffect(() => {
     api<{ departments: string[] }>('/api/masters')
@@ -1179,11 +1185,18 @@ function BreakdownSection({
       .catch(() => {
         /* マスター無しでも alphabetical fallback */
       });
+    api<{ users: Array<{ id: string; department: string | null }> }>(
+      '/api/users',
+    )
+      .then((d) => setActiveUsers(d.users))
+      .catch(() => {
+        /* 取れなくても rate は '—' になるだけ */
+      });
   }, []);
 
   const breakdown = useMemo(
-    () => computeBreakdown(attendees, committeeOrder),
-    [attendees, committeeOrder],
+    () => computeBreakdown(attendees, committeeOrder, activeUsers),
+    [attendees, committeeOrder, activeUsers],
   );
 
   // legacy 互換の CSV 出力 (一発で出席内訳 + 懇親会会費を含む)
@@ -1193,7 +1206,7 @@ function BreakdownSection({
       '委員会',
       '出席数',
       '出席回答数',
-      '招待人数',
+      '委員会人数',
       '参加率',
     ];
     const apHeader = hasAfterparty ? ['懇親会出席予定', '懇親会会費受領'] : [];
@@ -1207,8 +1220,8 @@ function BreakdownSection({
       '',
       breakdown.total.checkedIn,
       breakdown.total.yes,
-      breakdown.total.invited,
-      checkInRate(breakdown.total),
+      breakdown.total.members,
+      attendanceRate(breakdown.total),
       ...apCols(breakdown.total.afterYes, breakdown.total.afterPaid),
     ]);
     for (const g of breakdown.byCommittee) {
@@ -1217,8 +1230,8 @@ function BreakdownSection({
         g.key,
         g.stats.checkedIn,
         g.stats.yes,
-        g.stats.invited,
-        checkInRate(g.stats),
+        g.stats.members,
+        attendanceRate(g.stats),
         ...apCols(g.stats.afterYes, g.stats.afterPaid),
       ]);
     }
@@ -1270,7 +1283,7 @@ function BreakdownSection({
           )}
         </div>
         <div className="breakdown-note">
-          参加率は受付済 ÷ 招待人数 で算出
+          参加率は受付済 ÷ 委員会のアクティブメンバー数で算出
         </div>
       </section>
 
@@ -1307,7 +1320,8 @@ function BreakdownSection({
   );
 }
 
-// 出席内訳の行: legacy 仕様の {attended}/{invited} + サブ「出席回答 N 名」+ 参加率
+// 出席内訳の行: 受付済 / 委員会人数 + サブ「出席回答 N 名」 + 参加率
+// オブザーバーは委員会に属さないので分母は invited (招待 = ゲスト人数) を使う。
 function BreakdownRow({
   label,
   stats,
@@ -1317,16 +1331,24 @@ function BreakdownRow({
   stats: AttendeeStats;
   variant?: 'total' | 'observers';
 }) {
+  const denom =
+    variant === 'observers' ? stats.invited : stats.members;
   return (
     <div className={`breakdown-row ${variant ? `breakdown-${variant}` : ''}`}>
       <div className="bd-label">
         <strong>{label}</strong>
       </div>
       <span className="bd-count">
-        {stats.checkedIn} / {stats.invited}
+        {stats.checkedIn} / {denom}
         <div className="bd-sub">出席回答 {stats.yes} 名</div>
       </span>
-      <span className="bd-rate">{checkInRate(stats)}</span>
+      <span className="bd-rate">
+        {variant === 'observers'
+          ? denom === 0
+            ? '—'
+            : ((stats.checkedIn / denom) * 100).toFixed(1) + '%'
+          : attendanceRate(stats)}
+      </span>
     </div>
   );
 }
