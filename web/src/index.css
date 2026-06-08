@@ -734,7 +734,7 @@ label {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-mute);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 /* フォームラベルの必須/任意マーク (Phase 1 と同じ表現) */
