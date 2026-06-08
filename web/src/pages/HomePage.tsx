@@ -18,23 +18,17 @@ export function HomePage() {
   }
 
   return (
-    <div className="app-frame">
-      <h1>ようこそ</h1>
-      <dl className="user-info">
-        <dt>お名前</dt>
-        <dd>{user.name}</dd>
-        <dt>メールアドレス</dt>
-        <dd className="mono">{user.email}</dd>
-        <dt>ロール</dt>
-        <dd>{ROLE_LABEL[user.role] ?? user.role}</dd>
-      </dl>
+    <div className="screen">
+      <header className="screen-header">
+        <h1 className="screen-title">ホーム</h1>
+        <p className="screen-sub">
+          {user.name} ({ROLE_LABEL[user.role] ?? user.role})
+        </p>
+      </header>
 
-      <div className="action-stack">
+      <div className="action-stack" style={{ marginTop: 0 }}>
         <Link to="/events" className="link-button">
           イベント
-        </Link>
-        <Link to="/change-password" className="link-button">
-          パスワードを変更
         </Link>
         {user.role === 'sysadmin' && (
           <Link to="/admin/users" className="link-button">

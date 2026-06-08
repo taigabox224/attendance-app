@@ -81,17 +81,15 @@ export function EventDetailPage() {
 
   if (error) {
     return (
-      <div className="app-frame">
-        <p>
-          <Link to="/events">← イベント一覧へ</Link>
-        </p>
+      <div className="screen">
+        <Link to="/events" className="back-link">イベント一覧へ</Link>
         <p className="error">{error}</p>
       </div>
     );
   }
   if (!data) {
     return (
-      <div className="app-frame">
+      <div className="screen">
         <p>読込中...</p>
       </div>
     );
@@ -101,55 +99,31 @@ export function EventDetailPage() {
   const yourRsvp = data.your_rsvp;
 
   return (
-    <div className="app-frame">
-      <p>
-        <Link to="/events">← イベント一覧へ</Link>
-      </p>
-      <h1>{ev.title}</h1>
+    <div className="screen">
+      <Link to="/events" className="back-link">イベント一覧へ</Link>
 
       {canEdit && !ev.published && (
-        <p className="note">
+        <p className="note" style={{ marginBottom: 12 }}>
           <span className="badge warn">下書き</span> このイベントはまだ公開されていません。
         </p>
       )}
 
-      <dl className="event-info">
-        <dt>開始</dt>
-        <dd className="mono">{formatDateTime(ev.start_at)}</dd>
-        {ev.end_at && (
-          <>
-            <dt>終了</dt>
-            <dd className="mono">{formatDateTime(ev.end_at)}</dd>
-          </>
-        )}
+      <section className="event-hero">
+        <div className="date">{formatDateTime(ev.start_at)}{ev.end_at ? ` 〜 ${formatDateTime(ev.end_at)}` : ''}</div>
+        <h1 className="title">{ev.title}</h1>
+        {ev.committee && <div className="info-row"><span className="ico">●</span><span>{ev.committee}</span></div>}
+        {ev.location && <div className="info-row"><span className="ico">●</span><span>{ev.location}</span></div>}
         {ev.response_deadline && (
-          <>
-            <dt>回答期限</dt>
-            <dd className="mono">{formatDateTime(ev.response_deadline)}</dd>
-          </>
+          <div className="info-row">
+            <span className="ico">●</span>
+            <span>回答期限 {formatDateTime(ev.response_deadline)}</span>
+          </div>
         )}
-        {ev.committee && (
-          <>
-            <dt>担当委員会</dt>
-            <dd>{ev.committee}</dd>
-          </>
-        )}
-        {ev.location && (
-          <>
-            <dt>場所</dt>
-            <dd>{ev.location}</dd>
-          </>
-        )}
-        {ev.description && (
-          <>
-            <dt>詳細</dt>
-            <dd style={{ whiteSpace: 'pre-wrap' }}>{ev.description}</dd>
-          </>
-        )}
-      </dl>
+        {ev.description && <div className="desc">{ev.description}</div>}
+      </section>
 
       {ev.has_afterparty && (
-        <div className="afterparty-section" style={{ marginTop: 16 }}>
+        <div className="afterparty-section" style={{ marginTop: 0, marginBottom: 16 }}>
           <strong>二次会: {ev.afterparty_title || '(未設定)'}</strong>
           {ev.afterparty_location && (
             <p style={{ margin: '4px 0' }}>{ev.afterparty_location}</p>
@@ -172,7 +146,10 @@ export function EventDetailPage() {
         />
       )}
 
-      <h2 style={{ marginTop: 32 }}>参加者 ({data.attendees.length}名)</h2>
+      <div className="section-label">
+        参加者
+        <span className="count">{data.attendees.length}名</span>
+      </div>
       {data.attendees.length === 0 ? (
         <p className="note">まだ参加者がいません。</p>
       ) : (
@@ -183,9 +160,9 @@ export function EventDetailPage() {
                 <span>{a.name}</span>
                 {a.is_observer && <span className="badge">ゲスト</span>}
                 {a.department && <span className="badge">{a.department}</span>}
-                {a.checked_in_at && <span className="badge ok">受付済</span>}
+                {a.checked_in_at && <span className="status-badge badge-checked">受付済</span>}
               </div>
-              <span className={`status status-${a.status}`}>
+              <span className={`status-badge badge-${a.status}`}>
                 {STATUS_LABEL[a.status]}
               </span>
             </li>

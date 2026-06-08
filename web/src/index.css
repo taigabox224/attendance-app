@@ -1,15 +1,33 @@
 :root {
-  --bg: #faf7f2;
+  /* Phase 1 プロトタイプの palette に揃える */
+  --bg: #f4f1ea;
   --surface: #ffffff;
-  --text: #2a2a2a;
-  --muted: #6b6358;
-  --border: #d8d1c4;
+  --surface-soft: #fbf9f4;
+  --border: #e5dfd2;
+  --border-soft: #efeae0;
+  --text: #1a1a1a;
+  --text-mute: #6e6760;
+  --text-soft: #9b948b;
+  /* legacy 互換のエイリアス (既存クラスが使ってる) */
+  --muted: var(--text-mute);
   --accent: #c7522a;
-  --accent-hover: #a44321;
+  --accent-soft: #f4dcd0;
+  --accent-hover: #b0451f;
   --primary: #355282;
-  --primary-hover: #2a4269;
-  --error: #b03a2e;
-  --success: #2e7d32;
+  --primary-hover: #2a4570;
+  --primary-soft: #dee6f0;
+  --success: #4f7a4d;
+  --success-soft: #dde8dc;
+  --danger: #b84a3e;
+  --danger-soft: #f0d5d1;
+  --warning: #b8893e;
+  --warning-soft: #f0e2c9;
+  --error: var(--danger);
+
+  --shadow-sm: 0 1px 2px rgba(20, 15, 5, 0.04);
+  --shadow-md: 0 4px 14px rgba(20, 15, 5, 0.08);
+  --radius: 14px;
+  --radius-sm: 10px;
 
   --font-sans: 'Noto Sans JP', system-ui, -apple-system, 'Hiragino Kaku Gothic ProN', sans-serif;
   --font-serif: 'Shippori Mincho', 'Hiragino Mincho ProN', serif;
@@ -37,10 +55,186 @@ body {
   min-height: 100vh;
 }
 
+html,
+body {
+  overflow-x: hidden;
+}
+
 .app-frame {
   max-width: 440px;
   margin: 0 auto;
-  padding: 24px 20px 48px;
+  min-height: 100vh;
+  background: var(--bg);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* 認証済みページの内側コンテナ。Topbar の下に置く */
+.screen {
+  padding: 20px 18px 48px;
+}
+
+/* ========== Topbar ========== */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.topbar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+}
+
+.topbar .brand-logo {
+  display: inline-block;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.topbar .brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.topbar .brand-text-line1 {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  color: var(--text-mute);
+  letter-spacing: 0.02em;
+}
+
+.topbar .brand-text-line2 {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.role-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  padding: 6px 12px 6px 6px;
+  border-radius: 100px;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text);
+  transition: background 0.15s;
+}
+
+.role-pill:hover {
+  background: var(--bg);
+  text-decoration: none;
+}
+
+.role-pill .avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.role-pill .label {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.role-pill .name {
+  font-weight: 500;
+  line-height: 1.1;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.role-pill .role {
+  color: var(--text-mute);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+/* ========== Screen header ========== */
+.screen-header {
+  margin-bottom: 18px;
+}
+
+.screen-header.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.screen-header.row > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.screen-title {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0 0 4px;
+}
+
+.screen-sub {
+  font-size: 13px;
+  color: var(--text-mute);
+}
+
+.back-link {
+  display: inline-block;
+  background: none;
+  border: none;
+  color: var(--text-mute);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 14px;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.back-link::before {
+  content: '← ';
+}
+
+.back-link:hover {
+  color: var(--text);
+  text-decoration: none;
 }
 
 h1,
@@ -248,7 +442,7 @@ code,
   margin: 4px 0 0;
 }
 
-/* ========== Event list ========== */
+/* ========== Event list (card) ========== */
 .event-list {
   list-style: none;
   padding: 0;
@@ -258,60 +452,220 @@ code,
   gap: 12px;
 }
 
-.event-row {
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+.event-card {
   background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: transform 0.15s, box-shadow 0.15s;
+  text-decoration: none;
+  color: var(--text);
+  display: block;
 }
 
-.event-row-head {
+.event-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  text-decoration: none;
+}
+
+.event-card .date-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 8px;
 }
 
-.event-row-meta {
+.event-card .date-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-mute);
+  background: var(--surface-soft);
+  border: 1px solid var(--border-soft);
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+.event-card .card-title {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.event-card .card-meta {
+  font-size: 12px;
+  color: var(--text-mute);
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--muted);
-  margin-bottom: 10px;
+  gap: 12px;
 }
 
-.event-row-meta > span {
-  background: rgba(53, 82, 130, 0.06);
-  padding: 2px 8px;
-  border-radius: 12px;
+.event-card .card-meta span::before {
+  content: '· ';
+  color: var(--text-soft);
+  margin-right: 2px;
 }
 
-.event-row-actions {
+.event-card .card-meta span:first-child::before {
+  content: '';
+  margin: 0;
+}
+
+.event-card .card-edit-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.event-card .card-edit-link:hover {
+  text-decoration: underline;
+}
+
+/* ========== Event hero (詳細ヘッダ) ========== */
+.event-hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.event-hero .date {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.event-hero .title {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.25;
+  margin: 0 0 12px;
+}
+
+.event-hero .info-row {
   display: flex;
+  align-items: flex-start;
   gap: 8px;
+  font-size: 13px;
+  color: var(--text-mute);
+  margin-bottom: 4px;
 }
 
-.event-row-actions > .link-button {
-  flex: 1;
-  font-size: 14px;
-  min-height: 36px;
-  padding: 6px 12px;
+.event-hero .info-row .ico {
+  font-size: 12px;
+  opacity: 0.6;
+  flex-shrink: 0;
 }
 
+.event-hero .desc {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text);
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+
+/* ========== Section label (区切り) ========== */
+.section-label {
+  font-size: 12px;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 18px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-label .count {
+  font-family: var(--font-mono);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 10px;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ========== Status badge (色付きドット付き) ========== */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-badge::before {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.badge-pending {
+  background: var(--surface-soft);
+  color: var(--text-mute);
+  border: 1px solid var(--border);
+}
+.badge-pending::before {
+  background: var(--text-soft);
+}
+
+.badge-yes {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.badge-yes::before {
+  background: var(--success);
+}
+
+.badge-no {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.badge-no::before {
+  background: var(--danger);
+}
+
+.badge-checked {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.badge-checked::before {
+  background: var(--accent);
+}
+
+/* 旧 .badge は補助バッジ (committee 名など) で引き続き使うので残す */
 .badge {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(53, 82, 130, 0.08);
+  background: var(--primary-soft);
   color: var(--primary);
   white-space: nowrap;
 }
 
 .badge.warn {
-  background: rgba(199, 82, 42, 0.1);
-  color: var(--accent);
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 /* ========== Event form ========== */

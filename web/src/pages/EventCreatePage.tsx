@@ -18,11 +18,11 @@ export function EventCreatePage() {
   }
 
   return (
-    <div className="app-frame">
-      <p>
-        <Link to="/events">← イベント一覧へ</Link>
-      </p>
-      <h1>新規イベント</h1>
+    <div className="screen">
+      <Link to="/events" className="back-link">イベント一覧へ</Link>
+      <header className="screen-header">
+        <h1 className="screen-title">新規イベント</h1>
+      </header>
       <EventForm
         initialValues={emptyEventForm}
         submitLabel="作成"

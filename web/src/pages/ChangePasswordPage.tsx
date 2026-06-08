@@ -43,8 +43,10 @@ export function ChangePasswordPage() {
   }
 
   return (
-    <div className="app-frame">
-      <h1>パスワード変更</h1>
+    <div className="screen">
+      <header className="screen-header">
+        <h1 className="screen-title">パスワード変更</h1>
+      </header>
       {user?.must_change_password && (
         <p className="note">
           仮パスワードが設定されています。新しいパスワードに変更してください。

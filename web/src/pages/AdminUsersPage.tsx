@@ -71,11 +71,11 @@ export function AdminUsersPage() {
   }
 
   return (
-    <div className="app-frame">
-      <p>
-        <Link to="/">← ホームへ</Link>
-      </p>
-      <h1>ユーザー管理</h1>
+    <div className="screen">
+      <Link to="/" className="back-link">ホームへ</Link>
+      <header className="screen-header">
+        <h1 className="screen-title">ユーザー管理</h1>
+      </header>
 
       {error && <p className="error">{error}</p>}
 

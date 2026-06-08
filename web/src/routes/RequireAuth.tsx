@@ -1,4 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Topbar } from '../components/Topbar';
 import { useAuth } from '../auth/AuthContext';
 
 export function RequireAuth() {
@@ -8,12 +9,19 @@ export function RequireAuth() {
   if (loading) {
     return (
       <div className="app-frame">
-        <p>読込中...</p>
+        <div className="screen">
+          <p>読込中...</p>
+        </div>
       </div>
     );
   }
   if (!user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
-  return <Outlet />;
+  return (
+    <div className="app-frame">
+      <Topbar />
+      <Outlet />
+    </div>
+  );
 }

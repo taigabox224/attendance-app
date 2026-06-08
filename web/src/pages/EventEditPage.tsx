@@ -80,11 +80,11 @@ export function EventEditPage() {
   }
 
   return (
-    <div className="app-frame">
-      <p>
-        <Link to="/events">← イベント一覧へ</Link>
-      </p>
-      <h1>イベント編集</h1>
+    <div className="screen">
+      <Link to="/events" className="back-link">イベント一覧へ</Link>
+      <header className="screen-header">
+        <h1 className="screen-title">イベント編集</h1>
+      </header>
 
       {loadError ? (
         <p className="error">{loadError}</p>
