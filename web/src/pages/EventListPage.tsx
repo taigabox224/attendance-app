@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { formatDateTime } from '../lib/format';
 
 interface EventSummary {
   id: string;
@@ -10,13 +11,6 @@ interface EventSummary {
   committee: string | null;
   location: string | null;
   published: boolean;
-}
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function EventListPage() {
@@ -77,13 +71,16 @@ export function EventListPage() {
                 {e.committee && <span>{e.committee}</span>}
                 {e.location && <span>{e.location}</span>}
               </div>
-              {canEdit && (
-                <div className="event-row-actions">
+              <div className="event-row-actions">
+                <Link to={`/events/${e.id}`} className="link-button">
+                  詳細
+                </Link>
+                {canEdit && (
                   <Link to={`/events/${e.id}/edit`} className="link-button">
                     編集
                   </Link>
-                </div>
-              )}
+                )}
+              </div>
             </li>
           ))}
         </ul>

@@ -355,6 +355,204 @@ textarea {
   min-height: 80px;
 }
 
+/* ========== Event detail / RSVP / Attendees ========== */
+.event-info {
+  margin: 0;
+  font-size: 14px;
+}
+
+.event-info dt {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+.event-info dt:first-child {
+  margin-top: 0;
+}
+
+.event-info dd {
+  margin: 4px 0 0;
+}
+
+.rsvp-section {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.rsvp-radio-group {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 0 0 12px;
+}
+
+.rsvp-radio-group legend {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 6px;
+}
+
+.rsvp-radio-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rsvp-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.rsvp-radio input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.attendee-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attendee-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.attendee-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.badge.ok {
+  background: rgba(46, 125, 50, 0.1);
+  color: var(--success);
+}
+
+.status {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.status-yes {
+  background: rgba(46, 125, 50, 0.1);
+  color: var(--success);
+}
+
+.status-no {
+  background: rgba(176, 58, 46, 0.08);
+  color: var(--error);
+}
+
+/* ========== Attendee manager (editor+) ========== */
+.attendee-manager {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.search-input {
+  width: 100%;
+  font-size: 16px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.user-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  margin-top: 8px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.user-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.user-pick:hover {
+  background: rgba(53, 82, 130, 0.04);
+}
+
+.user-pick input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.user-pick > span:first-of-type {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ========== Modal ========== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: 8px;
+  max-width: 400px;
+  width: 100%;
+  padding: 24px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.qr-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  background: white;
+  border-radius: 6px;
+  margin: 12px 0;
+}
+
 /* ========== Admin user list ========== */
 .user-list {
   list-style: none;

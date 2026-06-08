@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { EventCreatePage } from './pages/EventCreatePage';
+import { EventDetailPage } from './pages/EventDetailPage';
 import { EventEditPage } from './pages/EventEditPage';
 import { EventListPage } from './pages/EventListPage';
 import { HomePage } from './pages/HomePage';
@@ -25,6 +26,7 @@ export function App() {
           <Route element={<RequirePasswordChanged />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/events" element={<EventListPage />} />
+            <Route path="/events/:id" element={<EventDetailPage />} />
             <Route element={<RequireRole minimum="editor" />}>
               <Route path="/events/new" element={<EventCreatePage />} />
               <Route path="/events/:id/edit" element={<EventEditPage />} />
