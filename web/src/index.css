@@ -206,12 +206,12 @@ body {
   border-radius: 50%;
   cursor: pointer;
   /* グリフを少し大きく */
-  font-size: 20px;
+  font-size: 22px;
   color: var(--text-mute);
   /* ⚙ (U+2699) は多くのフォントで em ボックス内の下寄りに描画される
      ので、padding-bottom を多めに取って視覚中心に押し上げる */
   line-height: 0;
-  padding: 0 0 5px 0;
+  padding: 0 0 7px 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -329,12 +329,12 @@ body {
   width: 36px;
   height: 36px;
   min-height: auto;
-  padding: 0 0 5px 0;
+  padding: 0 0 7px 0;
   border: 1px solid var(--border);
   background: var(--surface);
   border-radius: 50%;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 22px;
   color: var(--text-mute);
   /* ⚙ 字の baseline 補正 (user-menu-btn と同じ理由) */
   line-height: 0;
