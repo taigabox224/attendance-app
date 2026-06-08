@@ -50,10 +50,16 @@ interface EventDetail {
   afterparty_description: string | null;
 }
 
+interface Receptionist {
+  user_id: string;
+  name: string;
+}
+
 interface DetailResponse {
   event: EventDetail;
   attendees: Attendee[];
   your_rsvp: YourRsvp | null;
+  receptionists: Receptionist[];
 }
 
 const STATUS_LABEL: Record<RsvpStatus, string> = {
@@ -222,12 +228,16 @@ export function EventDetailPage() {
 
   const ev = data.event;
   const yourRsvp = data.your_rsvp;
+  // 受付担当として scan できるか (sysadmin or 指定された receptionist)
+  const canScanReception =
+    user?.role === 'sysadmin' ||
+    data.receptionists.some((r) => r.user_id === user?.id);
 
   return (
     <div className="screen">
       <div className="detail-toolbar">
         <Link to="/" className="back-link">イベント一覧へ</Link>
-        {canEdit && (
+        {(canEdit || canScanReception) && (
           <button
             className="gear-btn"
             onClick={() => setShowMenu(true)}
@@ -472,9 +482,11 @@ export function EventDetailPage() {
 
       {showQr && <QrModal eventId={ev.id} onClose={() => setShowQr(false)} />}
 
-      {showMenu && canEdit && (
+      {showMenu && (canEdit || canScanReception) && (
         <EventActionsMenu
           eventId={ev.id}
+          canManage={canEdit}
+          canScan={canScanReception}
           onClose={() => setShowMenu(false)}
           onCopyLink={copyShareLink}
           onDelete={deleteEvent}
@@ -677,11 +689,15 @@ function AfterpartyStats({ attendees }: { attendees: Attendee[] }) {
 
 function EventActionsMenu({
   eventId,
+  canManage,
+  canScan,
   onClose,
   onCopyLink,
   onDelete,
 }: {
   eventId: string;
+  canManage: boolean;
+  canScan: boolean;
   onClose: () => void;
   onCopyLink: () => void;
   onDelete: () => void;
@@ -715,30 +731,36 @@ function EventActionsMenu({
           >
             共有リンクをコピー
           </button>
-          <Link
-            to={`/events/${eventId}/reception`}
-            className="link-button"
-            onClick={onClose}
-          >
-            受付モード(QR スキャン)
-          </Link>
-          <Link
-            to={`/events/${eventId}/edit`}
-            className="link-button"
-            onClick={onClose}
-          >
-            編集
-          </Link>
-          <button
-            type="button"
-            className="danger"
-            onClick={() => {
-              onClose();
-              onDelete();
-            }}
-          >
-            このイベントを削除
-          </button>
+          {canScan && (
+            <Link
+              to={`/events/${eventId}/reception`}
+              className="link-button"
+              onClick={onClose}
+            >
+              受付モード(QR スキャン)
+            </Link>
+          )}
+          {canManage && (
+            <Link
+              to={`/events/${eventId}/edit`}
+              className="link-button"
+              onClick={onClose}
+            >
+              編集
+            </Link>
+          )}
+          {canManage && (
+            <button
+              type="button"
+              className="danger"
+              onClick={() => {
+                onClose();
+                onDelete();
+              }}
+            >
+              このイベントを削除
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
 import { formatDateTime } from '../lib/format';
 
 interface CheckinAttendee {
@@ -24,14 +25,21 @@ interface AttendeeRow {
   checked_in_at: string | null;
 }
 
+interface ReceptionistInfo {
+  user_id: string;
+}
+
 const QR_REGION_ID = 'reception-qr-region';
 
 export function ReceptionPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [event, setEvent] = useState<EventSummary | null>(null);
   const [counts, setCounts] = useState({ checkedIn: 0, total: 0 });
   const [result, setResult] = useState<ScanResult | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  // null = まだチェック前 / true = 受付可能 / false = 受付担当ではない
+  const [eligible, setEligible] = useState<boolean | null>(null);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const pausedRef = useRef(false);
@@ -42,16 +50,22 @@ export function ReceptionPage() {
       const d = await api<{
         event: EventSummary;
         attendees: AttendeeRow[];
+        receptionists: ReceptionistInfo[];
       }>(`/api/events/${id}`);
       setEvent(d.event);
       setCounts({
         checkedIn: d.attendees.filter((a) => a.checked_in_at).length,
         total: d.attendees.length,
       });
+      // 受付担当チェック (sysadmin は常に可)
+      const allowed =
+        user?.role === 'sysadmin' ||
+        d.receptionists.some((r) => r.user_id === user?.id);
+      setEligible(allowed);
     } catch {
       // 集計の失敗は致命的じゃない、UI 側で counts が古いまま
     }
-  }, [id]);
+  }, [id, user]);
 
   useEffect(() => {
     reloadCounts();
@@ -104,6 +118,8 @@ export function ReceptionPage() {
   );
 
   useEffect(() => {
+    // 受付担当でない or まだチェック前 → カメラを起動しない
+    if (eligible !== true) return;
     const el = document.getElementById(QR_REGION_ID);
     if (!el) return;
 
@@ -140,7 +156,28 @@ export function ReceptionPage() {
           });
       }
     };
-  }, [handleScan]);
+  }, [handleScan, eligible]);
+
+  if (eligible === false) {
+    return (
+      <div className="screen">
+        <Link to={`/events/${id}`} className="back-link">
+          イベント詳細へ
+        </Link>
+        <header className="screen-header">
+          <h1 className="screen-title">受付モード</h1>
+        </header>
+        <div className="empty-state">
+          <div className="glyph">○</div>
+          <div className="hint">
+            このイベントの受付担当に指定されていません。
+            <br />
+            イベント編集画面の「受付担当」セクションから自分を追加してから再アクセスしてください。
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="screen">
@@ -155,7 +192,9 @@ export function ReceptionPage() {
         </p>
       </header>
 
-      {cameraError ? (
+      {eligible === null ? (
+        <p>読込中...</p>
+      ) : cameraError ? (
         <p className="error">{cameraError}</p>
       ) : (
         <div className="qr-scanner-wrap">

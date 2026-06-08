@@ -532,13 +532,29 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
 
   // 受付スキャン: QR から読み取った JWT を検証 → checked_in_at をセット。
   // 重複は 409 (情報付き)、トークン無効は 400。
-  // 現状 editor+ のみ。受付担当 (event_receptionists) 限定の許可は別途追加可能。
+  // 権限: sysadmin もしくは event_receptionists に指定された user のみ。
+  // editor でも receptionists 未指定なら受付不可 (運用ミス防止)。
   const checkinSchema = z.object({ token: z.string().min(1) });
 
   app.post<{ Params: { id: string } }>(
     '/api/events/:id/checkin',
-    { preHandler: requireRole('editor') },
+    { preHandler: requireAuth },
     async (req, reply) => {
+      // 受付担当チェック
+      const userRole = req.user!.role as Role;
+      if (userRole !== 'sysadmin') {
+        const row = db
+          .prepare(
+            `SELECT 1 FROM event_receptionists WHERE event_id = ? AND user_id = ?`,
+          )
+          .get(req.params.id, req.user!.sub);
+        if (!row) {
+          return reply
+            .code(403)
+            .send({ error: '受付担当に指定されていないため受付できません' });
+        }
+      }
+
       const parsed = checkinSchema.safeParse(req.body);
       if (!parsed.success) {
         return reply.code(400).send({ error: 'token が必要です' });
