@@ -25,7 +25,16 @@ export function QrModal({ eventId, onClose }: Props) {
       onClick={onClose}
     >
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ marginTop: 0 }}>受付用 QR コード</h2>
+        <div className="modal-handle" aria-hidden="true" />
+        <button
+          type="button"
+          className="modal-close"
+          onClick={onClose}
+          aria-label="閉じる"
+        >
+          ×
+        </button>
+        <h2>受付用 QR コード</h2>
         {error ? (
           <p className="error">{error}</p>
         ) : !token ? (
@@ -38,9 +47,6 @@ export function QrModal({ eventId, onClose }: Props) {
         <p className="note">
           当日、受付担当にこの画面を見せてスキャンしてもらってください。
         </p>
-        <button className="secondary" onClick={onClose} style={{ width: '100%' }}>
-          閉じる
-        </button>
       </div>
     </div>
   );

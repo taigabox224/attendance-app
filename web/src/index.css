@@ -267,44 +267,83 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Phase 1 の .btn .btn-primary を bare button のデフォルトとして適用。
+   variants (.btn-outline 等) は class で切り替える */
 button {
-  font-family: inherit;
-  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   min-height: 44px;
-  padding: 10px 18px;
-  border: none;
-  border-radius: 6px;
+  padding: 12px 18px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
   background: var(--primary);
   color: white;
-  transition: background-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 button:hover:not(:disabled) {
   background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 button:disabled {
-  opacity: 0.5;
+  background: var(--text-soft);
+  border-color: var(--text-soft);
   cursor: not-allowed;
 }
 
-button.secondary {
+button.secondary,
+button.btn-outline {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+button.secondary:hover:not(:disabled),
+button.btn-outline:hover:not(:disabled) {
+  background: var(--surface-soft);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+button.danger,
+button.btn-danger {
+  background: var(--surface);
+  color: var(--danger);
+  border-color: var(--danger-soft);
+}
+
+button.danger:hover:not(:disabled),
+button.btn-danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+button.btn-ghost {
   background: transparent;
-  color: var(--primary);
-  border: 1px solid var(--border);
+  border-color: transparent;
+  color: var(--text-mute);
+  min-height: auto;
+  padding: 6px 10px;
 }
 
-button.secondary:hover:not(:disabled) {
-  background: rgba(53, 82, 130, 0.06);
+button.btn-ghost:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text);
 }
 
-button.danger {
-  background: var(--accent);
-}
-
-button.danger:hover:not(:disabled) {
-  background: var(--accent-hover);
+button.btn-sm {
+  padding: 7px 12px;
+  font-size: 12px;
+  min-height: auto;
 }
 
 input,
@@ -313,28 +352,48 @@ textarea {
   font-family: inherit;
   /* iOS Safari の auto-zoom 抑止のため 16px 以上 */
   font-size: 16px;
-  padding: 11px 13px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
   width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 2px solid var(--primary);
-  outline-offset: -2px;
-  border-color: var(--primary);
+  border-color: var(--text);
 }
 
 label {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--text-mute);
   margin-bottom: 6px;
+}
+
+/* フォームラベルの必須/任意マーク (Phase 1 と同じ表現) */
+.required-mark {
+  color: var(--danger);
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+.optional-mark {
+  display: inline-block;
+  background: var(--surface-soft);
+  color: var(--text-soft);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
 }
 
 code,
@@ -346,7 +405,7 @@ code,
 .form-stack {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .field {
@@ -362,6 +421,12 @@ code,
 .field-row > .field {
   flex: 1;
   min-width: 0;
+}
+
+.form-help {
+  font-size: 11px;
+  color: var(--text-mute);
+  margin: 0 0 14px;
 }
 
 .action-stack {
@@ -669,19 +734,31 @@ code,
 }
 
 /* ========== Event form ========== */
+/* checkbox を 行全体のクリッカブルボックス化 (Phase 1 の .checkbox-row 相当) */
 .check {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.check:hover {
+  background: var(--surface-soft);
 }
 
 .check input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   margin: 0;
   padding: 0;
   flex: 0 0 auto;
+  accent-color: var(--text);
 }
 
 .afterparty-section {
@@ -875,27 +952,87 @@ textarea {
   min-width: 0;
 }
 
-/* ========== Modal ========== */
+/* ========== Modal (bottom sheet) ========== */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(15, 12, 8, 0.45);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 20px;
   z-index: 1000;
+  animation: modalFade 0.2s ease;
+}
+
+@keyframes modalFade {
+  from {
+    background: rgba(15, 12, 8, 0);
+  }
 }
 
 .modal {
+  position: relative;
   background: var(--surface);
-  border-radius: 8px;
-  max-width: 400px;
+  border-radius: 22px 22px 0 0;
   width: 100%;
-  padding: 24px;
+  max-width: 440px;
+  padding: 22px 18px 26px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  overflow-x: hidden;
+  animation: modalSlideUp 0.25s ease;
+}
+
+@keyframes modalSlideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 下からスライドアップ感を伝えるハンドル */
+.modal-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 100px;
+  margin: -8px auto 18px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  min-height: auto;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-mute);
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover:not(:disabled) {
+  background: var(--surface-soft);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.modal h2 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0 0 16px;
 }
 
 .qr-wrap {

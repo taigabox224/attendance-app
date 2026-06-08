@@ -54,7 +54,7 @@ export function RegisterPage() {
       <h1>新規登録</h1>
       <form onSubmit={onSubmit} className="form-stack">
         <div className="field">
-          <label htmlFor="email">メールアドレス</label>
+          <label htmlFor="email">メールアドレス <span className="required-mark">*</span></label>
           <input
             id="email"
             type="email"
@@ -66,7 +66,7 @@ export function RegisterPage() {
         </div>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="family_name">苗字</label>
+            <label htmlFor="family_name">苗字 <span className="required-mark">*</span></label>
             <input
               id="family_name"
               type="text"
@@ -78,7 +78,7 @@ export function RegisterPage() {
             />
           </div>
           <div className="field">
-            <label htmlFor="given_name">名前</label>
+            <label htmlFor="given_name">名前 <span className="required-mark">*</span></label>
             <input
               id="given_name"
               type="text"
@@ -91,7 +91,7 @@ export function RegisterPage() {
           </div>
         </div>
         <div className="field">
-          <label htmlFor="password">パスワード (8文字以上)</label>
+          <label htmlFor="password">パスワード (8文字以上) <span className="required-mark">*</span></label>
           <input
             id="password"
             type="password"

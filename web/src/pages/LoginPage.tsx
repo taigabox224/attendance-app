@@ -37,7 +37,7 @@ export function LoginPage() {
       <h1>ログイン</h1>
       <form onSubmit={onSubmit} className="form-stack">
         <div className="field">
-          <label htmlFor="email">メールアドレス</label>
+          <label htmlFor="email">メールアドレス <span className="required-mark">*</span></label>
           <input
             id="email"
             type="email"
@@ -48,7 +48,7 @@ export function LoginPage() {
           />
         </div>
         <div className="field">
-          <label htmlFor="password">パスワード</label>
+          <label htmlFor="password">パスワード <span className="required-mark">*</span></label>
           <input
             id="password"
             type="password"

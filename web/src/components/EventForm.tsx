@@ -124,10 +124,13 @@ function DateTimeRow({
   onTimeChange,
   required,
 }: DateTimeRowProps) {
+  const mark = required
+    ? <span className="required-mark">*</span>
+    : <span className="optional-mark">任意</span>;
   return (
     <div className="field-row">
       <div className="field" style={{ flex: 2 }}>
-        <label htmlFor={`${idPrefix}-date`}>{labelPrefix}(日付)</label>
+        <label htmlFor={`${idPrefix}-date`}>{labelPrefix} {mark}</label>
         <input
           id={`${idPrefix}-date`}
           type="date"
@@ -198,8 +201,11 @@ export function EventForm({
 
   return (
     <form onSubmit={handleSubmit} className="form-stack">
+      <p className="form-help">
+        <span className="required-mark">*</span> は必須項目です
+      </p>
       <div className="field">
-        <label htmlFor="ev-title">タイトル</label>
+        <label htmlFor="ev-title">タイトル <span className="required-mark">*</span></label>
         <input
           id="ev-title"
           type="text"
@@ -240,7 +246,7 @@ export function EventForm({
       />
 
       <div className="field">
-        <label htmlFor="ev-committee">担当委員会(任意)</label>
+        <label htmlFor="ev-committee">担当委員会 <span className="optional-mark">任意</span></label>
         <input
           id="ev-committee"
           type="text"
@@ -251,7 +257,7 @@ export function EventForm({
       </div>
 
       <div className="field">
-        <label htmlFor="ev-location">場所(任意)</label>
+        <label htmlFor="ev-location">場所 <span className="optional-mark">任意</span></label>
         <input
           id="ev-location"
           type="text"
@@ -262,7 +268,7 @@ export function EventForm({
       </div>
 
       <div className="field">
-        <label htmlFor="ev-desc">詳細(任意)</label>
+        <label htmlFor="ev-desc">詳細 <span className="optional-mark">任意</span></label>
         <textarea
           id="ev-desc"
           rows={4}

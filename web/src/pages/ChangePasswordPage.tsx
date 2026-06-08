@@ -54,7 +54,7 @@ export function ChangePasswordPage() {
       )}
       <form onSubmit={onSubmit} className="form-stack">
         <div className="field">
-          <label htmlFor="current_password">現在のパスワード</label>
+          <label htmlFor="current_password">現在のパスワード <span className="required-mark">*</span></label>
           <input
             id="current_password"
             type="password"
@@ -65,7 +65,7 @@ export function ChangePasswordPage() {
           />
         </div>
         <div className="field">
-          <label htmlFor="new_password">新しいパスワード (8文字以上)</label>
+          <label htmlFor="new_password">新しいパスワード (8文字以上) <span className="required-mark">*</span></label>
           <input
             id="new_password"
             type="password"
@@ -77,7 +77,7 @@ export function ChangePasswordPage() {
           />
         </div>
         <div className="field">
-          <label htmlFor="confirm">新しいパスワード (確認)</label>
+          <label htmlFor="confirm">新しいパスワード (確認) <span className="required-mark">*</span></label>
           <input
             id="confirm"
             type="password"
