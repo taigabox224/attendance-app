@@ -587,10 +587,6 @@ export function EventFormFull({ mode, eventId }: Props) {
   return (
     <>
       <form onSubmit={handleSubmit} className="form-stack">
-        <p className="form-help">
-          <span className="required-mark">*</span> は必須項目です
-        </p>
-
         <div className="field">
           <label htmlFor="ef-title">
             タイトル <span className="required-mark">*</span>
@@ -895,7 +891,7 @@ export function EventFormFull({ mode, eventId }: Props) {
           {departments.length > 0 && (
             <>
               <div className="filter-section-label">委員会(複数選択可)</div>
-              <div className="filter-chips">
+              <div className="multiselect-chips">
                 {departments.map((d) => (
                   <button
                     key={d}
@@ -983,7 +979,7 @@ export function EventFormFull({ mode, eventId }: Props) {
           {departments.length > 0 && (
             <>
               <div className="filter-section-label">委員会(複数選択可)</div>
-              <div className="filter-chips">
+              <div className="multiselect-chips">
                 {departments.map((d) => (
                   <button
                     key={d}

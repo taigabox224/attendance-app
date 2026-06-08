@@ -534,8 +534,8 @@ body {
 
 /* ========== Picker card (参加者 / 受付担当の選択枠) ========== */
 .picker-card {
-  margin-bottom: 16px;
-  padding: 12px 12px 10px;
+  margin-bottom: 10px;
+  padding: 10px 10px 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -777,7 +777,22 @@ code,
 .form-stack {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+}
+
+/* イベント作成/編集 のヘッダ: タイトル + 「*は必須項目です」 を横並びにする */
+.event-form-header {
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+.event-form-title {
+  /* 通常の screen-title (26px) より 4px 小さく */
+  font-size: 22px;
+}
+.form-required-note {
+  font-size: 11px;
+  color: var(--text-mute);
+  flex-shrink: 0;
 }
 
 .field {
@@ -787,7 +802,7 @@ code,
 
 .field-row {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 .field-row > .field {
@@ -2234,7 +2249,7 @@ button.badge-unpaid:hover:not(:disabled) {
 
 /* オブザーバー inline 展開セクション */
 .observer-fields {
-  padding: 12px;
+  padding: 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-soft);
