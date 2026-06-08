@@ -19,3 +19,11 @@ export function generateToken(): string {
 export function generateUserId(): string {
   return `u_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 }
+
+export function generateEventId(): string {
+  return `e_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+}
+
+export function generateAttendeeId(): string {
+  return `a_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+}
