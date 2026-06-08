@@ -6,25 +6,23 @@ interface Props
   onChange: (v: string) => void;
 }
 
-// type="date" の native placeholder は browser locale で決まる
-// (Safari は "yyyy/mm/dd", Chrome の ja locale は "年/月/日" 等で揺らぐ)。
-// 空状態だけ pseudo-element で「年 / 月 / 日」を上から被せて統一する。
+// <input type="date"> の薄いラッパ。
+// 以前は wrap div + ::before で 「年 / 月 / 日」 placeholder を被せていたが、
+// その overlay があると Chrome/Safari で native カレンダー picker が
+// 開いた直後に閉じる症状が出るため、ネイティブの placeholder に戻している。
+// (ブラウザ依存で表示は yyyy/mm/dd だったり 年/月/日 だったりするが、picker
+// の信頼性を優先)
 export const DateInput = forwardRef<HTMLInputElement, Props>(function DateInput(
   { value, onChange, ...rest },
   ref,
 ) {
   return (
-    <div
-      className="date-input-wrap"
-      data-has-value={value ? 'true' : 'false'}
-    >
-      <input
-        ref={ref}
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        {...rest}
-      />
-    </div>
+    <input
+      ref={ref}
+      type="date"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      {...rest}
+    />
   );
 });

@@ -992,40 +992,8 @@ code,
   font-size: 13px;
 }
 
-/* ========== Date input with 年/月/日 placeholder ========== */
-.date-input-wrap {
-  position: relative;
-  width: 100%;
-  display: block;
-}
-
-.date-input-wrap input[type='date'] {
-  width: 100%;
-}
-
-/* 空状態: 入力欄の日付テキスト部分 (yyyy/mm/dd) だけを隠して、
-   左にダミーの「年 / 月 / 日」を被せる。
-   ※ 旧実装は input 全体を color: transparent にしていたが、
-     これだとカレンダー picker のレンダリングまで透明色を継承するブラウザがあり、
-     開いた瞬間に picker が消える不具合があった。
-     ::-webkit-datetime-edit に絞ることで picker は通常通り動く。 */
-.date-input-wrap[data-has-value='false']
-  input[type='date']::-webkit-datetime-edit {
-  color: transparent;
-}
-
-.date-input-wrap[data-has-value='false']::before {
-  content: '年 / 月 / 日';
-  position: absolute;
-  left: 13px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: var(--text-soft);
-  font-size: 16px;
-  font-family: inherit;
-  line-height: 1;
-}
+/* date input は plain native に戻したのでカスタム overlay 系は削除済み。
+   browser-default の placeholder (yyyy/mm/dd or 年/月/日) を表示する。 */
 
 /* ========== Event list (card) ========== */
 .event-list {
