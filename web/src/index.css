@@ -159,9 +159,9 @@ body {
 
 .topbar .brand-banner {
   /* 元画像は 718x74 の横長バナー。
-     幅を 170px に固定して高さ自動で aspect ratio 維持 (≈17.5px tall)。
+     幅を 195px に固定して高さ自動で aspect ratio 維持 (≈20px tall)。
      正式ロゴが来たら public/jc-logo.jpg を差し替えるだけで OK */
-  width: 170px;
+  width: 195px;
   height: auto;
   display: block;
   flex-shrink: 1;
@@ -181,7 +181,7 @@ body {
 
 @media (max-width: 380px) {
   .topbar .brand-banner {
-    width: 140px;
+    width: 160px;
   }
   .topbar .brand-app-name {
     font-size: 9px;
