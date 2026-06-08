@@ -237,3 +237,63 @@ code,
 .user-info dd {
   margin: 4px 0 0;
 }
+
+/* ========== Admin user list ========== */
+.user-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.user-row {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.user-row-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.user-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.user-row-meta > span {
+  background: rgba(53, 82, 130, 0.06);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.user-row-meta > span.warn {
+  background: rgba(199, 82, 42, 0.1);
+  color: var(--accent);
+}
+
+.user-row-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.user-row-actions select {
+  flex: 1;
+}
+
+.user-row-actions button {
+  min-height: 38px;
+  padding: 6px 12px;
+  font-size: 14px;
+}
