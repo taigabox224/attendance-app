@@ -37,9 +37,13 @@ interface Props {
 export function AttendeeManager({ eventId, existing, onChange }: Props) {
   const [users, setUsers] = useState<PickerUser[]>([]);
   const [presets, setPresets] = useState<AttendeeListSummary[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [titles, setTitles] = useState<string[]>([]);
   const [query, setQuery] = useState('');
+  const [deptFilter, setDeptFilter] = useState<Set<string>>(new Set());
+  const [titleFilter, setTitleFilter] = useState<string>('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [observerName, setObserverName] = useState('');
+  const [observerNames, setObserverNames] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,10 +65,32 @@ export function AttendeeManager({ eventId, existing, onChange }: Props) {
     }
   }, []);
 
+  const loadMasters = useCallback(async () => {
+    try {
+      const d = await api<{ departments: string[]; titles: string[] }>(
+        '/api/masters',
+      );
+      setDepartments(d.departments);
+      setTitles(d.titles);
+    } catch {
+      // マスター未取得時はフィルタ非表示
+    }
+  }, []);
+
   useEffect(() => {
     loadUsers();
     loadPresets();
-  }, [loadUsers, loadPresets]);
+    loadMasters();
+  }, [loadUsers, loadPresets, loadMasters]);
+
+  function toggleDept(d: string) {
+    setDeptFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(d)) next.delete(d);
+      else next.add(d);
+      return next;
+    });
+  }
 
   async function applyPreset(listId: string) {
     if (!listId) return;
@@ -104,10 +130,16 @@ export function AttendeeManager({ eventId, existing, onChange }: Props) {
     const q = query.trim();
     return users.filter((u) => {
       if (existingUserIds.has(u.id)) return false;
+      if (deptFilter.size > 0) {
+        if (!u.department || !deptFilter.has(u.department)) return false;
+      }
+      if (titleFilter) {
+        if (u.title !== titleFilter) return false;
+      }
       if (q === '') return true;
       return u.name.includes(q);
     });
-  }, [users, existingUserIds, query]);
+  }, [users, existingUserIds, query, deptFilter, titleFilter]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -118,8 +150,15 @@ export function AttendeeManager({ eventId, existing, onChange }: Props) {
     });
   }
 
+  const parsedObservers = useMemo(() => {
+    return observerNames
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }, [observerNames]);
+
   async function add() {
-    if (selected.size === 0 && !observerName.trim()) return;
+    if (selected.size === 0 && parsedObservers.length === 0) return;
     setSaving(true);
     setError(null);
     try {
@@ -127,14 +166,14 @@ export function AttendeeManager({ eventId, existing, onChange }: Props) {
         method: 'POST',
         body: JSON.stringify({
           user_ids: Array.from(selected),
-          observers: observerName.trim()
-            ? [{ name: observerName.trim() }]
-            : [],
+          observers: parsedObservers.map((n) => ({ name: n })),
         }),
       });
       setSelected(new Set());
-      setObserverName('');
+      setObserverNames('');
       setQuery('');
+      setDeptFilter(new Set());
+      setTitleFilter('');
       await onChange();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '通信エラー');
@@ -200,7 +239,50 @@ export function AttendeeManager({ eventId, existing, onChange }: Props) {
           placeholder="名前で検索..."
         />
 
-        <div className="user-picker">
+        {departments.length > 0 && (
+          <>
+            <div className="filter-label" style={{ marginTop: 8 }}>委員会で絞り込み</div>
+            <div className="filter-chips">
+              {departments.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`chip ${deptFilter.has(d) ? 'active' : ''}`}
+                  onClick={() => toggleDept(d)}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {titles.length > 0 && (
+          <>
+            <div className="filter-label" style={{ marginTop: 8 }}>役職で絞り込み</div>
+            <div className="filter-chips">
+              <button
+                type="button"
+                className={`chip ${titleFilter === '' ? 'active' : ''}`}
+                onClick={() => setTitleFilter('')}
+              >
+                全て
+              </button>
+              {titles.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`chip ${titleFilter === t ? 'active' : ''}`}
+                  onClick={() => setTitleFilter(t)}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="user-picker" style={{ marginTop: 8 }}>
           {filtered.length === 0 ? (
             <p className="note" style={{ margin: '8px 0' }}>
               該当ユーザーがいません
@@ -225,24 +307,28 @@ export function AttendeeManager({ eventId, existing, onChange }: Props) {
           <label htmlFor="am-observer">
             ゲスト(オブザーバー)を追加 <span className="optional-mark">任意</span>
           </label>
-          <input
+          <textarea
             id="am-observer"
-            type="text"
-            value={observerName}
-            onChange={(e) => setObserverName(e.target.value)}
-            placeholder="例: 山田 太郎(株式会社X)"
-            maxLength={80}
+            rows={3}
+            value={observerNames}
+            onChange={(e) => setObserverNames(e.target.value)}
+            placeholder={`1行に1名で複数入力できます。例:\n山田 太郎(株式会社X)\n佐藤 花子`}
           />
+          {parsedObservers.length > 0 && (
+            <p className="note" style={{ margin: '4px 0 0' }}>
+              ゲスト {parsedObservers.length} 名を追加
+            </p>
+          )}
         </div>
 
         <button
           onClick={add}
-          disabled={saving || (selected.size === 0 && !observerName.trim())}
+          disabled={saving || (selected.size === 0 && parsedObservers.length === 0)}
           style={{ marginTop: 12 }}
         >
           {saving
             ? '追加中...'
-            : `${selected.size + (observerName.trim() ? 1 : 0)}名を追加`}
+            : `${selected.size + parsedObservers.length}名を追加`}
         </button>
       </div>
 

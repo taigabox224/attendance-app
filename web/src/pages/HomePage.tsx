@@ -19,6 +19,7 @@ interface EventSummary {
   committee: string | null;
   location: string | null;
   published: boolean;
+  created_by: string;
 }
 
 const PRESET_LABELS: { key: DateRangePreset; label: string }[] = [
@@ -137,28 +138,32 @@ export function HomePage() {
         </div>
       ) : (
         <ul className="event-list">
-          {visibleEvents.map((e) => (
-            <li key={e.id}>
-              <Link to={`/events/${e.id}`} className="event-card">
-                <div className="date-row">
-                  <span className="date-tag">{formatDateTime(e.start_at)}</span>
-                  {canEdit && !e.published && (
-                    <span className="badge warn">下書き</span>
-                  )}
-                </div>
-                <div className="card-title">{e.title}</div>
-                <div className="card-meta">
-                  {e.committee && <span>{e.committee}</span>}
-                  {e.location && <span>{e.location}</span>}
-                </div>
-              </Link>
-              {canEdit && (
-                <Link to={`/events/${e.id}/edit`} className="card-edit-link">
-                  編集する →
+          {visibleEvents.map((e) => {
+            const isOwn = isPrivileged && e.created_by === user.id;
+            return (
+              <li key={e.id}>
+                <Link to={`/events/${e.id}`} className="event-card">
+                  <div className="date-row">
+                    <span className="date-tag">{formatDateTime(e.start_at)}</span>
+                    {canEdit && !e.published && (
+                      <span className="badge warn">下書き</span>
+                    )}
+                    {isOwn && <span className="badge">自作</span>}
+                  </div>
+                  <div className="card-title">{e.title}</div>
+                  <div className="card-meta">
+                    {e.committee && <span>{e.committee}</span>}
+                    {e.location && <span>{e.location}</span>}
+                  </div>
                 </Link>
-              )}
-            </li>
-          ))}
+                {canEdit && (
+                  <Link to={`/events/${e.id}/edit`} className="card-edit-link">
+                    編集する →
+                  </Link>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

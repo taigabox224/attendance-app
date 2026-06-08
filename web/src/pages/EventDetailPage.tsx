@@ -250,9 +250,13 @@ export function EventDetailPage() {
       </div>
 
       {canEdit && !ev.published && (
-        <p className="note" style={{ marginBottom: 12 }}>
-          <span className="badge warn">下書き</span> このイベントはまだ公開されていません。
-        </p>
+        <div
+          className="draft-notice"
+          role="status"
+        >
+          <span className="badge warn">下書き</span>
+          <span>このイベントはまだ公開されていません</span>
+        </div>
       )}
 
       {error && <p className="error">{error}</p>}

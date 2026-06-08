@@ -988,6 +988,21 @@ code,
   text-decoration: underline;
 }
 
+/* 下書き状態の警告バナー (イベント詳細上) */
+.draft-notice {
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 /* ========== Event hero (詳細ヘッダ) ========== */
 .event-hero {
   background: var(--surface);
