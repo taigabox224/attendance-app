@@ -119,12 +119,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     '/api/admin/users',
     { preHandler: requireRole('editor') },
     async () => {
+      // system account (運用専用 sysadmin) は一覧から完全に隠す。
+      // 編集導線も無くなるので「ユーザーからの編集」が不可能になる。
       const rows = db
         .prepare(
           `SELECT id, email, name, family_name, given_name, role, department, title,
                   status, display_order,
                   email_verified_at, must_change_password, created_at, updated_at
-           FROM users ORDER BY created_at DESC`,
+           FROM users
+           WHERE is_system_account = 0
+           ORDER BY created_at DESC`,
         )
         .all() as UserListRow[];
       return {
@@ -156,9 +160,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       if (!parsed.success) return reply.code(400).send({ error: '入力が不正です' });
 
       const existing = db
-        .prepare(`SELECT id FROM users WHERE id = ?`)
-        .get(req.params.id) as { id: string } | undefined;
+        .prepare(`SELECT id, is_system_account FROM users WHERE id = ?`)
+        .get(req.params.id) as
+        | { id: string; is_system_account: number }
+        | undefined;
       if (!existing) return reply.code(404).send({ error: 'User not found' });
+      if (existing.is_system_account === 1) {
+        return reply
+          .code(403)
+          .send({ error: 'システムアカウントは編集できません' });
+      }
 
       const sets: string[] = [];
       const params: unknown[] = [];
@@ -246,6 +257,18 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       // sysadmin が自分を消すと詰むので拒否
       if (req.user!.sub === req.params.id) {
         return reply.code(400).send({ error: '自分自身は削除できません' });
+      }
+      // システムアカウント (運用専用 sysadmin) は削除させない
+      const existing = db
+        .prepare(`SELECT is_system_account FROM users WHERE id = ?`)
+        .get(req.params.id) as { is_system_account: number } | undefined;
+      if (!existing) {
+        return reply.code(404).send({ error: 'User not found' });
+      }
+      if (existing.is_system_account === 1) {
+        return reply
+          .code(403)
+          .send({ error: 'システムアカウントは削除できません' });
       }
       const result = db
         .prepare(`DELETE FROM users WHERE id = ?`)

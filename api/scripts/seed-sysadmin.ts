@@ -85,13 +85,30 @@ const now = new Date().toISOString();
 const hash = await hashPassword(password);
 const id = generateUserId();
 
+// 非個人 (NAME のみで FAMILY/GIVEN なし) のアカウントは「運用専用 = システム
+// アカウント」として扱う。これで参加者ピッカーやユーザー管理一覧から自動的に
+// 隠れる (詳細は migrations/009_user_is_system_account.sql 参照)。
+const isSystemAccount = !familyName && !givenName ? 1 : 0;
+
 db.prepare(
   `INSERT INTO users (
      id, email, email_normalized, name, family_name, given_name,
      password_hash, role, email_verified_at, must_change_password,
-     created_at, updated_at
-   ) VALUES (?, ?, ?, ?, ?, ?, ?, 'sysadmin', ?, 0, ?, ?)`,
-).run(id, email, normalized, name, dbFamily, dbGiven, hash, now, now, now);
+     is_system_account, created_at, updated_at
+   ) VALUES (?, ?, ?, ?, ?, ?, ?, 'sysadmin', ?, 0, ?, ?, ?)`,
+).run(
+  id,
+  email,
+  normalized,
+  name,
+  dbFamily,
+  dbGiven,
+  hash,
+  now,
+  isSystemAccount,
+  now,
+  now,
+);
 
 console.log(`Created sysadmin: id=${id} email=${email} name=${name}`);
 process.exit(0);

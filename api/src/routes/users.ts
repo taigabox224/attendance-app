@@ -13,6 +13,7 @@ export async function registerUserRoutes(app: FastifyInstance): Promise<void> {
         `SELECT id, name, family_name, given_name, department, title
          FROM users
          WHERE status != 'left'
+           AND is_system_account = 0
          ORDER BY display_order IS NULL,
                   display_order,
                   COALESCE(family_name, ''),
