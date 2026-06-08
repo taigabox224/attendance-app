@@ -10,6 +10,17 @@ interface PickerUser {
   title: string | null;
 }
 
+interface AttendeeListSummary {
+  id: string;
+  name: string;
+  member_count: number;
+}
+
+interface AttendeeListDetail {
+  id: string;
+  user_ids: string[];
+}
+
 export interface ExistingAttendee {
   id: string;
   user_id: string | null;
@@ -25,6 +36,7 @@ interface Props {
 
 export function AttendeeManager({ eventId, existing, onChange }: Props) {
   const [users, setUsers] = useState<PickerUser[]>([]);
+  const [presets, setPresets] = useState<AttendeeListSummary[]>([]);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [observerName, setObserverName] = useState('');
@@ -40,9 +52,43 @@ export function AttendeeManager({ eventId, existing, onChange }: Props) {
     }
   }, []);
 
+  const loadPresets = useCallback(async () => {
+    try {
+      const d = await api<{ lists: AttendeeListSummary[] }>('/api/attendee-lists');
+      setPresets(d.lists);
+    } catch {
+      // 取得失敗時は preset 機能を非表示にする
+    }
+  }, []);
+
   useEffect(() => {
     loadUsers();
-  }, [loadUsers]);
+    loadPresets();
+  }, [loadUsers, loadPresets]);
+
+  async function applyPreset(listId: string) {
+    if (!listId) return;
+    try {
+      const d = await api<{ list: AttendeeListDetail }>(
+        `/api/attendee-lists/${listId}`,
+      );
+      // 既存 attendee の user_id を除外してから追加
+      const existingIds = new Set(
+        existing
+          .map((a) => a.user_id)
+          .filter((id): id is string => id !== null),
+      );
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const uid of d.list.user_ids) {
+          if (!existingIds.has(uid)) next.add(uid);
+        }
+        return next;
+      });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : '通信エラー');
+    }
+  }
 
   const existingUserIds = useMemo(
     () =>
@@ -122,6 +168,29 @@ export function AttendeeManager({ eventId, existing, onChange }: Props) {
         <p className="picker-card-help">
           既存ユーザーから複数選択、またはゲスト名を直接入力できます。
         </p>
+
+        {presets.length > 0 && (
+          <div className="field" style={{ marginBottom: 8 }}>
+            <label htmlFor="am-preset">プリセットから一括追加</label>
+            <select
+              id="am-preset"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  applyPreset(e.target.value);
+                  e.target.value = '';
+                }
+              }}
+            >
+              <option value="">選択してください...</option>
+              {presets.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.member_count}名)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <input
           type="search"

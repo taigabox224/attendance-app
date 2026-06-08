@@ -27,3 +27,7 @@ export function generateEventId(): string {
 export function generateAttendeeId(): string {
   return `a_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 }
+
+export function generateListId(): string {
+  return `l_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+}

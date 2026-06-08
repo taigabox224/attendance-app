@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import Fastify from 'fastify';
 import { runMigrations } from './db.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerAttendeeListRoutes } from './routes/attendee-lists.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerMasterRoutes } from './routes/masters.js';
@@ -31,6 +32,7 @@ await registerAdminRoutes(app);
 await registerEventRoutes(app);
 await registerUserRoutes(app);
 await registerMasterRoutes(app);
+await registerAttendeeListRoutes(app);
 
 app.get('/health', async () => ({ ok: true }));
 
