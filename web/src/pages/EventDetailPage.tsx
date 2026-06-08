@@ -4,6 +4,13 @@ import { ApiError, api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { AttendeeManager } from '../components/AttendeeManager';
 import { QrModal } from '../components/QrModal';
+import {
+  attendanceRate,
+  checkInRate,
+  computeBreakdown,
+  type AttendeeStats,
+} from '../lib/breakdown';
+import { downloadCsv, sanitizeFilenamePart } from '../lib/csv';
 import { formatDateTime } from '../lib/format';
 
 type RsvpStatus = 'pending' | 'yes' | 'no';
@@ -191,6 +198,13 @@ export function EventDetailPage() {
         />
       )}
 
+      {canEdit && data.attendees.length > 0 && (
+        <BreakdownSection
+          eventTitle={ev.title}
+          attendees={data.attendees}
+        />
+      )}
+
       <div className="section-label">
         参加者
         <span className="count">
@@ -281,6 +295,159 @@ export function EventDetailPage() {
           onClose={() => setShowMenu(false)}
         />
       )}
+    </div>
+  );
+}
+
+function BreakdownSection({
+  eventTitle,
+  attendees,
+}: {
+  eventTitle: string;
+  attendees: Attendee[];
+}) {
+  const [committeeOrder, setCommitteeOrder] = useState<string[]>([]);
+
+  useEffect(() => {
+    api<{ departments: string[] }>('/api/masters')
+      .then((d) => setCommitteeOrder(d.departments))
+      .catch(() => {
+        /* マスターが取れない時は alphabetical fallback で OK */
+      });
+  }, []);
+
+  const breakdown = useMemo(
+    () => computeBreakdown(attendees, committeeOrder),
+    [attendees, committeeOrder],
+  );
+
+  function exportBreakdownCsv() {
+    const rows: Array<Array<unknown>> = [
+      ['区分', '招待', '出席', '欠席', '未回答', '受付済', '出席率', '受付率'],
+    ];
+    for (const g of breakdown.byCommittee) {
+      rows.push([
+        g.key,
+        g.stats.invited,
+        g.stats.yes,
+        g.stats.no,
+        g.stats.pending,
+        g.stats.checkedIn,
+        attendanceRate(g.stats),
+        checkInRate(g.stats),
+      ]);
+    }
+    rows.push([
+      '全体',
+      breakdown.total.invited,
+      breakdown.total.yes,
+      breakdown.total.no,
+      breakdown.total.pending,
+      breakdown.total.checkedIn,
+      attendanceRate(breakdown.total),
+      checkInRate(breakdown.total),
+    ]);
+    if (breakdown.observers.invited > 0) {
+      rows.push([
+        'オブザーバー',
+        breakdown.observers.invited,
+        breakdown.observers.yes,
+        breakdown.observers.no,
+        breakdown.observers.pending,
+        breakdown.observers.checkedIn,
+        attendanceRate(breakdown.observers),
+        checkInRate(breakdown.observers),
+      ]);
+    }
+    downloadCsv(`${sanitizeFilenamePart(eventTitle)}_出席内訳.csv`, rows);
+  }
+
+  function exportAttendeesCsv() {
+    const rows: Array<Array<unknown>> = [
+      ['氏名', '区分', '委員会', '役職', '出欠', '二次会', '受付済', '受付時刻'],
+    ];
+    for (const a of attendees) {
+      const statusLabel =
+        a.status === 'yes' ? '出席' : a.status === 'no' ? '欠席' : '未回答';
+      const afterLabel = a.after_status
+        ? a.after_status === 'yes'
+          ? '参加'
+          : a.after_status === 'no'
+            ? '不参加'
+            : '未回答'
+        : '';
+      rows.push([
+        a.name,
+        a.is_observer ? 'ゲスト' : '会員',
+        a.department ?? '',
+        a.title ?? '',
+        statusLabel,
+        afterLabel,
+        a.checked_in_at ? '済' : '',
+        a.checked_in_at ? formatDateTime(a.checked_in_at) : '',
+      ]);
+    }
+    downloadCsv(`${sanitizeFilenamePart(eventTitle)}_参加者一覧.csv`, rows);
+  }
+
+  return (
+    <section className="breakdown-card">
+      <div className="breakdown-header">
+        <span>出席内訳</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            type="button"
+            className="btn-outline btn-sm"
+            onClick={exportBreakdownCsv}
+          >
+            内訳 CSV
+          </button>
+          <button
+            type="button"
+            className="btn-outline btn-sm"
+            onClick={exportAttendeesCsv}
+          >
+            参加者 CSV
+          </button>
+        </div>
+      </div>
+
+      <div className="breakdown-rows">
+        {breakdown.byCommittee.map((g) => (
+          <BreakdownRow key={g.key} label={g.key} stats={g.stats} />
+        ))}
+        <BreakdownRow label="全体" stats={breakdown.total} variant="total" />
+        {breakdown.observers.invited > 0 && (
+          <BreakdownRow
+            label="オブザーバー"
+            stats={breakdown.observers}
+            variant="observers"
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function BreakdownRow({
+  label,
+  stats,
+  variant,
+}: {
+  label: string;
+  stats: AttendeeStats;
+  variant?: 'total' | 'observers';
+}) {
+  return (
+    <div className={`breakdown-row ${variant ? `breakdown-${variant}` : ''}`}>
+      <div className="bd-label">
+        <strong>{label}</strong>
+        <span className="bd-sub">
+          出席 {stats.yes} / 欠席 {stats.no} / 未回答 {stats.pending} / 受付 {stats.checkedIn}
+        </span>
+      </div>
+      <span className="bd-count">{stats.yes}/{stats.invited}名</span>
+      <span className="bd-rate">{attendanceRate(stats)}</span>
     </div>
   );
 }

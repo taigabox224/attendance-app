@@ -1507,6 +1507,97 @@ textarea {
   margin-top: 2px;
 }
 
+/* ========== Breakdown card (出席内訳) ========== */
+.breakdown-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.breakdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-mute);
+  margin-bottom: 8px;
+  font-weight: 500;
+  gap: 8px;
+}
+
+.breakdown-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.breakdown-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 4px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 13px;
+}
+
+.breakdown-row:first-of-type {
+  border-top: none;
+}
+
+.breakdown-row .bd-label {
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+}
+
+.breakdown-row .bd-label strong {
+  font-weight: 500;
+}
+
+.breakdown-row .bd-sub {
+  font-size: 10px;
+  color: var(--text-soft);
+  margin-top: 2px;
+}
+
+.breakdown-row .bd-count {
+  font-family: var(--font-mono);
+  color: var(--text-mute);
+  font-size: 12px;
+  text-align: right;
+}
+
+.breakdown-row .bd-rate {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text);
+  min-width: 56px;
+  text-align: right;
+}
+
+.breakdown-row.breakdown-total {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.breakdown-row.breakdown-total .bd-label strong {
+  font-weight: 700;
+}
+
+.breakdown-row.breakdown-total .bd-rate {
+  color: var(--primary);
+}
+
+.breakdown-row.breakdown-observers {
+  border-top: 1px dashed var(--border);
+}
+
+.breakdown-row.breakdown-observers .bd-rate {
+  color: var(--text-soft);
+}
+
 /* ========== Master list (委員会 / 役職 編集) ========== */
 .master-section {
   background: var(--surface);
