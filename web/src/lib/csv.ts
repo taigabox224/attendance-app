@@ -31,3 +31,61 @@ export function downloadCsv(filename: string, rows: Array<Array<unknown>>): void
 export function sanitizeFilenamePart(s: string): string {
   return s.replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40) || 'untitled';
 }
+
+// シンプルな CSV パーサ。Excel 等が吐く quoted field + CRLF/LF 両対応。
+// 先頭の BOM (U+FEFF) は剥がしてから渡すこと。
+export function parseCsv(text: string): string[][] {
+  const stripped = text.replace(/^﻿/, '');
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let i = 0;
+  let inQuotes = false;
+  while (i < stripped.length) {
+    const c = stripped[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (stripped[i + 1] === '"') {
+          field += '"';
+          i += 2;
+        } else {
+          inQuotes = false;
+          i++;
+        }
+      } else {
+        field += c;
+        i++;
+      }
+    } else {
+      if (c === '"') {
+        inQuotes = true;
+        i++;
+      } else if (c === ',') {
+        row.push(field);
+        field = '';
+        i++;
+      } else if (c === '\r') {
+        if (stripped[i + 1] === '\n') i += 2;
+        else i++;
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+      } else if (c === '\n') {
+        i++;
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+      } else {
+        field += c;
+        i++;
+      }
+    }
+  }
+  if (field !== '' || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}

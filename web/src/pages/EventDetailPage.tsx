@@ -10,7 +10,7 @@ import {
   computeBreakdown,
   type AttendeeStats,
 } from '../lib/breakdown';
-import { downloadCsv, sanitizeFilenamePart } from '../lib/csv';
+import { downloadCsv, parseCsv, sanitizeFilenamePart } from '../lib/csv';
 import { formatDateTime } from '../lib/format';
 
 type RsvpStatus = 'pending' | 'yes' | 'no';
@@ -315,8 +315,12 @@ export function EventDetailPage() {
 
       {canEdit && data.attendees.length > 0 && (
         <BreakdownSection
+          eventId={ev.id}
           eventTitle={ev.title}
+          hasAfterparty={ev.has_afterparty}
           attendees={data.attendees}
+          onReload={load}
+          onToast={showToast}
         />
       )}
 
@@ -518,13 +522,23 @@ export function EventDetailPage() {
 }
 
 function BreakdownSection({
+  eventId,
   eventTitle,
+  hasAfterparty,
   attendees,
+  onReload,
+  onToast,
 }: {
+  eventId: string;
   eventTitle: string;
+  hasAfterparty: boolean;
   attendees: Attendee[];
+  onReload: () => Promise<void>;
+  onToast: (msg: string) => void;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [committeeOrder, setCommitteeOrder] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     api<{ departments: string[] }>('/api/masters')
@@ -580,6 +594,141 @@ function BreakdownSection({
     downloadCsv(`${sanitizeFilenamePart(eventTitle)}_出席内訳.csv`, rows);
   }
 
+  async function importAttendeesCsv(file: File) {
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text);
+      if (rows.length === 0) {
+        window.alert('CSV が空です。');
+        return;
+      }
+      const header = (rows[0] ?? []).map((s) => s.trim());
+      const idIdx = header.indexOf('ユーザーID');
+      const nameIdx = header.indexOf('氏名');
+      const altNameIdx = header.indexOf('名前');
+      const statusIdx = header.indexOf('出欠');
+      const afterIdx = header.indexOf('二次会');
+      const altAfterIdx = header.indexOf('懇親会');
+
+      const useNameIdx = nameIdx >= 0 ? nameIdx : altNameIdx;
+      const useAfterIdx = afterIdx >= 0 ? afterIdx : altAfterIdx;
+
+      if (statusIdx < 0) {
+        window.alert('「出欠」列が見つかりません。CSV ヘッダを確認してください。');
+        return;
+      }
+
+      const JP_TO_STATUS: Record<string, 'yes' | 'no' | 'pending'> = {
+        出席: 'yes',
+        欠席: 'no',
+        未回答: 'pending',
+        yes: 'yes',
+        no: 'no',
+        pending: 'pending',
+      };
+
+      const memberByName = new Map(
+        attendees
+          .filter((a) => !a.is_observer)
+          .map((a) => [a.name, a]),
+      );
+      const byUserId = new Map(
+        attendees
+          .filter((a) => a.user_id)
+          .map((a) => [a.user_id!, a]),
+      );
+
+      interface Update {
+        attendee_id: string;
+        name: string;
+        status: 'yes' | 'no' | 'pending';
+        after_status: 'yes' | 'no' | 'pending' | null;
+      }
+      const updates: Update[] = [];
+      const skipped: string[] = [];
+
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r] ?? [];
+        let attendee: Attendee | undefined;
+        if (idIdx >= 0) {
+          const v = (row[idIdx] ?? '').trim();
+          if (v) attendee = byUserId.get(v);
+        }
+        if (!attendee && useNameIdx >= 0) {
+          const v = (row[useNameIdx] ?? '').trim();
+          if (v) attendee = memberByName.get(v);
+        }
+        const rowLabel =
+          (useNameIdx >= 0 ? (row[useNameIdx] ?? '').trim() : '') ||
+          (idIdx >= 0 ? (row[idIdx] ?? '').trim() : '') ||
+          `行${r + 1}`;
+        if (!attendee) {
+          skipped.push(rowLabel);
+          continue;
+        }
+        const statusJp = (row[statusIdx] ?? '').trim();
+        const newStatus = JP_TO_STATUS[statusJp];
+        if (!newStatus) {
+          skipped.push(`${rowLabel} (出欠 "${statusJp}" 不明)`);
+          continue;
+        }
+        let newAfter: 'yes' | 'no' | 'pending' | null = null;
+        if (hasAfterparty && useAfterIdx >= 0) {
+          const v = (row[useAfterIdx] ?? '').trim();
+          // 二次会列の値が空文字 / 不明な場合は null (変更なし)
+          newAfter = JP_TO_STATUS[v] ?? null;
+        }
+        updates.push({
+          attendee_id: attendee.id,
+          name: rowLabel,
+          status: newStatus,
+          after_status: newAfter,
+        });
+      }
+
+      if (updates.length === 0) {
+        window.alert(
+          '反映できる行がありませんでした。' +
+            (skipped.length ? `\nスキップ ${skipped.length} 件` : ''),
+        );
+        return;
+      }
+
+      const msg =
+        `${updates.length} 件の出欠を更新します。` +
+        (skipped.length
+          ? `\nスキップ ${skipped.length} 件: ${skipped.slice(0, 3).join(', ')}${skipped.length > 3 ? '…' : ''}`
+          : '') +
+        '\n\n出席に切り替えた行は受付済としても登録されます。よろしいですか?';
+      if (!window.confirm(msg)) return;
+
+      // 直列で PATCH (N は通常 < 200 なので問題なし)
+      for (const u of updates) {
+        const body: Record<string, unknown> = { status: u.status };
+        // 出席にしたら受付済も自動 set (legacy 仕様)
+        if (u.status === 'yes') body.checked_in_at = 'now';
+        else if (u.status !== 'pending') body.checked_in_at = null;
+        if (hasAfterparty && u.after_status !== null) {
+          body.after_status = u.after_status;
+        }
+        await api(`/api/events/${eventId}/attendees/${u.attendee_id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        });
+      }
+
+      await onReload();
+      onToast(
+        `${updates.length} 件を更新${skipped.length ? ` (${skipped.length} 件スキップ)` : ''}`,
+      );
+    } catch (e) {
+      window.alert(`CSV インポートに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setImporting(false);
+    }
+  }
+
   function exportAttendeesCsv() {
     const rows: Array<Array<unknown>> = [
       ['氏名', '区分', '委員会', '役職', '出欠', '二次会', '受付済', '受付時刻'],
@@ -612,11 +761,12 @@ function BreakdownSection({
     <section className="breakdown-card">
       <div className="breakdown-header">
         <span>出席内訳</span>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button
             type="button"
             className="btn-outline btn-sm"
             onClick={exportBreakdownCsv}
+            disabled={importing}
           >
             内訳 CSV
           </button>
@@ -624,9 +774,30 @@ function BreakdownSection({
             type="button"
             className="btn-outline btn-sm"
             onClick={exportAttendeesCsv}
+            disabled={importing}
           >
             参加者 CSV
           </button>
+          <button
+            type="button"
+            className="btn-outline btn-sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            title="氏名 + 出欠 列を含む CSV をアップロード"
+          >
+            {importing ? '取込中...' : 'CSV 取込'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            style={{ display: 'none' }}
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (f) await importAttendeesCsv(f);
+              e.target.value = '';
+            }}
+          />
         </div>
       </div>
 
