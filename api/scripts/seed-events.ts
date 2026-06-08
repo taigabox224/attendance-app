@@ -33,12 +33,20 @@ if (force) {
   db.prepare('DELETE FROM events').run();
 }
 
+// システムアカウント (運用専用 sysadmin) は出欠データに混ぜない。
+// 通常の sysadmin (個人アカウント) は普通に参加者として扱う。
 const users = db
-  .prepare(`SELECT id, name, role FROM users ORDER BY created_at`)
+  .prepare(
+    `SELECT id, name, role FROM users
+     WHERE is_system_account = 0
+     ORDER BY created_at`,
+  )
   .all() as Array<{ id: string; name: string; role: string }>;
 
 if (users.length === 0) {
-  console.error('users が 0 件です。先に npm run seed:sysadmin で作成者を用意してください。');
+  console.error(
+    'users が 0 件です。先に npm run seed:sysadmin / seed:users で参加者を用意してください。',
+  );
   process.exit(1);
 }
 
@@ -77,31 +85,52 @@ interface SeedEvent {
 }
 
 const events: SeedEvent[] = [
+  // 過去イベント (回答締切超過の表示テスト用)
+  {
+    title: '2026年5月度例会',
+    startOffsetDays: -20,
+    startHour: 19,
+    endHour: 21,
+    committee: '正副・幹事',
+    location: 'スターツおおたかの森ホール',
+    description: '5月の定例会。スーツ着用。',
+    published: true,
+    has_afterparty: true,
+    afterparty_title: '懇親会',
+    afterparty_location: '居酒屋 旬彩',
+    afterparty_description: '会費 4,000 円',
+    attendeeScope: 'all',
+    checkedInCount: 8, // 過去イベントなのでほぼ全員受付済
+    observers: ['(ゲスト) 山田太郎'],
+  },
+  // 近日開催 (受付モード動作確認用)
   {
     title: '2026年6月度例会',
     startOffsetDays: 2,
     startHour: 19,
     endHour: 21,
-    committee: '事業',
+    committee: '拡大ヒーローズ',
     location: 'スターツおおたかの森ホール',
-    description: 'スーツ着用。受付は 18:30 から。\n初参加の方は受付で氏名をお伝えください。',
+    description:
+      'スーツ着用。受付は 18:30 から。\n初参加の方は受付で氏名をお伝えください。',
     published: true,
     has_afterparty: true,
     afterparty_title: '懇親会',
     afterparty_location: '居酒屋 旬彩(本社から徒歩3分)',
     afterparty_description: '会費 4,000 円(当日集金)',
     attendeeScope: 'all',
-    checkedInCount: 1, // 1 人だけ受付済み → 受付モードで残り 2 人を試せる
-    observers: ['ゲスト 山田 太郎(株式会社X)'],
+    checkedInCount: 2, // 一部だけ受付済 → 受付モードで残りをスキャン
+    observers: ['(ゲスト) 鈴木花子(株式会社X)'],
   },
+  // 来月の研修
   {
     title: '2026年7月度例会',
     startOffsetDays: 30,
     startHour: 19,
     endHour: 21,
-    committee: '研修',
+    committee: '経営革新',
     location: '流山市役所 大会議室',
-    description: 'ゲスト講師による研修。詳細は決定次第共有します。',
+    description: 'ゲスト講師による経営研修。詳細は決定次第共有します。',
     published: true,
     has_afterparty: true,
     afterparty_title: '懇親会',
@@ -111,12 +140,13 @@ const events: SeedEvent[] = [
     checkedInCount: 0,
     observers: [],
   },
+  // 理事会 (sysadmin-only)
   {
     title: '6月度理事会',
     startOffsetDays: 7,
     startHour: 19,
     endHour: 20,
-    committee: '理事会',
+    committee: '正副・幹事',
     location: '本社会議室',
     description: '議題は別途共有。',
     published: true,
@@ -128,15 +158,34 @@ const events: SeedEvent[] = [
     checkedInCount: 0,
     observers: [],
   },
+  // 委員会イベント
+  {
+    title: 'キャリーボンド事業 視察会',
+    startOffsetDays: 14,
+    startHour: 13,
+    endHour: 17,
+    committee: 'キャリーボンド',
+    location: '集合: 流山おおたかの森駅前',
+    description: '視察先は当日案内します。',
+    published: true,
+    has_afterparty: false,
+    afterparty_title: null,
+    afterparty_location: null,
+    afterparty_description: null,
+    attendeeScope: 'all',
+    checkedInCount: 0,
+    observers: [],
+  },
+  // 下書き
   {
     title: '新入会員ガイダンス',
     startOffsetDays: 21,
     startHour: 18,
     endHour: 20,
-    committee: '会員拡大',
+    committee: '拡大ヒーローズ',
     location: '本社会議室',
     description: '新入会員向けオリエンテーション。内容調整中。',
-    published: false, // 下書き
+    published: false,
     has_afterparty: false,
     afterparty_title: null,
     afterparty_location: null,
