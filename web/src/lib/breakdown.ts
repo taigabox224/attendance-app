@@ -8,6 +8,8 @@ interface AttendeeLike {
   department: string | null;
   status: RsvpStatus;
   checked_in_at: string | null;
+  after_status?: RsvpStatus | null;
+  fee_paid?: boolean;
 }
 
 export interface AttendeeStats {
@@ -16,6 +18,8 @@ export interface AttendeeStats {
   no: number;
   pending: number;
   checkedIn: number;
+  afterYes: number;
+  afterPaid: number;
 }
 
 export interface AttendanceBreakdown {
@@ -25,7 +29,15 @@ export interface AttendanceBreakdown {
 }
 
 function emptyStats(): AttendeeStats {
-  return { invited: 0, yes: 0, no: 0, pending: 0, checkedIn: 0 };
+  return {
+    invited: 0,
+    yes: 0,
+    no: 0,
+    pending: 0,
+    checkedIn: 0,
+    afterYes: 0,
+    afterPaid: 0,
+  };
 }
 
 function accumulate(stats: AttendeeStats, a: AttendeeLike): void {
@@ -34,6 +46,8 @@ function accumulate(stats: AttendeeStats, a: AttendeeLike): void {
   else if (a.status === 'no') stats.no++;
   else stats.pending++;
   if (a.checked_in_at) stats.checkedIn++;
+  if (a.after_status === 'yes') stats.afterYes++;
+  if (a.fee_paid) stats.afterPaid++;
 }
 
 const UNASSIGNED_KEY = '(未所属)';
@@ -76,6 +90,8 @@ export function computeBreakdown(
     total.no += g.stats.no;
     total.pending += g.stats.pending;
     total.checkedIn += g.stats.checkedIn;
+    total.afterYes += g.stats.afterYes;
+    total.afterPaid += g.stats.afterPaid;
   }
 
   return { byCommittee: ordered, total, observers };
@@ -89,4 +105,9 @@ export function attendanceRate(stats: AttendeeStats): string {
 export function checkInRate(stats: AttendeeStats): string {
   if (stats.invited === 0) return '-';
   return ((stats.checkedIn / stats.invited) * 100).toFixed(1) + '%';
+}
+
+export function feeRate(stats: AttendeeStats): string {
+  if (stats.afterYes === 0) return '—';
+  return ((stats.afterPaid / stats.afterYes) * 100).toFixed(1) + '%';
 }

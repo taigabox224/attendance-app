@@ -19,12 +19,12 @@ const QrScannerModal = lazy(() =>
   })),
 );
 import {
-  attendanceRate,
   checkInRate,
   computeBreakdown,
+  feeRate,
   type AttendeeStats,
 } from '../lib/breakdown';
-import { downloadCsv, parseCsv, sanitizeFilenamePart } from '../lib/csv';
+import { downloadCsv, sanitizeFilenamePart } from '../lib/csv';
 import { formatDateRange, formatDateTime } from '../lib/format';
 
 type RsvpStatus = 'pending' | 'yes' | 'no';
@@ -199,9 +199,9 @@ export function EventDetailPage() {
   const isReceptionist = data.receptionists.some(
     (r) => r.user_id === user?.id,
   );
-  // legacy: 受付担当 OR 編集可 なら toggle 表示
-  const showToggle = isReceptionist || canEdit;
-  // 受付モードに切り替えられるか (sysadmin / editor の自作 / receptionist 指定者)
+  // 管理者 (admin viewMode) は常に受付モードで開く → toggle 不要。
+  // 受付担当 (一般ユーザ viewMode) のみが「通常/受付」を切替できる。
+  const showToggle = !canEdit && isReceptionist;
   const canEnterReception = canEdit || isReceptionist;
 
   function changeMode(next: DetailMode) {
@@ -263,7 +263,6 @@ export function EventDetailPage() {
           eventId={ev.id}
           ev={ev}
           attendees={data.attendees}
-          canEdit={canEdit}
           onReload={load}
           onShowToast={showToast}
           onOpenScanner={() => setShowScanner(true)}
@@ -650,7 +649,6 @@ function ReceptionView({
   eventId,
   ev,
   attendees,
-  canEdit,
   onReload,
   onShowToast,
   onOpenScanner,
@@ -658,7 +656,6 @@ function ReceptionView({
   eventId: string;
   ev: EventDetail;
   attendees: Attendee[];
-  canEdit: boolean;
   onReload: () => Promise<void>;
   onShowToast: (msg: string) => void;
   onOpenScanner: () => void;
@@ -780,70 +777,65 @@ function ReceptionView({
       </button>
 
       <BreakdownSection
-        eventId={ev.id}
         eventTitle={ev.title}
         hasAfterparty={ev.has_afterparty}
         attendees={attendees}
-        onReload={onReload}
-        onToast={onShowToast}
       />
 
       <div className="section-label">
         参加者{' '}
         <span className="count">
           {hasFilter
-            ? `${visibleAttendees.length} / ${attendees.length} 名`
-            : `${attendees.filter((a) => a.checked_in_at).length} 受付 / ${attendees.length} 名`}
+            ? `${visibleAttendees.length}/${attendees.length}`
+            : attendees.length}
         </span>
       </div>
 
       {attendees.length > 0 && (
-        <div className="user-filter" style={{ marginBottom: 8 }}>
+        <div className="filter-bar">
           <input
             type="search"
             className="search-input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="参加者名で検索..."
+            placeholder="名前で検索"
           />
-          <div className="filter-label">出欠</div>
           <div className="filter-chips">
-            {(['all', 'yes', 'no', 'pending', 'checked'] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                className={`chip ${statusFilter === s ? 'active' : ''}`}
-                onClick={() => setStatusFilter(s)}
-              >
-                {s === 'all'
-                  ? '全て'
-                  : s === 'yes'
-                    ? '出席'
-                    : s === 'no'
-                      ? '欠席'
-                      : s === 'pending'
-                        ? '未回答'
-                        : '受付済'}
-              </button>
-            ))}
-          </div>
-          <div className="filter-label">区分</div>
-          <div className="filter-chips">
-            {(['all', 'member', 'observer'] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                className={`chip ${kindFilter === k ? 'active' : ''}`}
-                onClick={() => setKindFilter(k)}
-              >
-                {k === 'all' ? '全て' : k === 'member' ? 'メンバー' : 'オブザーバー'}
-              </button>
-            ))}
+            <FilterChip
+              active={statusFilter === 'all'}
+              onClick={() => setStatusFilter('all')}
+              label="全て"
+              count={attendees.length}
+            />
+            <FilterChip
+              active={statusFilter === 'yes'}
+              onClick={() => setStatusFilter('yes')}
+              label="出席"
+              count={attendees.filter((a) => a.status === 'yes').length}
+            />
+            <FilterChip
+              active={statusFilter === 'checked'}
+              onClick={() => setStatusFilter('checked')}
+              label="受付済"
+              count={attendees.filter((a) => a.checked_in_at).length}
+            />
+            <FilterChip
+              active={statusFilter === 'pending'}
+              onClick={() => setStatusFilter('pending')}
+              label="未回答"
+              count={attendees.filter((a) => a.status === 'pending').length}
+            />
+            <FilterChip
+              active={statusFilter === 'no'}
+              onClick={() => setStatusFilter('no')}
+              label="欠席"
+              count={attendees.filter((a) => a.status === 'no').length}
+            />
           </div>
           {departments.length > 0 && (
             <>
-              <div className="filter-label">委員会(複数選択可)</div>
-              <div className="filter-chips">
+              <div className="filter-section-label">委員会(複数選択可)</div>
+              <div className="multiselect-chips">
                 {departments.map((d) => (
                   <button
                     key={d}
@@ -857,15 +849,29 @@ function ReceptionView({
               </div>
             </>
           )}
+          <div className="filter-section-label">区分</div>
+          <div className="filter-chips" style={{ marginTop: 4 }}>
+            {(['all', 'member', 'observer'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                className={`chip ${kindFilter === k ? 'active' : ''}`}
+                onClick={() => setKindFilter(k)}
+              >
+                {k === 'all' ? '全て' : k === 'member' ? 'メンバー' : 'オブザーバー'}
+              </button>
+            ))}
+          </div>
           {hasFilter && (
-            <button
-              type="button"
-              className="btn-ghost btn-sm"
-              onClick={resetFilter}
-              style={{ marginTop: 4 }}
-            >
-              フィルタをリセット
-            </button>
+            <div style={{ marginTop: 8, textAlign: 'right' }}>
+              <button
+                type="button"
+                className="btn-outline btn-sm"
+                onClick={resetFilter}
+              >
+                フィルタをリセット
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -873,113 +879,226 @@ function ReceptionView({
       {attendees.length === 0 ? (
         <p className="note">まだ参加者がいません。</p>
       ) : visibleAttendees.length === 0 ? (
-        <div className="empty-state">
-          <div className="glyph">○</div>
-          <div className="hint">該当する参加者がいません</div>
+        <div className="empty-state" style={{ padding: '32px 0' }}>
+          <div className="hint">該当する参加者はいません</div>
         </div>
       ) : (
-        <ul className="attendee-list">
+        <div className="attendee-list">
           {visibleAttendees.map((a) => (
-            <li
+            <AttendeeRow
               key={a.id}
-              className={`attendee-row ${a.is_observer ? 'is-observer' : ''}`}
-            >
-              <div className="attendee-main">
-                <span>{a.name}</span>
-                {a.is_observer && <span className="badge">ゲスト</span>}
-                {a.department && <span className="badge">{a.department}</span>}
-              </div>
-              <div className="actions-stack">
-                <button
-                  type="button"
-                  className={`status-btn ${a.status === 'yes' ? 'active yes' : ''}`}
-                  onClick={() =>
-                    patchAttendee(a.id, {
-                      status: a.status === 'yes' ? 'pending' : 'yes',
-                    })
-                  }
-                >
-                  出席
-                </button>
-                <button
-                  type="button"
-                  className={`status-btn ${a.status === 'no' ? 'active no' : ''}`}
-                  onClick={() =>
-                    patchAttendee(a.id, {
-                      status: a.status === 'no' ? 'pending' : 'no',
-                    })
-                  }
-                >
-                  欠席
-                </button>
-                <button
-                  type="button"
-                  className={`status-btn ${a.checked_in_at ? 'active checked' : ''}`}
-                  onClick={() =>
-                    patchAttendee(a.id, {
-                      checked_in_at: a.checked_in_at ? null : 'now',
-                    })
-                  }
-                >
-                  受付
-                </button>
-                {ev.has_afterparty && (a.after_status === 'yes' || a.fee_paid) && (
-                  <button
-                    type="button"
-                    className={`status-btn ${a.fee_paid ? 'active fee' : ''}`}
-                    onClick={() =>
-                      patchAttendee(a.id, { fee_paid: !a.fee_paid })
-                    }
-                  >
-                    会費
-                  </button>
-                )}
-              </div>
-            </li>
+              attendee={a}
+              hasAfterparty={ev.has_afterparty}
+              onPatch={(body) => patchAttendee(a.id, body)}
+            />
           ))}
-        </ul>
-      )}
-
-      {/* canEdit が false (= 受付担当だけ) の時は legacy 仕様で「参加者の追加」UI は出さない */}
-      {!canEdit && (
-        <p
-          className="note"
-          style={{ marginTop: 16, fontSize: 11, color: 'var(--text-mute)' }}
-        >
-          受付担当として表示しています。出欠/受付/会費の更新は可能です。
-        </p>
+        </div>
       )}
     </>
   );
 }
 
+// 参加者リスト1行 (legacy renderAdminAttendeeList の HTML をそのまま React 化)
+function AttendeeRow({
+  attendee,
+  hasAfterparty,
+  onPatch,
+}: {
+  attendee: Attendee;
+  hasAfterparty: boolean;
+  onPatch: (body: Record<string, unknown>) => Promise<void>;
+}) {
+  const a = attendee;
+  const showFee = hasAfterparty && a.after_status === 'yes';
+  const name = a.name || (a.is_observer ? '(ゲスト)' : '');
+  const initial = (name || '?').trim().charAt(0);
+
+  return (
+    <div className={`attendee-row ${a.is_observer ? 'is-observer' : ''}`}>
+      <div className="left">
+        <div className="avatar">{initial}</div>
+        <div style={{ minWidth: 0 }}>
+          <div className="name-row">
+            <span className="name">{name}</span>
+            {a.is_observer && <span className="badge-observer">ゲスト</span>}
+            {a.checked_in_at ? (
+              <button
+                type="button"
+                className="badge-checked-in"
+                onClick={() => onPatch({ checked_in_at: null })}
+                title="受付済を取消"
+              >
+                ✓受付済
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="badge-not-checked-in"
+                onClick={() => onPatch({ checked_in_at: 'now' })}
+                title="受付済にする"
+              >
+                受付未
+              </button>
+            )}
+            {showFee &&
+              (a.fee_paid ? (
+                <button
+                  type="button"
+                  className="badge-paid"
+                  onClick={() => onPatch({ fee_paid: false })}
+                  title="会費受領を取消"
+                >
+                  💰受領済
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="badge-unpaid"
+                  onClick={() => onPatch({ fee_paid: true })}
+                  title="会費を受領済にする"
+                >
+                  💰未収
+                </button>
+              ))}
+          </div>
+          {(a.department || a.title) && (
+            <div
+              style={{
+                fontSize: 10,
+                color: 'var(--text-mute)',
+                marginTop: 1,
+              }}
+            >
+              {a.department}
+              {a.department && a.title ? ' · ' : ''}
+              {a.title}
+            </div>
+          )}
+          <div
+            style={{
+              marginTop: 2,
+              display: 'flex',
+              gap: 4,
+              flexWrap: 'wrap',
+              alignItems: 'center',
+            }}
+          >
+            <StatusPill status={a.status} />
+            {hasAfterparty && (
+              <>
+                <span className="afterparty-mini-label">🍻</span>
+                <StatusPill status={a.after_status ?? 'pending'} />
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="actions-stack">
+        <div className="actions">
+          <button
+            type="button"
+            className={`status-btn ${a.status === 'yes' ? 'active yes' : ''}`}
+            onClick={() =>
+              onPatch({ status: a.status === 'yes' ? 'pending' : 'yes' })
+            }
+          >
+            出
+          </button>
+          <button
+            type="button"
+            className={`status-btn ${a.status === 'no' ? 'active no' : ''}`}
+            onClick={() =>
+              onPatch({ status: a.status === 'no' ? 'pending' : 'no' })
+            }
+          >
+            欠
+          </button>
+        </div>
+        {hasAfterparty && (
+          <div className="actions actions-secondary">
+            <span className="actions-prefix">懇</span>
+            <button
+              type="button"
+              className={`status-btn ${a.after_status === 'yes' ? 'active yes' : ''}`}
+              onClick={() =>
+                onPatch({
+                  after_status: a.after_status === 'yes' ? 'pending' : 'yes',
+                })
+              }
+            >
+              出
+            </button>
+            <button
+              type="button"
+              className={`status-btn ${a.after_status === 'no' ? 'active no' : ''}`}
+              onClick={() =>
+                onPatch({
+                  after_status: a.after_status === 'no' ? 'pending' : 'no',
+                })
+              }
+            >
+              欠
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 「出席」「欠席」「未回答」 を 11px の小ピルで表示 (legacy statusBadge)
+function StatusPill({ status }: { status: RsvpStatus }) {
+  return (
+    <span className={`status-badge badge-${status}`}>
+      {STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+// 件数チップ (legacy renderAdminEventDetail の chip ヘルパ相当)
+function FilterChip({
+  active,
+  onClick,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+}) {
+  return (
+    <button
+      type="button"
+      className={`chip ${active ? 'active' : ''}`}
+      onClick={onClick}
+    >
+      {label}
+      <span className="num">{count}</span>
+    </button>
+  );
+}
+
 // =====================================================
-// BreakdownSection
+// BreakdownSection (出席内訳 + 懇親会会費)
+// legacy renderAdminEventDetail の出席内訳カード相当
 // =====================================================
 function BreakdownSection({
-  eventId,
   eventTitle,
   hasAfterparty,
   attendees,
-  onReload,
-  onToast,
 }: {
-  eventId: string;
   eventTitle: string;
   hasAfterparty: boolean;
   attendees: Attendee[];
-  onReload: () => Promise<void>;
-  onToast: (msg: string) => void;
 }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [committeeOrder, setCommitteeOrder] = useState<string[]>([]);
-  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     api<{ departments: string[] }>('/api/masters')
       .then((d) => setCommitteeOrder(d.departments))
       .catch(() => {
-        /* マスターが取れない時は alphabetical fallback で OK */
+        /* マスター無しでも alphabetical fallback */
       });
   }, []);
 
@@ -988,265 +1107,128 @@ function BreakdownSection({
     [attendees, committeeOrder],
   );
 
-  function exportBreakdownCsv() {
-    const rows: Array<Array<unknown>> = [
-      ['区分', '招待', '出席', '欠席', '未回答', '受付済', '出席率', '受付率'],
+  // legacy 互換の CSV 出力 (一発で出席内訳 + 懇親会会費を含む)
+  function exportCsv() {
+    const baseHeader = [
+      '区分',
+      '委員会',
+      '出席数',
+      '出席回答数',
+      '招待人数',
+      '参加率',
     ];
-    for (const g of breakdown.byCommittee) {
-      rows.push([
-        g.key,
-        g.stats.invited,
-        g.stats.yes,
-        g.stats.no,
-        g.stats.pending,
-        g.stats.checkedIn,
-        attendanceRate(g.stats),
-        checkInRate(g.stats),
-      ]);
-    }
+    const apHeader = hasAfterparty ? ['懇親会出席予定', '懇親会会費受領'] : [];
+    const rows: Array<Array<unknown>> = [[...baseHeader, ...apHeader]];
+
+    const apCols = (afterYes: number, afterPaid: number) =>
+      hasAfterparty ? [afterYes, afterPaid] : [];
+
     rows.push([
       '全体',
-      breakdown.total.invited,
-      breakdown.total.yes,
-      breakdown.total.no,
-      breakdown.total.pending,
+      '',
       breakdown.total.checkedIn,
-      attendanceRate(breakdown.total),
+      breakdown.total.yes,
+      breakdown.total.invited,
       checkInRate(breakdown.total),
+      ...apCols(breakdown.total.afterYes, breakdown.total.afterPaid),
     ]);
+    for (const g of breakdown.byCommittee) {
+      rows.push([
+        '委員会別',
+        g.key,
+        g.stats.checkedIn,
+        g.stats.yes,
+        g.stats.invited,
+        checkInRate(g.stats),
+        ...apCols(g.stats.afterYes, g.stats.afterPaid),
+      ]);
+    }
     if (breakdown.observers.invited > 0) {
       rows.push([
         'オブザーバー',
-        breakdown.observers.invited,
-        breakdown.observers.yes,
-        breakdown.observers.no,
-        breakdown.observers.pending,
+        '',
         breakdown.observers.checkedIn,
-        attendanceRate(breakdown.observers),
-        checkInRate(breakdown.observers),
+        '',
+        breakdown.observers.invited,
+        '',
+        ...apCols(
+          breakdown.observers.afterYes,
+          breakdown.observers.afterPaid,
+        ),
       ]);
     }
     downloadCsv(`${sanitizeFilenamePart(eventTitle)}_出席内訳.csv`, rows);
   }
 
-  function exportAttendeesCsv() {
-    const rows: Array<Array<unknown>> = [
-      ['氏名', '区分', '委員会', '役職', '出欠', '二次会', '受付済', '受付時刻'],
-    ];
-    for (const a of attendees) {
-      const statusLabel =
-        a.status === 'yes' ? '出席' : a.status === 'no' ? '欠席' : '未回答';
-      const afterLabel = a.after_status
-        ? a.after_status === 'yes'
-          ? '参加'
-          : a.after_status === 'no'
-            ? '不参加'
-            : '未回答'
-        : '';
-      rows.push([
-        a.name,
-        a.is_observer ? 'ゲスト' : '会員',
-        a.department ?? '',
-        a.title ?? '',
-        statusLabel,
-        afterLabel,
-        a.checked_in_at ? '済' : '',
-        a.checked_in_at ? formatDateTime(a.checked_in_at) : '',
-      ]);
-    }
-    downloadCsv(`${sanitizeFilenamePart(eventTitle)}_参加者一覧.csv`, rows);
-  }
-
-  async function importAttendeesCsv(file: File) {
-    setImporting(true);
-    try {
-      const text = await file.text();
-      const rows = parseCsv(text);
-      if (rows.length === 0) {
-        window.alert('CSV が空です。');
-        return;
-      }
-      const header = (rows[0] ?? []).map((s) => s.trim());
-      const idIdx = header.indexOf('ユーザーID');
-      const nameIdx = header.indexOf('氏名');
-      const altNameIdx = header.indexOf('名前');
-      const statusIdx = header.indexOf('出欠');
-      const afterIdx = header.indexOf('二次会');
-      const altAfterIdx = header.indexOf('懇親会');
-
-      const useNameIdx = nameIdx >= 0 ? nameIdx : altNameIdx;
-      const useAfterIdx = afterIdx >= 0 ? afterIdx : altAfterIdx;
-
-      if (statusIdx < 0) {
-        window.alert('「出欠」列が見つかりません。CSV ヘッダを確認してください。');
-        return;
-      }
-
-      const JP_TO_STATUS: Record<string, 'yes' | 'no' | 'pending'> = {
-        出席: 'yes',
-        欠席: 'no',
-        未回答: 'pending',
-        yes: 'yes',
-        no: 'no',
-        pending: 'pending',
-      };
-
-      const memberByName = new Map(
-        attendees.filter((a) => !a.is_observer).map((a) => [a.name, a]),
-      );
-      const byUserId = new Map(
-        attendees.filter((a) => a.user_id).map((a) => [a.user_id!, a]),
-      );
-
-      interface Update {
-        attendee_id: string;
-        name: string;
-        status: 'yes' | 'no' | 'pending';
-        after_status: 'yes' | 'no' | 'pending' | null;
-      }
-      const updates: Update[] = [];
-      const skipped: string[] = [];
-
-      for (let r = 1; r < rows.length; r++) {
-        const row = rows[r] ?? [];
-        let attendee: Attendee | undefined;
-        if (idIdx >= 0) {
-          const v = (row[idIdx] ?? '').trim();
-          if (v) attendee = byUserId.get(v);
-        }
-        if (!attendee && useNameIdx >= 0) {
-          const v = (row[useNameIdx] ?? '').trim();
-          if (v) attendee = memberByName.get(v);
-        }
-        const rowLabel =
-          (useNameIdx >= 0 ? (row[useNameIdx] ?? '').trim() : '') ||
-          (idIdx >= 0 ? (row[idIdx] ?? '').trim() : '') ||
-          `行${r + 1}`;
-        if (!attendee) {
-          skipped.push(rowLabel);
-          continue;
-        }
-        const statusJp = (row[statusIdx] ?? '').trim();
-        const newStatus = JP_TO_STATUS[statusJp];
-        if (!newStatus) {
-          skipped.push(`${rowLabel} (出欠 "${statusJp}" 不明)`);
-          continue;
-        }
-        let newAfter: 'yes' | 'no' | 'pending' | null = null;
-        if (hasAfterparty && useAfterIdx >= 0) {
-          const v = (row[useAfterIdx] ?? '').trim();
-          newAfter = JP_TO_STATUS[v] ?? null;
-        }
-        updates.push({
-          attendee_id: attendee.id,
-          name: rowLabel,
-          status: newStatus,
-          after_status: newAfter,
-        });
-      }
-
-      if (updates.length === 0) {
-        window.alert(
-          '反映できる行がありませんでした。' +
-            (skipped.length ? `\nスキップ ${skipped.length} 件` : ''),
-        );
-        return;
-      }
-
-      const msg =
-        `${updates.length} 件の出欠を更新します。` +
-        (skipped.length
-          ? `\nスキップ ${skipped.length} 件: ${skipped.slice(0, 3).join(', ')}${skipped.length > 3 ? '…' : ''}`
-          : '') +
-        '\n\n出席に切り替えた行は受付済としても登録されます。よろしいですか?';
-      if (!window.confirm(msg)) return;
-
-      for (const u of updates) {
-        const body: Record<string, unknown> = { status: u.status };
-        if (u.status === 'yes') body.checked_in_at = 'now';
-        else if (u.status !== 'pending') body.checked_in_at = null;
-        if (hasAfterparty && u.after_status !== null) {
-          body.after_status = u.after_status;
-        }
-        await api(`/api/events/${eventId}/attendees/${u.attendee_id}`, {
-          method: 'PATCH',
-          body: JSON.stringify(body),
-        });
-      }
-
-      await onReload();
-      onToast(
-        `${updates.length} 件を更新${skipped.length ? ` (${skipped.length} 件スキップ)` : ''}`,
-      );
-    } catch (e) {
-      window.alert(
-        `CSV インポートに失敗しました: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    } finally {
-      setImporting(false);
-    }
-  }
-
   return (
-    <section className="breakdown-card">
-      <div className="breakdown-header">
-        <span>出席内訳</span>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+    <>
+      <section className="breakdown-card">
+        <div className="breakdown-header">
+          <span>出席内訳</span>
           <button
             type="button"
             className="btn-outline btn-sm"
-            onClick={exportBreakdownCsv}
-            disabled={importing}
+            onClick={exportCsv}
           >
-            内訳 CSV
+            CSV書き出し
           </button>
-          <button
-            type="button"
-            className="btn-outline btn-sm"
-            onClick={exportAttendeesCsv}
-            disabled={importing}
-          >
-            参加者 CSV
-          </button>
-          <button
-            type="button"
-            className="btn-outline btn-sm"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            title="氏名 + 出欠 列を含む CSV をアップロード"
-          >
-            {importing ? '取込中...' : 'CSV 取込'}
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            style={{ display: 'none' }}
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (f) await importAttendeesCsv(f);
-              e.target.value = '';
-            }}
-          />
         </div>
-      </div>
-      <div className="breakdown-rows">
-        {breakdown.byCommittee.map((g) => (
-          <BreakdownRow key={g.key} label={g.key} stats={g.stats} />
-        ))}
-        <BreakdownRow label="全体" stats={breakdown.total} variant="total" />
-        {breakdown.observers.invited > 0 && (
+        <div className="breakdown-rows">
           <BreakdownRow
-            label="オブザーバー"
-            stats={breakdown.observers}
-            variant="observers"
+            label="全体"
+            stats={breakdown.total}
+            variant="total"
           />
-        )}
-      </div>
-    </section>
+          {breakdown.byCommittee.map((g) => (
+            <BreakdownRow key={g.key} label={g.key} stats={g.stats} />
+          ))}
+          {breakdown.observers.invited > 0 && (
+            <BreakdownRow
+              label="オブザーバー"
+              stats={breakdown.observers}
+              variant="observers"
+            />
+          )}
+        </div>
+        <div className="breakdown-note">
+          参加率は受付済 ÷ 招待人数 で算出
+        </div>
+      </section>
+
+      {hasAfterparty && (
+        <section className="breakdown-card" style={{ marginTop: 10 }}>
+          <div className="breakdown-header">
+            <span>🍻 懇親会会費</span>
+          </div>
+          <div className="breakdown-rows">
+            <FeeRow
+              label="全体"
+              stats={breakdown.total}
+              variant="total"
+            />
+            {breakdown.byCommittee
+              .filter((g) => g.stats.afterYes > 0 || g.stats.afterPaid > 0)
+              .map((g) => (
+                <FeeRow key={g.key} label={g.key} stats={g.stats} />
+              ))}
+            {breakdown.observers.afterYes > 0 && (
+              <FeeRow
+                label="オブザーバー"
+                stats={breakdown.observers}
+                variant="observers"
+              />
+            )}
+          </div>
+          <div className="breakdown-note">
+            受領率は懇親会「出席予定」を母数として算出
+          </div>
+        </section>
+      )}
+    </>
   );
 }
 
+// 出席内訳の行: legacy 仕様の {attended}/{invited} + サブ「出席回答 N 名」+ 参加率
 function BreakdownRow({
   label,
   stats,
@@ -1260,15 +1242,38 @@ function BreakdownRow({
     <div className={`breakdown-row ${variant ? `breakdown-${variant}` : ''}`}>
       <div className="bd-label">
         <strong>{label}</strong>
-        <span className="bd-sub">
-          出席 {stats.yes} / 欠席 {stats.no} / 未回答 {stats.pending} / 受付{' '}
-          {stats.checkedIn}
-        </span>
       </div>
       <span className="bd-count">
-        {stats.yes}/{stats.invited}名
+        {stats.checkedIn} / {stats.invited}
+        <div className="bd-sub">出席回答 {stats.yes} 名</div>
       </span>
-      <span className="bd-rate">{attendanceRate(stats)}</span>
+      <span className="bd-rate">{checkInRate(stats)}</span>
+    </div>
+  );
+}
+
+// 懇親会会費の行: {afterPaid}/{afterYes} + サブ「受領済 / 出席予定」
+function FeeRow({
+  label,
+  stats,
+  variant,
+}: {
+  label: string;
+  stats: AttendeeStats;
+  variant?: 'total' | 'observers';
+}) {
+  return (
+    <div className={`breakdown-row ${variant ? `breakdown-${variant}` : ''}`}>
+      <div className="bd-label">
+        <strong>{label}</strong>
+      </div>
+      <span className="bd-count">
+        {stats.afterPaid} / {stats.afterYes}
+        {variant === 'total' && (
+          <div className="bd-sub">受領済 / 出席予定</div>
+        )}
+      </span>
+      <span className="bd-rate">{feeRate(stats)}</span>
     </div>
   );
 }
