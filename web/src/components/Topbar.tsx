@@ -35,6 +35,7 @@ export function Topbar() {
             alt="流山青年会議所"
             className="brand-banner"
           />
+          <span className="brand-app-name">イベント管理アプリ</span>
         </Link>
 
         {user && (

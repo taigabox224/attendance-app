@@ -143,8 +143,9 @@ body {
 
 .topbar .brand {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
   background: none;
   border: none;
   padding: 0;
@@ -167,9 +168,23 @@ body {
   min-width: 0;
 }
 
+.topbar .brand-app-name {
+  /* バナーの下に小さく「イベント管理アプリ」のサブタイトル。
+     Topbar 高さの増加を最小化するため 10px の明朝で控えめに */
+  font-family: var(--font-serif);
+  font-size: 10px;
+  color: var(--text-mute);
+  letter-spacing: 0.06em;
+  line-height: 1;
+  padding-left: 2px;
+}
+
 @media (max-width: 380px) {
   .topbar .brand-banner {
     width: 180px;
+  }
+  .topbar .brand-app-name {
+    font-size: 9px;
   }
 }
 
