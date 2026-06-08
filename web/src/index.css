@@ -207,8 +207,11 @@ body {
   cursor: pointer;
   font-size: 16px;
   color: var(--text-mute);
-  line-height: 1;
+  /* ⚙ グリフは em ボックス内で下寄りに描画されるフォントが多いので、
+     線高を 0 にして flex 中央寄せの位置を視覚中心に揃える */
+  line-height: 0;
   padding: 0;
+  padding-bottom: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -327,13 +330,15 @@ body {
   height: 36px;
   min-height: auto;
   padding: 0;
+  padding-bottom: 2px;
   border: 1px solid var(--border);
   background: var(--surface);
   border-radius: 50%;
   cursor: pointer;
   font-size: 16px;
   color: var(--text-mute);
-  line-height: 1;
+  /* ⚙ 字の baseline 補正 (user-menu-btn と同じ理由) */
+  line-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;

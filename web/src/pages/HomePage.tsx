@@ -30,7 +30,10 @@ const PRESET_LABELS: { key: DateRangePreset; label: string }[] = [
 export function HomePage() {
   const { user, viewMode } = useAuth();
   const isPrivileged = user?.role === 'sysadmin' || user?.role === 'editor';
+  // 「新規作成」「下書き表示」「編集リンク」は admin モードのみ
   const canEdit = isPrivileged && viewMode === 'admin';
+  // editor+ なら user モードでも「新規作成」だけは出す
+  const canCreateEvent = isPrivileged;
 
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +83,7 @@ export function HomePage() {
             {canEdit ? '作成・編集・公開できます' : '招待されたイベントを確認できます'}
           </p>
         </div>
-        {canEdit && (
+        {canCreateEvent && (
           <Link
             to="/events/new"
             className="link-button"
