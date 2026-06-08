@@ -1,21 +1,28 @@
 :root {
-  /* Phase 1 プロトタイプの palette に揃える */
-  --bg: #f4f1ea;
+  /* 流山青年会議所 (jc-na.main.jp) のサイトトーンに揃えた palette。
+     #0090D5 をブランドアクセント (primary) として全面採用、
+     ベージュ系の温かい背景は冷たい白系に。
+     terracotta は受付/会費系の警告アクセントとして残している。 */
+  --bg: #f5f7fa;
   --surface: #ffffff;
-  --surface-soft: #fbf9f4;
-  --border: #e5dfd2;
-  --border-soft: #efeae0;
-  --text: #1a1a1a;
-  --text-mute: #6e6760;
-  --text-soft: #9b948b;
-  /* legacy 互換のエイリアス (既存クラスが使ってる) */
+  --surface-soft: #f7f9fc;
+  --border: #dddddd;
+  --border-soft: #eeeeee;
+  --text: #333333;
+  --text-mute: #666666;
+  --text-soft: #999999;
   --muted: var(--text-mute);
+
+  /* JC blue (#0090D5) を primary に */
+  --primary: #0090d5;
+  --primary-hover: #007ab5;
+  --primary-soft: #d6edfa;
+
+  /* terracotta は accent (受付・会費・自作タグ系のアクセントとして残す) */
   --accent: #c7522a;
   --accent-soft: #f4dcd0;
   --accent-hover: #b0451f;
-  --primary: #355282;
-  --primary-hover: #2a4570;
-  --primary-soft: #dee6f0;
+
   --success: #4f7a4d;
   --success-soft: #dde8dc;
   --danger: #b84a3e;
@@ -24,13 +31,14 @@
   --warning-soft: #f0e2c9;
   --error: var(--danger);
 
-  --shadow-sm: 0 1px 2px rgba(20, 15, 5, 0.04);
-  --shadow-md: 0 4px 14px rgba(20, 15, 5, 0.08);
+  --shadow-sm: 0 1px 2px rgba(0, 30, 60, 0.04);
+  --shadow-md: 0 4px 14px rgba(0, 30, 60, 0.08);
   --radius: 14px;
   --radius-sm: 10px;
 
-  --font-sans: 'Noto Sans JP', system-ui, -apple-system, 'Hiragino Kaku Gothic ProN', sans-serif;
-  --font-serif: 'Shippori Mincho', 'Hiragino Mincho ProN', serif;
+  --font-sans: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', system-ui, sans-serif;
+  /* 明朝は JC サイト同様 YuMincho を優先 */
+  --font-serif: 'YuMincho', 'Yu Mincho', 'Hiragino Mincho ProN', 'Shippori Mincho', serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
@@ -846,7 +854,7 @@ code,
 }
 
 .link-button:hover {
-  background: rgba(53, 82, 130, 0.06);
+  background: rgba(0, 144, 213, 0.08);
   text-decoration: none;
 }
 
@@ -1311,7 +1319,7 @@ code,
   gap: 16px;
   padding: 14px;
   border-left: 3px solid var(--primary);
-  background: rgba(53, 82, 130, 0.04);
+  background: rgba(0, 144, 213, 0.06);
   border-radius: 0 6px 6px 0;
 }
 
@@ -1641,7 +1649,7 @@ button.badge-unpaid:hover:not(:disabled) {
 }
 
 .user-pick:hover {
-  background: rgba(53, 82, 130, 0.04);
+  background: rgba(0, 144, 213, 0.06);
 }
 
 .user-pick input[type='checkbox'] {
