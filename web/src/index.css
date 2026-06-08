@@ -1612,6 +1612,168 @@ textarea {
   border: 1px solid var(--danger);
 }
 
+/* ========== Reception mode toggle (legacy パリティ) ========== */
+.reception-toggle-bar {
+  margin: 0 0 12px;
+}
+.reception-toggle {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 3px;
+  box-shadow: var(--shadow-sm);
+}
+.reception-toggle button {
+  flex: 1;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-mute);
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 100px;
+  transition: background 0.15s, color 0.15s;
+}
+.reception-toggle button.active {
+  background: var(--accent);
+  color: white;
+  font-weight: 500;
+}
+.reception-toggle button:not(.active):hover {
+  color: var(--text);
+}
+
+/* ========== RSVP card (ユーザ画面の大きい出欠ボタン) ========== */
+.rsvp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.rsvp-card .label {
+  font-size: 12px;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+.rsvp-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.rsvp-btn {
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text);
+  transition: all 0.15s;
+}
+.rsvp-btn:hover {
+  background: var(--surface-soft);
+}
+.rsvp-btn.active-yes {
+  background: var(--success);
+  color: white;
+  border-color: var(--success);
+}
+.rsvp-btn.active-no {
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+}
+.rsvp-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.rsvp-current {
+  font-size: 12px;
+  color: var(--text-mute);
+  margin-top: 10px;
+  text-align: center;
+}
+.rsvp-current .unsaved {
+  color: var(--accent);
+  font-size: 11px;
+  margin-left: 4px;
+}
+.rsvp-locked-notice {
+  margin-top: 12px;
+  padding: 10px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-mute);
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* ========== 4-count grid (受付モードの サマリ) ========== */
+.count-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.count-cell {
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+.count-cell .num {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+.count-cell .lab {
+  font-size: 10px;
+}
+.count-cell.yes {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.count-cell.checked {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.count-cell.no {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.count-cell.pending {
+  background: var(--surface-soft);
+  color: var(--text-mute);
+  border: 1px solid var(--border);
+}
+
+/* 受付モードの「QR をスキャン」大ボタン */
+.scan-cta {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin: 14px 0;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.scan-cta:hover {
+  background: var(--accent-strong, var(--accent));
+}
+
 /* ========== User filter (admin users page) ========== */
 .user-filter {
   background: var(--surface);
