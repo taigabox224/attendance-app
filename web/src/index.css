@@ -1003,7 +1003,14 @@ code,
   width: 100%;
 }
 
-.date-input-wrap[data-has-value='false'] input[type='date'] {
+/* 空状態: 入力欄の日付テキスト部分 (yyyy/mm/dd) だけを隠して、
+   左にダミーの「年 / 月 / 日」を被せる。
+   ※ 旧実装は input 全体を color: transparent にしていたが、
+     これだとカレンダー picker のレンダリングまで透明色を継承するブラウザがあり、
+     開いた瞬間に picker が消える不具合があった。
+     ::-webkit-datetime-edit に絞ることで picker は通常通り動く。 */
+.date-input-wrap[data-has-value='false']
+  input[type='date']::-webkit-datetime-edit {
   color: transparent;
 }
 
@@ -1019,9 +1026,6 @@ code,
   font-family: inherit;
   line-height: 1;
 }
-/* focus 中の color/visibility 切替はしない。
-   切替を行うと Chrome/Safari でカレンダー picker が開いた直後に
-   再ペイントが走り、picker が閉じてしまう不具合があった。 */
 
 /* ========== Event list (card) ========== */
 .event-list {
