@@ -25,7 +25,7 @@ import {
   type AttendeeStats,
 } from '../lib/breakdown';
 import { downloadCsv, parseCsv, sanitizeFilenamePart } from '../lib/csv';
-import { formatDateTime } from '../lib/format';
+import { formatDateRange, formatDateTime } from '../lib/format';
 
 type RsvpStatus = 'pending' | 'yes' | 'no';
 
@@ -384,9 +384,8 @@ function EventHero({
 }) {
   return (
     <section className="event-hero">
-      <div className="date">
-        {formatDateTime(ev.start_at)}
-        {ev.end_at ? ` 〜 ${formatDateTime(ev.end_at)}` : ''}
+      <div className="date" style={{ whiteSpace: 'pre-line' }}>
+        {formatDateRange(ev.start_at, ev.end_at)}
       </div>
       <h1 className="title">
         {ev.title}

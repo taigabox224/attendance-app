@@ -21,12 +21,12 @@ interface Toast {
 interface Props {
   eventId: string;
   onClose: () => void;
-  onScanned: () => void; // 親側でデータ再取得用
+  onScanned: () => void;
 }
 
 const QR_REGION_ID = 'qr-scanner-region';
 
-// 受付モード内で開く QR スキャナー (legacy openScanner 相当)
+// 受付モード内で開く QR スキャナ (legacy openScanner 相当)
 export function QrScannerModal({ eventId, onClose, onScanned }: Props) {
   const [toast, setToast] = useState<Toast | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -106,37 +106,59 @@ export function QrScannerModal({ eventId, onClose, onScanned }: Props) {
   );
 
   useEffect(() => {
-    const el = document.getElementById(QR_REGION_ID);
-    if (!el) return;
-    const scanner = new Html5Qrcode(QR_REGION_ID, { verbose: false });
-    scannerRef.current = scanner;
-    scanner
-      .start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
-        (decoded) => {
-          void handleScan(decoded);
-        },
-        () => {
-          /* QR not detected per frame, no-op */
-        },
-      )
-      .catch((err: unknown) => {
+    // StrictMode の二重マウントや modal アニメーション中の初期化を避けるため、
+    // 100ms 遅延後に scanner を起動 (legacy も同じく遅延を入れている)
+    let cancelled = false;
+    let startedScanner: Html5Qrcode | null = null;
+
+    const startTimer = window.setTimeout(() => {
+      if (cancelled) return;
+      const el = document.getElementById(QR_REGION_ID);
+      if (!el) {
+        setCameraError('スキャナの初期化領域が見つかりません');
+        return;
+      }
+      try {
+        const scanner = new Html5Qrcode(QR_REGION_ID, { verbose: false });
+        startedScanner = scanner;
+        scannerRef.current = scanner;
+        scanner
+          .start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 240, height: 240 } },
+            (decoded) => {
+              void handleScan(decoded);
+            },
+            () => {
+              /* per-frame "not found" — ignore */
+            },
+          )
+          .catch((err: unknown) => {
+            if (cancelled) return;
+            setCameraError(
+              err instanceof Error ? err.message : 'カメラを起動できません',
+            );
+          });
+      } catch (e) {
         setCameraError(
-          err instanceof Error
-            ? err.message
-            : 'カメラを起動できませんでした',
+          e instanceof Error ? e.message : 'スキャナ初期化に失敗しました',
         );
-      });
+      }
+    }, 120);
 
     return () => {
-      const s = scannerRef.current;
+      cancelled = true;
+      window.clearTimeout(startTimer);
+      const s = startedScanner ?? scannerRef.current;
       scannerRef.current = null;
       if (s) {
-        s.stop()
+        // 状態に関わらず stop を試みる。.start() が未完了でも .stop() が
+        // throw しないよう個別に握りつぶす
+        Promise.resolve()
+          .then(() => s.stop())
           .then(() => s.clear())
           .catch(() => {
-            /* 既に停止 */
+            /* もう停止済み or 未起動 */
           });
       }
       if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
@@ -145,20 +167,29 @@ export function QrScannerModal({ eventId, onClose, onScanned }: Props) {
 
   return (
     <div
-      className="modal-overlay show"
+      className="modal-overlay"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-handle" aria-hidden="true" />
+        <button
+          type="button"
+          className="modal-close"
+          onClick={onClose}
+          aria-label="閉じる"
+        >
+          ×
+        </button>
         <h2>QRコードをスキャン</h2>
         <p style={{ fontSize: 12, color: 'var(--text-mute)', marginBottom: 12 }}>
           参加者のQRコードをカメラで読み取ってください
         </p>
         {cameraError ? (
-          <div className="error" style={{ padding: 16 }}>
-            カメラが使えません: {cameraError}
+          <div className="scan-result scan-result-error">
+            <strong>カメラが使えません</strong>
+            <p style={{ margin: '6px 0 0', fontSize: 12 }}>{cameraError}</p>
           </div>
         ) : (
           <div id={QR_REGION_ID} className="qr-scanner-region" />
