@@ -156,38 +156,26 @@ body {
   min-width: 0;
 }
 
-.topbar .brand-logo {
-  display: inline-block;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  background: var(--surface-soft);
-}
-
-.topbar .brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
+.topbar .brand-banner {
+  /* 元画像は 718x74 の横長バナー。
+     幅を 220px に固定して高さ自動で aspect ratio 維持。
+     正式ロゴが来たら public/jc-logo.jpg を差し替えるだけで OK */
+  width: 220px;
+  height: auto;
+  display: block;
+  flex-shrink: 1;
   min-width: 0;
 }
 
-.topbar .brand-text-line1 {
-  font-family: var(--font-serif);
-  font-size: 13px;
-  color: var(--text-mute);
-  letter-spacing: 0.02em;
-  white-space: nowrap;
+@media (max-width: 380px) {
+  .topbar .brand-banner {
+    width: 180px;
+  }
 }
 
-.topbar .brand-text-line2 {
-  font-family: var(--font-serif);
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: 0.02em;
-  white-space: nowrap;
+/* admin モード時は薄青背景になるのでロゴが浮かないよう少しトーンを上げる */
+.topbar.is-admin .brand-banner {
+  mix-blend-mode: multiply;
 }
 
 .topbar-right {

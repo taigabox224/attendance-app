@@ -28,12 +28,13 @@ export function Topbar() {
   return (
     <>
       <header className={`topbar ${isAdminMode ? 'is-admin' : ''}`}>
-        <Link to="/events" className="brand">
-          <span className="brand-logo" aria-hidden="true" />
-          <span className="brand-text">
-            <span className="brand-text-line1">流山青年会議所</span>
-            <span className="brand-text-line2">イベント管理アプリ</span>
-          </span>
+        <Link to="/events" className="brand" aria-label="流山青年会議所 イベント管理アプリ">
+          {/* 仮ロゴ。正式なものをもらったら public/jc-logo.jpg を差し替え */}
+          <img
+            src="/jc-logo.jpg"
+            alt="流山青年会議所"
+            className="brand-banner"
+          />
         </Link>
 
         {user && (
