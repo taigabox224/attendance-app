@@ -1483,6 +1483,54 @@ textarea {
   border: 1px solid var(--danger);
 }
 
+/* ========== Master list (委員会 / 役職 編集) ========== */
+.master-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.master-section h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.master-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.master-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-soft);
+}
+
+.master-row .master-value {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.master-add {
+  display: flex;
+  gap: 8px;
+}
+
+.master-add input {
+  flex: 1;
+}
+
 /* ========== Admin user list ========== */
 .user-list {
   list-style: none;

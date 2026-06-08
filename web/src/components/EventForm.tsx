@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { ApiError } from '../api/client';
+import { useEffect, useState, type FormEvent } from 'react';
+import { ApiError, api } from '../api/client';
 
 // datetime-local が macOS Safari 等で時刻入力しづらいので、
 // フォームでは date / time を別々に持ち、送信時にローカル日時として
@@ -171,6 +171,15 @@ export function EventForm({
   const [v, setV] = useState<EventFormValues>(initialValues);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [departments, setDepartments] = useState<string[]>([]);
+
+  useEffect(() => {
+    api<{ departments: string[] }>('/api/masters')
+      .then((d) => setDepartments(d.departments))
+      .catch(() => {
+        // マスター取得失敗時はフリーテキスト入力にフォールバック
+      });
+  }, []);
 
   const update = <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) => {
     setV((prev) => ({ ...prev, [key]: value }));
@@ -247,13 +256,29 @@ export function EventForm({
 
       <div className="field">
         <label htmlFor="ev-committee">担当委員会 <span className="optional-mark">任意</span></label>
-        <input
-          id="ev-committee"
-          type="text"
-          value={v.committee}
-          onChange={(e) => update('committee', e.target.value)}
-          placeholder="例: 事業"
-        />
+        {departments.length > 0 ? (
+          <select
+            id="ev-committee"
+            value={v.committee}
+            onChange={(e) => update('committee', e.target.value)}
+          >
+            <option value="">未指定</option>
+            {departments.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+            {v.committee && !departments.includes(v.committee) && (
+              <option value={v.committee}>{v.committee} (登録外)</option>
+            )}
+          </select>
+        ) : (
+          <input
+            id="ev-committee"
+            type="text"
+            value={v.committee}
+            onChange={(e) => update('committee', e.target.value)}
+            placeholder="例: 事業"
+          />
+        )}
       </div>
 
       <div className="field">

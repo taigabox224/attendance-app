@@ -42,13 +42,22 @@ export function UserMenuModal({ onClose }: Props) {
             パスワード変更
           </Link>
           {user?.role === 'sysadmin' && (
-            <Link
-              to="/admin/users"
-              onClick={onClose}
-              className="link-button"
-            >
-              ユーザー管理
-            </Link>
+            <>
+              <Link
+                to="/admin/users"
+                onClick={onClose}
+                className="link-button"
+              >
+                ユーザー管理
+              </Link>
+              <Link
+                to="/admin/masters"
+                onClick={onClose}
+                className="link-button"
+              >
+                マスター設定(委員会・役職)
+              </Link>
+            </>
           )}
           <button className="secondary" onClick={onLogout}>
             ログアウト
