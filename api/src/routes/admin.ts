@@ -19,9 +19,10 @@ const createUserSchema = z.object({
   title: nullableString,
 });
 
-// 名前(苗字 / 名前)の編集は当面 UI から提供しないので update schema 対象外。
-// 必要になったら family_name / given_name を入れて name を再構築する。
 const updateUserSchema = z.object({
+  email: z.string().email().optional(),
+  family_name: z.string().min(1).max(40).optional(),
+  given_name: z.string().min(1).max(40).optional(),
   role: z.enum(ROLES).optional(),
   department: nullableString,
   title: nullableString,
@@ -153,6 +154,51 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       const sets: string[] = [];
       const params: unknown[] = [];
       const data = parsed.data;
+
+      // family_name / given_name のいずれかが来たら、現在値とマージしてから
+      // name (フルネーム) も再構築する
+      if (data.family_name !== undefined || data.given_name !== undefined) {
+        const currentNames = db
+          .prepare(
+            `SELECT family_name, given_name FROM users WHERE id = ?`,
+          )
+          .get(req.params.id) as
+          | { family_name: string | null; given_name: string | null }
+          | undefined;
+        const family = data.family_name ?? currentNames?.family_name ?? '';
+        const given = data.given_name ?? currentNames?.given_name ?? '';
+        if (data.family_name !== undefined) {
+          sets.push('family_name = ?');
+          params.push(family);
+        }
+        if (data.given_name !== undefined) {
+          sets.push('given_name = ?');
+          params.push(given);
+        }
+        const newFullName = `${family}${given}`.trim();
+        if (newFullName) {
+          sets.push('name = ?');
+          params.push(newFullName);
+        }
+      }
+
+      if (data.email !== undefined) {
+        const normalized = data.email.toLowerCase();
+        const dup = db
+          .prepare(
+            `SELECT id FROM users WHERE email_normalized = ? AND id != ?`,
+          )
+          .get(normalized, req.params.id) as { id: string } | undefined;
+        if (dup) {
+          return reply
+            .code(409)
+            .send({ error: 'このメールアドレスは既に使われています' });
+        }
+        sets.push('email = ?');
+        params.push(data.email);
+        sets.push('email_normalized = ?');
+        params.push(normalized);
+      }
 
       if (data.role !== undefined) {
         sets.push('role = ?');

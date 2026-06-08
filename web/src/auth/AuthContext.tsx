@@ -8,7 +8,8 @@ import {
 } from 'react';
 import { ApiError, api } from '../api/client';
 
-export type Role = 'sysadmin' | 'editor' | 'viewer';
+export const ROLES = ['sysadmin', 'editor', 'viewer'] as const;
+export type Role = (typeof ROLES)[number];
 
 export interface AuthUser {
   id: string;

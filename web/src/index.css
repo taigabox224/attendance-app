@@ -1483,6 +1483,30 @@ textarea {
   border: 1px solid var(--danger);
 }
 
+/* ========== User filter (admin users page) ========== */
+.user-filter {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.user-filter .search-input {
+  margin-bottom: 4px;
+}
+
+.user-filter .filter-label {
+  font-size: 10px;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+
 /* ========== Master list (委員会 / 役職 編集) ========== */
 .master-section {
   background: var(--surface);
