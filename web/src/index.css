@@ -907,6 +907,52 @@ textarea {
   margin: 12px 0;
 }
 
+/* ========== Reception (QR scanner) ========== */
+.qr-scanner-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.qr-scanner-region {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.qr-scanner-region video {
+  width: 100% !important;
+  height: auto !important;
+}
+
+.scan-result {
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin: 12px 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.scan-result-success {
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.scan-result-duplicate {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+
+.scan-result-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
 /* ========== Admin user list ========== */
 .user-list {
   list-style: none;

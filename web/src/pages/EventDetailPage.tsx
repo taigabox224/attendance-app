@@ -185,6 +185,9 @@ export function EventDetailPage() {
 
       {canEdit && (
         <div className="action-stack" style={{ marginTop: 32 }}>
+          <Link to={`/events/${ev.id}/reception`} className="link-button">
+            受付モード(QR スキャン)
+          </Link>
           <Link to={`/events/${ev.id}/edit`} className="link-button">
             イベントを編集
           </Link>
