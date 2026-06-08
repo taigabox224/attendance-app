@@ -4,7 +4,6 @@ import { ApiError, api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { AdminTabs } from '../components/AdminTabs';
 import { DateInput } from '../components/DateInput';
-import { ModeToggle } from '../components/ModeToggle';
 import { formatDateTime } from '../lib/format';
 import {
   applyPreset,
@@ -88,9 +87,7 @@ export function HomePage() {
   const displayName = user.family_name?.trim() || user.name?.trim() || '';
 
   return (
-    <>
-      <ModeToggle />
-      <div className="screen">
+    <div className="screen">
       <AdminTabs />
 
       <header className="screen-header row">
@@ -195,7 +192,6 @@ export function HomePage() {
           })}
         </ul>
       )}
-      </div>
-    </>
+    </div>
   );
 }

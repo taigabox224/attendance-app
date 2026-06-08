@@ -183,6 +183,29 @@ body {
   gap: 8px;
 }
 
+/* 管理者モードのとき Topbar の見た目を変えて気付きを与える */
+.topbar.is-admin {
+  background: var(--primary-soft);
+  border-bottom-color: var(--primary);
+}
+.topbar.is-admin .brand-text-line1,
+.topbar.is-admin .brand-text-line2 {
+  color: var(--primary);
+}
+
+/* Topbar に出す「管理者」バッジ (viewMode='admin' のとき表示) */
+.topbar-mode-badge {
+  display: inline-block;
+  background: var(--primary);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 100px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
 .role-pill {
   display: flex;
   align-items: center;

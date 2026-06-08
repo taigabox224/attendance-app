@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ProfileEditModal } from './ProfileEditModal';
 
@@ -8,9 +8,23 @@ interface Props {
 }
 
 export function UserMenuModal({ onClose }: Props) {
-  const { logout } = useAuth();
+  const { user, viewMode, setViewMode, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showProfile, setShowProfile] = useState(false);
+
+  const isPrivileged =
+    !!user && (user.role === 'sysadmin' || user.role === 'editor');
+
+  function toggleMode() {
+    const next = viewMode === 'admin' ? 'user' : 'admin';
+    setViewMode(next);
+    // ユーザーモードに戻る時は /admin/* に居られないので /events に逃がす
+    if (next === 'user' && location.pathname.startsWith('/admin')) {
+      navigate('/events');
+    }
+    onClose();
+  }
 
   async function onLogout() {
     onClose();
@@ -38,6 +52,17 @@ export function UserMenuModal({ onClose }: Props) {
           </button>
           <h2>マイメニュー</h2>
           <div className="action-stack" style={{ marginTop: 0 }}>
+            {isPrivileged && (
+              <button
+                type="button"
+                className="link-button"
+                onClick={toggleMode}
+              >
+                {viewMode === 'admin'
+                  ? 'ユーザーモードに切替'
+                  : '管理者モードに切替'}
+              </button>
+            )}
             <button
               type="button"
               className="link-button"

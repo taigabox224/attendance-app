@@ -15,12 +15,19 @@ function avatarInitial(name: string): string {
 }
 
 export function Topbar() {
-  const { user } = useAuth();
+  const { user, viewMode } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
+
+  // editor+ で viewMode='admin' のとき、Topbar の見た目を変えて
+  // 「今は管理者モードです」を分かりやすくする
+  const isAdminMode =
+    !!user &&
+    (user.role === 'sysadmin' || user.role === 'editor') &&
+    viewMode === 'admin';
 
   return (
     <>
-      <header className="topbar">
+      <header className={`topbar ${isAdminMode ? 'is-admin' : ''}`}>
         <Link to="/events" className="brand">
           <span className="brand-logo" aria-hidden="true" />
           <span className="brand-text">
@@ -31,7 +38,18 @@ export function Topbar() {
 
         {user && (
           <div className="topbar-right">
-            <div className="role-pill" aria-label={`${ROLE_LABEL[user.role]} としてログイン中`}>
+            {isAdminMode && (
+              <span
+                className="topbar-mode-badge"
+                title="管理者モードで表示中"
+              >
+                管理者
+              </span>
+            )}
+            <div
+              className="role-pill"
+              aria-label={`${ROLE_LABEL[user.role]} としてログイン中`}
+            >
               <span className="avatar">{avatarInitial(user.name)}</span>
               <span className="label">
                 <span className="name">{user.name}</span>
