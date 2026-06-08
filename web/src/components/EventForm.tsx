@@ -219,7 +219,14 @@ export function EventForm({
       else if (variant === 'draft') payload.published = false;
       await onSubmit(payload);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '通信エラーが発生しました');
+      // ApiError は server エラー、Error は呼出元のバリデーション失敗を想定
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : '通信エラーが発生しました',
+      );
     } finally {
       setSubmitting(false);
       setSubmitVariant(null);

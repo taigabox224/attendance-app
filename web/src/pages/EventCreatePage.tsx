@@ -35,6 +35,11 @@ export function EventCreatePage() {
 
   // 参加者選択 state
   const [attendeeIds, setAttendeeIds] = useState<Set<string>>(new Set());
+
+  // ゲスト (オブザーバー) state
+  const [hasObservers, setHasObservers] = useState(false);
+  const [observers, setObservers] = useState<string[]>([]);
+  const [showObserverModal, setShowObserverModal] = useState(false);
   const [observerInput, setObserverInput] = useState('');
 
   // 受付担当選択 state
@@ -83,15 +88,6 @@ export function EventCreatePage() {
     return users.filter((u) => u.name.includes(q));
   }, [users, receptionistQuery]);
 
-  const observerNames = useMemo(
-    () =>
-      observerInput
-        .split(/\r?\n/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0),
-    [observerInput],
-  );
-
   function toggleAttendee(id: string) {
     setAttendeeIds((prev) => {
       const next = new Set(prev);
@@ -119,6 +115,30 @@ export function EventCreatePage() {
     });
   }
 
+  function toggleHasObservers(checked: boolean) {
+    setHasObservers(checked);
+    if (checked) {
+      // 初回チェック時にモーダルを開いて入力を促す
+      setShowObserverModal(true);
+    } else {
+      // チェックを外したら既存のゲストもクリア (合意を取るほうが安全だが、
+      // 入力直後の操作なので明示的に挙動を揃える)
+      setObservers([]);
+      setShowObserverModal(false);
+    }
+  }
+
+  function addObserverFromModal() {
+    const name = observerInput.trim();
+    if (!name) return;
+    setObservers((prev) => [...prev, name]);
+    setObserverInput('');
+  }
+
+  function removeObserver(i: number) {
+    setObservers((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
   async function applyPreset(listId: string) {
     if (!listId) return;
     try {
@@ -136,6 +156,11 @@ export function EventCreatePage() {
   }
 
   async function onSubmit(payload: EventFormPayload) {
+    // 参加者必須チェック
+    if (attendeeIds.size === 0) {
+      throw new Error('参加者を 1 名以上選択してください');
+    }
+
     // Step 1: イベント本体を作成
     const created = await api<{ event: { id: string } }>('/api/events', {
       method: 'POST',
@@ -143,18 +168,20 @@ export function EventCreatePage() {
     });
     const newId = created.event.id;
 
-    // Step 2: 参加者 + ゲストを追加 (空ならスキップ)
-    if (attendeeIds.size > 0 || observerNames.length > 0) {
+    // Step 2: 参加者 + ゲストを追加
+    const observerPayload = hasObservers
+      ? observers.map((name) => ({ name }))
+      : [];
+    if (attendeeIds.size > 0 || observerPayload.length > 0) {
       try {
         await api(`/api/events/${newId}/attendees`, {
           method: 'POST',
           body: JSON.stringify({
             user_ids: Array.from(attendeeIds),
-            observers: observerNames.map((name) => ({ name })),
+            observers: observerPayload,
           }),
         });
       } catch (e) {
-        // 参加者追加が失敗してもイベント自体は作成済み → 警告だけ出して navigate
         console.warn('Failed to add attendees:', e);
       }
     }
@@ -191,14 +218,57 @@ export function EventCreatePage() {
         onSubmit={onSubmit}
         onCancel={() => navigate('/events')}
       >
-        {/* 参加者ピッカー */}
+        {/* ゲスト (オブザーバー) ─ チェックでモーダル展開 */}
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={hasObservers}
+            onChange={(e) => toggleHasObservers(e.target.checked)}
+          />
+          <span>オブザーバー(ゲスト)を追加</span>
+        </label>
+
+        {hasObservers && (
+          <div className="observer-summary">
+            {observers.length === 0 ? (
+              <p className="note" style={{ margin: 0 }}>
+                ゲストはまだ登録されていません
+              </p>
+            ) : (
+              <ul className="observer-list">
+                {observers.map((name, i) => (
+                  <li key={i}>
+                    <span>{name}</span>
+                    <button
+                      type="button"
+                      className="danger btn-sm"
+                      onClick={() => removeObserver(i)}
+                    >
+                      削除
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button
+              type="button"
+              className="btn-outline btn-sm"
+              onClick={() => setShowObserverModal(true)}
+              style={{ marginTop: 8 }}
+            >
+              + ゲストを追加
+            </button>
+          </div>
+        )}
+
+        {/* 参加者ピッカー (必須) */}
         <section className="picker-card picker-participants">
           <div className="picker-card-header">
             <span className="picker-card-title">参加者を選択</span>
-            <span className="picker-card-tag optional">任意</span>
+            <span className="picker-card-tag required">必須</span>
           </div>
           <p className="picker-card-help">
-            既存ユーザーを選択 / プリセットから一括追加 / ゲストを下の欄に入力。後で編集画面からも追加できます。
+            既存ユーザーを 1 名以上選択してください。プリセットから一括追加もできます。
           </p>
 
           {presets.length > 0 && (
@@ -296,21 +366,10 @@ export function EventCreatePage() {
             )}
           </div>
 
-          <div className="field" style={{ marginTop: 12 }}>
-            <label htmlFor="ec-observer">
-              ゲスト(オブザーバー)を追加 <span className="optional-mark">任意</span>
-            </label>
-            <textarea
-              id="ec-observer"
-              rows={3}
-              value={observerInput}
-              onChange={(e) => setObserverInput(e.target.value)}
-              placeholder={`1行に1名で複数入力できます。例:\n山田 太郎(株式会社X)\n佐藤 花子`}
-            />
-            <p className="note" style={{ margin: '4px 0 0' }}>
-              選択 {attendeeIds.size}名 + ゲスト {observerNames.length}名 = 計 {attendeeIds.size + observerNames.length}名
-            </p>
-          </div>
+          <p className="note" style={{ margin: '8px 0 0' }}>
+            選択 {attendeeIds.size}名
+            {hasObservers && observers.length > 0 && ` + ゲスト ${observers.length}名`}
+          </p>
         </section>
 
         {/* 受付担当ピッカー */}
@@ -357,6 +416,84 @@ export function EventCreatePage() {
           </p>
         </section>
       </EventForm>
+
+      {/* ゲスト追加モーダル */}
+      {showObserverModal && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowObserverModal(false)}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-handle" aria-hidden="true" />
+            <button
+              type="button"
+              className="modal-close"
+              onClick={() => setShowObserverModal(false)}
+              aria-label="閉じる"
+            >
+              ×
+            </button>
+            <h2>ゲストを追加</h2>
+
+            {observers.length > 0 && (
+              <ul className="observer-list" style={{ marginBottom: 16 }}>
+                {observers.map((name, i) => (
+                  <li key={i}>
+                    <span>{name}</span>
+                    <button
+                      type="button"
+                      className="danger btn-sm"
+                      onClick={() => removeObserver(i)}
+                    >
+                      削除
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="field">
+              <label htmlFor="observer-name">
+                名前 <span className="required-mark">*</span>
+              </label>
+              <input
+                id="observer-name"
+                type="text"
+                value={observerInput}
+                onChange={(e) => setObserverInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addObserverFromModal();
+                  }
+                }}
+                placeholder="例: 山田 太郎(株式会社X)"
+                autoFocus
+              />
+            </div>
+
+            <div className="action-row" style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={addObserverFromModal}
+                disabled={!observerInput.trim()}
+                style={{ flex: 1 }}
+              >
+                追加
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setShowObserverModal(false)}
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
