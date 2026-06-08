@@ -1565,8 +1565,8 @@ button.badge-unpaid:hover:not(:disabled) {
   margin-top: 6px;
 }
 .multiselect-chips .chip {
-  padding: 4px 10px;
-  font-size: 11px;
+  padding: 2px 8px;
+  font-size: 10px;
 }
 .filter-section-label {
   font-size: 10px;
