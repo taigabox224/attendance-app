@@ -993,14 +993,9 @@ code,
   font-family: inherit;
   line-height: 1;
 }
-
-/* フォーカス中は overlay を消して native の picker UI に任せる */
-.date-input-wrap[data-has-value='false']:focus-within::before {
-  content: none;
-}
-.date-input-wrap[data-has-value='false'] input[type='date']:focus {
-  color: var(--text);
-}
+/* focus 中の color/visibility 切替はしない。
+   切替を行うと Chrome/Safari でカレンダー picker が開いた直後に
+   再ペイントが走り、picker が閉じてしまう不具合があった。 */
 
 /* ========== Event list (card) ========== */
 .event-list {
@@ -2202,9 +2197,11 @@ button.badge-unpaid:hover:not(:disabled) {
 
 /* ========== Event create/edit form 補助 ========== */
 
-/* checkbox-row のサブテキスト付き (Phase 1 の懇親会 / オブザーバー風) */
+/* checkbox-row のサブテキスト付き (Phase 1 の懇親会 / オブザーバー風)
+   legacy はサブテキスト付きでもチェックボックスは中心揃え + 背景色を変えている */
 .check-with-sub {
-  align-items: flex-start;
+  align-items: center;
+  background: var(--surface-soft);
 }
 
 .check-with-sub > span {

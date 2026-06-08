@@ -93,7 +93,9 @@ export function HomePage() {
       <header className="screen-header row">
         <div>
           {canEdit ? (
-            <h1 className="screen-title">登録されているイベント</h1>
+            <h1 className="screen-title" style={{ fontSize: 24 }}>
+              登録されているイベント
+            </h1>
           ) : (
             <>
               <h1 className="screen-title">

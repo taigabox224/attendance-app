@@ -89,9 +89,28 @@ export function ChangePasswordPage() {
           />
         </div>
         {error && <p className="error">{error}</p>}
-        <button type="submit" disabled={submitting}>
-          {submitting ? '更新中...' : 'パスワードを変更'}
-        </button>
+        <div
+          className="action-row"
+          style={{ marginTop: 14, display: 'flex', gap: 8 }}
+        >
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => navigate(-1)}
+            disabled={submitting || !!user?.must_change_password}
+            style={{ flex: 1 }}
+            title={
+              user?.must_change_password
+                ? '仮パスワードのまま閉じることはできません'
+                : undefined
+            }
+          >
+            キャンセル
+          </button>
+          <button type="submit" disabled={submitting} style={{ flex: 1 }}>
+            {submitting ? '更新中...' : 'パスワードを変更'}
+          </button>
+        </div>
       </form>
     </div>
   );
