@@ -1,24 +1,24 @@
-.PHONY: web api dev stop build
+.PHONY: web api dev stop build legacy
 
-# web: フロントエンドサーバーを起動 (http://localhost:8000)
+# web: フロントエンド開発サーバー (Vite, http://localhost:5173)
 web:
-	cd web && python3 -m http.server 8000
+	cd web && npm install && npm run dev
 
-# api: バックエンド開発サーバーを起動 (http://localhost:3000/health)
+# api: バックエンド開発サーバー (Fastify, http://localhost:3000/health)
 api:
 	cd api && npm install && npm run dev
 
 # dev: 両サーバーを起動
 dev:
 	@set -e; \
-	(cd web && python3 -m http.server 8000) & WEB_PID=$$!; \
+	(cd web && npm install && npm run dev) & WEB_PID=$$!; \
 	(cd api && npm install && npm run dev) & API_PID=$$!; \
 	trap 'kill $$WEB_PID $$API_PID 2>/dev/null || true' INT TERM EXIT; \
 	wait
 
-# stop: フロントエンドサーバー:8000(web) と API開発サーバー:3000(api) を停止
+# stop: フロントエンド (5173/Vite) と API (3000) の待受プロセスを停止
 stop:
-	@PIDS=$$(lsof -tiTCP:8000 -sTCP:LISTEN; lsof -tiTCP:3000 -sTCP:LISTEN); \
+	@PIDS=$$(lsof -tiTCP:5173 -sTCP:LISTEN; lsof -tiTCP:3000 -sTCP:LISTEN); \
 	if [ -n "$$PIDS" ]; then \
 		echo "Stopping: $$PIDS"; \
 		kill $$PIDS; \
@@ -26,6 +26,10 @@ stop:
 		echo "No web/api server process found."; \
 	fi
 
-# build: ビルド実行
+# build: web の本番ビルド (Vite)
 build:
-	cd api && npm run build
+	cd web && npm install && npm run build
+
+# legacy: Phase 1 のプロトタイプ単一HTML版を 8000 番で配信
+legacy:
+	cd web/legacy && python3 -m http.server 8000

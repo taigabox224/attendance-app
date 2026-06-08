@@ -1,0 +1,4069 @@
+<!-- 出欠記録アプリ プロトタイプ -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>出欠記録</title>
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+<div class="app-frame">
+  <div class="demo-banner">
+    PROTOTYPE <span>· デモ用 (データはブラウザに保存)</span>
+  </div>
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <button class="brand" type="button" onclick="goHome()">
+      <span class="brand-logo" aria-hidden="true"></span>
+      <span class="brand-text">
+        <span class="brand-text-line1">流山青年会議所</span>
+        <span class="brand-text-line2">イベント管理アプリ</span>
+      </span>
+    </button>
+    <div class="topbar-right">
+      <button class="role-pill" id="role-switch-btn">
+        <div class="avatar" id="topbar-avatar">A</div>
+        <div class="label">
+          <div class="name" id="topbar-name">管理者</div>
+          <div class="role" id="topbar-role">admin</div>
+        </div>
+      </button>
+      <button class="user-menu-btn" type="button" onclick="openUserMenu()" title="マイメニュー">⚙</button>
+    </div>
+  </header>
+
+  <div id="mode-toggle-bar" class="mode-toggle-bar" style="display:none"></div>
+
+  <!-- ========== ADMIN: Event List ========== -->
+  <section id="screen-admin-list" class="screen">
+    <div class="admin-tabs">
+      <button class="admin-tab active" onclick="showScreen('admin-list')">イベント</button>
+      <button class="admin-tab" onclick="showScreen('admin-users')">ユーザー</button>
+    </div>
+    <div class="screen-header header-row">
+      <div>
+        <h1 class="screen-title">イベント一覧</h1>
+        <p class="screen-sub">システムで作成したすべてのイベントを表示</p>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openCreateEventModal()">+ 新規作成</button>
+    </div>
+    <div id="admin-event-filter"></div>
+    <div id="admin-event-list"></div>
+  </section>
+
+  <!-- ========== ADMIN: User List ========== -->
+  <section id="screen-admin-users" class="screen screen-hidden">
+    <div class="admin-tabs">
+      <button class="admin-tab" onclick="showScreen('admin-list')">イベント</button>
+      <button class="admin-tab active" onclick="showScreen('admin-users')">ユーザー</button>
+    </div>
+    <div class="screen-header header-row">
+      <div>
+        <h1 class="screen-title">ユーザー一覧</h1>
+        <p class="screen-sub">登録ユーザーを委員会・役職で絞り込みできます</p>
+      </div>
+      <div id="admin-users-actions" style="display:flex;flex-direction:row;gap:6px;align-items:center;flex-shrink:0"></div>
+      <button class="gear-btn" id="admin-users-gear" onclick="openUserListMenu()" title="設定" style="display:none">⚙</button>
+    </div>
+    <div id="admin-user-filter"></div>
+    <div id="admin-user-bulk-bar"></div>
+    <div id="admin-user-list"></div>
+  </section>
+
+  <!-- ========== ADMIN: Event Detail ========== -->
+  <section id="screen-admin-detail" class="screen screen-hidden">
+    <div class="detail-toolbar">
+      <button class="back-link" onclick="backFromEventDetail()">一覧に戻る</button>
+      <button class="gear-btn" onclick="openEventMenu()" title="このイベントの操作">⚙</button>
+    </div>
+    <div id="reception-toggle-admin" class="reception-toggle-bar" style="display:none"></div>
+    <div id="admin-detail-content"></div>
+  </section>
+
+  <!-- ========== USER: Event List ========== -->
+  <section id="screen-user-list" class="screen screen-hidden">
+    <div class="screen-header header-row">
+      <div>
+        <h1 class="screen-title" id="user-list-title">あなたのイベント</h1>
+        <p class="screen-sub">招待または作成したイベントを表示</p>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openCreateEventModal()">+ 新規作成</button>
+    </div>
+    <div id="user-event-filter"></div>
+    <div id="user-event-list"></div>
+  </section>
+
+  <!-- ========== USER: Event Detail ========== -->
+  <section id="screen-user-detail" class="screen screen-hidden">
+    <div class="detail-toolbar">
+      <button class="back-link" onclick="backFromEventDetail()">一覧に戻る</button>
+      <button class="gear-btn" id="user-detail-gear" onclick="openEventMenu()" title="このイベントの操作" style="display:none">⚙</button>
+    </div>
+    <div id="reception-toggle-user" class="reception-toggle-bar" style="display:none"></div>
+    <div id="user-detail-content"></div>
+  </section>
+
+
+  <!-- Modals -->
+  <div class="modal-overlay" id="modal-role">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>ロール / ユーザー切替</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
+        デモ用にアカウントを切り替えられます
+      </p>
+      <div id="role-user-list"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-create-event">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <button type="button" class="modal-close" onclick="closeModal('modal-create-event')" aria-label="閉じる">×</button>
+      <h2 id="event-modal-heading">イベントを作成</h2>
+      <p style="font-size:11px;color:var(--text-mute);margin-bottom:14px"><span class="required-mark">*</span> は必須項目です</p>
+      <div class="form-group">
+        <label class="form-label">タイトル <span class="required-mark">*</span></label>
+        <input type="text" class="form-input" id="new-event-title" placeholder="例: 2026年6月度例会">
+      </div>
+      <div class="form-group">
+        <label class="form-label">開始日時 <span class="required-mark">*</span></label>
+        <input type="datetime-local" class="form-input" id="new-event-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">終了日時 <span class="optional-mark">任意</span></label>
+        <input type="datetime-local" class="form-input" id="new-event-end-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">回答期限</label>
+        <input type="datetime-local" class="form-input" id="new-event-deadline">
+        <div style="font-size:11px;color:var(--text-mute);margin-top:4px">
+          この日時を過ぎると、ユーザは出欠を変更できなくなります(管理者は変更可)
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">担当委員会</label>
+        <select class="form-input" id="new-event-committee"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">場所</label>
+        <input type="text" class="form-input" id="new-event-location" placeholder="例: スターツおおたかの森ホール">
+      </div>
+      <div class="form-group">
+        <label class="form-label">説明 <span class="optional-mark">任意</span></label>
+        <textarea class="form-textarea" id="new-event-description" placeholder="服装、持ち物、注意事項など"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-row" style="background:var(--surface-soft);border:1px solid var(--border)">
+          <input type="checkbox" id="new-event-has-afterparty" onchange="toggleAfterpartyFields(this.checked)">
+          <div>
+            <div class="name">懇親会あり</div>
+            <div style="font-size:11px;color:var(--text-mute);margin-top:2px">参加者は本編とは別に懇親会の出欠も回答できます</div>
+          </div>
+        </label>
+      </div>
+      <div id="afterparty-fields" style="display:none">
+        <div class="form-group">
+          <label class="form-label">懇親会の場所 <span class="optional-mark">任意</span></label>
+          <input type="text" class="form-input" id="new-event-afterparty-location" placeholder="例: 居酒屋 旬彩(本社から徒歩3分)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">懇親会の説明 <span class="optional-mark">任意</span></label>
+          <textarea class="form-textarea" id="new-event-afterparty-description" placeholder="会費、地図URL、注意事項など"></textarea>
+          <div style="font-size:11px;color:var(--text-mute);margin-top:4px">URL は自動でリンクになります</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-row" style="background:var(--surface-soft);border:1px solid var(--border)">
+          <input type="checkbox" id="new-event-has-observers" onchange="toggleObserverFields(this.checked)">
+          <div>
+            <div class="name">オブザーバー(ゲスト)を追加</div>
+            <div style="font-size:11px;color:var(--text-mute);margin-top:2px">登録ユーザー以外のゲストを参加者に含めます。出席人数にカウントされます</div>
+          </div>
+        </label>
+      </div>
+      <div id="observer-fields" style="display:none">
+        <div class="form-group">
+          <label class="form-label">オブザーバー</label>
+          <div id="observer-list"></div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <input type="text" class="form-input" id="new-observer-name" placeholder="ゲストのお名前">
+            <button type="button" class="btn btn-outline btn-sm" onclick="addObserver()">追加</button>
+          </div>
+        </div>
+      </div>
+      <div class="picker-card picker-participants">
+        <div class="picker-card-header">
+          <span class="picker-card-icon">👥</span>
+          <div class="picker-card-title">参加者を選択</div>
+          <span class="picker-card-tag required">必須</span>
+        </div>
+        <div class="picker-card-help">出欠回答を依頼するメンバーを選びます</div>
+        <div id="new-event-attendees"></div>
+      </div>
+      <div class="picker-card picker-receptionists">
+        <div class="picker-card-header">
+          <span class="picker-card-icon">🛡️</span>
+          <div class="picker-card-title">受付担当を選択</div>
+          <span class="picker-card-tag optional">任意</span>
+        </div>
+        <div class="picker-card-help">当日「受付」モードに切替えてQRスキャンや出欠変更ができるメンバーです</div>
+        <div id="new-event-receptionists"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px">
+        <button class="btn btn-primary btn-full" onclick="saveEventForm({ publish: true })" id="event-modal-save-publish">公開して作成</button>
+        <button class="btn btn-outline btn-full" onclick="saveEventForm({ publish: false })" id="event-modal-save-draft">下書きとして保存</button>
+        <button class="btn btn-ghost btn-full" onclick="closeModal('modal-create-event')">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-scanner">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>QRコードをスキャン</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:12px">
+        参加者のQRコードをカメラで読み取ってください
+      </p>
+      <div id="scanner-region"></div>
+      <div id="scanner-fallback-box"></div>
+      <div id="scan-result-box"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-outline btn-full" onclick="closeScanner()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-scan-fee">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div id="scan-fee-body"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-profile">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>プロフィール編集</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
+        お名前は姓と名に分けて入力します。委員会と役職の変更は管理者にご依頼ください。
+      </p>
+      <div class="form-group">
+        <label class="form-label">お名前 <span style="color:var(--danger)">*</span></label>
+        <div style="display:flex;gap:6px">
+          <input type="text" class="form-input" id="profile-last-name" placeholder="姓" autocomplete="family-name" style="flex:1">
+          <input type="text" class="form-input" id="profile-first-name" placeholder="名" autocomplete="given-name" style="flex:1">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">委員会</label>
+        <div id="profile-department-display" class="readonly-field"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">役職</label>
+        <div id="profile-title-display" class="readonly-field"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-profile')">キャンセル</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveProfile()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-event-menu">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>イベントの操作</h2>
+      <div id="event-menu-body" style="display:flex;flex-direction:column;gap:8px;margin-top:12px"></div>
+      <div style="margin-top:14px">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-data">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>データ同期 / バックアップ</h2>
+      <div id="sync-section"></div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:18px 0">
+      <details>
+        <summary style="font-size:13px;color:var(--text-mute);cursor:pointer;margin-bottom:10px">JSONで手動バックアップ</summary>
+        <div class="form-group" style="margin-top:8px">
+          <button class="btn btn-outline btn-full" onclick="exportStateJson()">JSONファイルを書き出す</button>
+        </div>
+        <div class="form-group">
+          <input type="file" id="data-import-file" accept="application/json,.json" style="display:none" onchange="importStateJson(this)">
+          <button class="btn btn-outline btn-full" onclick="document.getElementById('data-import-file').click()">JSONファイルを選択して上書き</button>
+          <div style="font-size:11px;color:var(--danger);margin-top:6px">
+            ⚠ 読み込むと現在のデータは上書きされます
+          </div>
+        </div>
+      </details>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-data')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-user-edit">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2 id="user-edit-heading">ユーザー登録</h2>
+      <div class="form-group">
+        <label class="form-label">お名前 <span style="color:var(--danger)">*</span></label>
+        <div style="display:flex;gap:6px">
+          <input type="text" class="form-input" id="user-edit-last-name" placeholder="姓" autocomplete="family-name" style="flex:1">
+          <input type="text" class="form-input" id="user-edit-first-name" placeholder="名" autocomplete="given-name" style="flex:1">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">メールアドレス <span class="optional-mark">任意</span></label>
+        <input type="email" class="form-input" id="user-edit-email" placeholder="例: user@example.com" autocomplete="email">
+        <div style="font-size:11px;color:var(--text-mute);margin-top:4px">本番のログイン認証で必須になります。今のうちに登録しておくと移行がスムーズです。</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">委員会</label>
+        <select class="form-input" id="user-edit-department"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">役職</label>
+        <select class="form-input" id="user-edit-title"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ロール</label>
+        <select class="form-input" id="user-edit-role"></select>
+        <div id="user-edit-role-note" style="font-size:11px;color:var(--text-mute);margin-top:4px"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ステータス</label>
+        <select class="form-input" id="user-edit-status">
+          <option value="active">アクティブ</option>
+          <option value="inactive">休会</option>
+          <option value="left">退会</option>
+        </select>
+        <div style="font-size:11px;color:var(--text-mute);margin-top:4px">
+          アクティブ以外は招待リストや切替メニューから除外されます
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-user-edit')">キャンセル</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveUserEdit()" id="user-edit-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-user-menu">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>マイメニュー</h2>
+      <div id="user-menu-summary" style="font-size:13px;color:var(--text-mute);margin-bottom:14px;line-height:1.6"></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+        <button class="btn btn-primary btn-full" onclick="closeModal('modal-user-menu'); openProfileModal()">ユーザー情報を編集</button>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-user-menu')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-bulk-edit">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2 id="bulk-edit-heading">一括変更</h2>
+      <p id="bulk-edit-sub" style="font-size:12px;color:var(--text-mute);margin-bottom:14px"></p>
+      <div id="bulk-edit-options"></div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-bulk-edit')">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-attendee-lists">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>参加者リスト</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
+        よく使うメンバーの組み合わせを保存して、イベント作成時に「リストから一括選択」で適用できます。
+      </p>
+      <div id="attendee-lists-list" style="margin-bottom:14px"></div>
+      <button class="btn btn-primary btn-full" onclick="openAttendeeListEditor(null)">+ 新規作成</button>
+      <div style="margin-top:14px">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-attendee-lists')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-attendee-list-editor">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2 id="attendee-list-editor-heading">リストを新規作成</h2>
+      <div class="form-group">
+        <label class="form-label">名称 <span style="color:var(--danger)">*</span></label>
+        <input type="text" class="form-input" id="attendee-list-name" placeholder="例: 理事会メンバー">
+      </div>
+      <div class="form-group">
+        <label class="form-label">参加者</label>
+        <div id="attendee-list-users"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:18px">
+        <button class="btn btn-primary btn-full" onclick="saveAttendeeList()">保存</button>
+        <button class="btn btn-outline btn-full" onclick="closeAttendeeListEditor()">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-user-list-menu">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>ユーザー一覧の設定</h2>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px" id="user-list-menu-body"></div>
+      <div style="margin-top:14px">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-user-list-menu')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-user-order">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>ユーザーの表示順</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
+        イベント作成時のユーザー一覧(参加者・受付担当)の並び順を、↑↓ ボタンで個別に並べ替えます。設定後はクラウド同期で全端末に反映されます。
+      </p>
+      <div id="user-order-options" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div style="margin-top:14px">
+        <button class="btn btn-outline btn-full" onclick="closeModal('modal-user-order')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-master">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2>マスター編集</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px">
+        委員会・役職の選択肢を編集できます。削除しても既存ユーザの登録値は残ります(選択肢から外れるだけ)。
+      </p>
+      <div class="form-group">
+        <label class="form-label">委員会</label>
+        <div id="master-departments"></div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <input type="text" class="form-input" id="master-department-new" placeholder="新しい委員会名">
+          <button type="button" class="btn btn-outline btn-sm" onclick="addMaster('departments')">追加</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">役職</label>
+        <div id="master-titles"></div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <input type="text" class="form-input" id="master-title-new" placeholder="新しい役職名">
+          <button type="button" class="btn btn-outline btn-sm" onclick="addMaster('titles')">追加</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-master')">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-qr">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <h2 id="qr-title">受付用QRコード</h2>
+      <div class="qr-display">
+        <div class="qr-box">
+          <div class="qr-code" id="qr-code-target"></div>
+        </div>
+        <div class="qr-label" id="qr-token-label"></div>
+        <p class="qr-hint">当日、受付でこの画面を提示してください</p>
+      </div>
+      <button class="btn btn-outline btn-full" onclick="closeModal('modal-qr')">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+// =================================================
+// State
+// =================================================
+
+const API_BASE_URL = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+                ? 'http://localhost:3001'
+                : '/api'
+
+async function test() {
+  await fetch(`${API_BASE_URL}/health`).then(res => console.log(res.json()))
+}
+
+test()
+
+let state = {
+  users: [],
+  events: [],
+  currentUserId: null,
+  currentEventId: null,
+};
+
+// 委員会・役職の初期値(マスターは state.departments / state.titles で管理し、管理者が編集可能)
+const DEFAULT_DEPARTMENTS = ['正副・幹事', '拡大ヒーローズ', '経営革新', 'キャリーボンド', '未来創造', 'Challenge♾️', '組織マネジメント'];
+const DEFAULT_TITLES = ['理事長', '専務理事', '直前理事長', '副理事長', '顧問', '監事', '外部監事', '委員長', '副委員長', 'メンバー'];
+const getDepartments = () => state.departments || DEFAULT_DEPARTMENTS;
+const getTitles = () => state.titles || DEFAULT_TITLES;
+
+const SEED = () => {
+  const SEED_NAMES = [
+    '佐藤 ゆき', '鈴木 健', '高橋 まり', '伊藤 拓真', '渡辺 莉子',
+    '山本 大輔', '中村 さくら', '小林 涼太', '加藤 美月', '吉田 拓也',
+    '山田 はるか', '佐々木 翔', '山口 結衣', '松本 健太', '井上 千夏',
+    '木村 蓮', '林 葵', '清水 直樹', '斎藤 紗英', '森 颯太',
+    '池田 麻衣', '橋本 隼人', '阿部 千尋', '石川 駿', '山崎 美咲',
+    '中島 太一', '前田 七海', '藤田 陸', '岡田 楓', '長谷川 翼',
+    '近藤 真央', '石井 凛', '坂本 拓海', '遠藤 詩織', '青木 海斗',
+    '藤井 美優', '西村 蒼', '福田 杏奈', '太田 悠真', '三浦 結菜',
+    '岡本 大和', '松田 凪', '中川 朝陽', '原田 さき', '小野 海',
+    '田村 心春', '竹内 蓮', '金子 椿', '和田 智也', '中山 ひかり',
+  ];
+  const users = [
+    { id: 'u_admin', name: '田中 システム管理者', lastName: '田中', firstName: 'システム管理者', email: 'admin@example.com', role: 'sysadmin', department: null, title: null, status: 'active' },
+    { id: 'u_editor', name: '佐々木 編集者', lastName: '佐々木', firstName: '編集者', email: 'editor@example.com', role: 'editor', department: '正副・幹事', title: null, status: 'active' },
+  ];
+  // 先頭11名は「正副・幹事」の役員陣として配置、残りは他の6委員会を巡回
+  const OFFICER_TITLES = [
+    '理事長',                          // 1
+    '専務理事',                        // 1
+    '直前理事長',                      // 1
+    '副理事長', '副理事長', '副理事長', '副理事長', // 4
+    '顧問',                            // 1
+    '監事',                            // 1
+    '外部監事', '外部監事',            // 2
+  ];
+  const OTHER_COMMITTEES = DEFAULT_DEPARTMENTS.filter(d => d !== '正副・幹事');
+  SEED_NAMES.forEach((name, i) => {
+    let department, title;
+    if (i < OFFICER_TITLES.length) {
+      department = '正副・幹事';
+      title = OFFICER_TITLES[i];
+    } else {
+      const remIdx = i - OFFICER_TITLES.length;
+      department = OTHER_COMMITTEES[remIdx % OTHER_COMMITTEES.length];
+      const positionRound = Math.floor(remIdx / OTHER_COMMITTEES.length);
+      if (positionRound === 0) title = '委員長';        // 各委員会1名 × 6
+      else if (positionRound === 1) title = '副委員長'; // 各委員会1名 × 6
+      else title = 'メンバー';                           // 残り
+    }
+    // 1人だけ休会、1人だけ退会としてサンプル化
+    let status = 'active';
+    if (i === 13) status = 'inactive';
+    else if (i === 27) status = 'left';
+    const { lastName, firstName } = splitFullName(name);
+    const id = 'u_' + String(i + 1).padStart(3, '0');
+    users.push({
+      id,
+      name, lastName, firstName,
+      email: `${id}@example.com`,
+      role: 'viewer',
+      department, title, status,
+    });
+  });
+
+  const now = new Date();
+  const past = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 3); // 3日後開催
+  const future = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 7);
+  const future2 = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14);
+
+  // 期限切れイベント: 開催は3日後、回答期限は昨日(=既に締切)
+  const closedAttendees = users
+    .filter(u => u.role === 'viewer')
+    .slice(0, 40)
+    .map((u, i) => {
+      // 期限切れなので回答済が多めの構成: yes 60%, no 25%, pending 15%
+      const m = i % 20;
+      let status = 'yes';
+      if (m < 3) status = 'pending';
+      else if (m < 8) status = 'no';
+      return { userId: u.id, status, checkedInAt: null };
+    });
+
+  // 春の総会: 全員(50名)招待、ステータス散らす。懇親会あり。
+  const partyAttendees = users
+    .filter(u => u.role === 'viewer')
+    .map((u, i) => {
+      const m = i % 10;
+      let status = 'yes';
+      let checkedIn = false;
+      if (m === 0) { status = 'yes'; checkedIn = true; } // 既に当日受付済の人
+      else if (m === 1 || m === 2) status = 'pending';
+      else if (m === 3 || m === 4) status = 'no';
+      // 懇親会の出欠: 本編と独立して散らす(欠席だけどイベントは出席するパターンも入れる)
+      let afterStatus;
+      if (status === 'pending') afterStatus = 'pending';
+      else if (status === 'no') afterStatus = (i % 4 === 0) ? 'yes' : 'no';
+      else afterStatus = (i % 5 === 0) ? 'no' : ((i % 7 === 0) ? 'pending' : 'yes');
+      // 既に受付済 & 懇親会出席予定 → 会費受領済のサンプル
+      const afterPaidAt = (checkedIn && afterStatus === 'yes') ? new Date(now.getTime() - 1000 * 60 * 30).toISOString() : null;
+      return {
+        userId: u.id,
+        status,
+        afterStatus,
+        checkedInAt: checkedIn ? new Date(now.getTime() - 1000 * 60 * 30).toISOString() : null,
+        afterPaidAt,
+      };
+    });
+
+  // 月次定例: 30人だけ招待
+  const meetingAttendees = users
+    .filter(u => u.role === 'viewer')
+    .slice(0, 30)
+    .map((u, i) => ({
+      userId: u.id,
+      status: i % 3 === 0 ? 'yes' : (i % 3 === 1 ? 'pending' : 'no'),
+      afterStatus: null,
+      checkedInAt: null,
+      afterPaidAt: null,
+    }));
+
+  // 下書きサンプル: 管理者にしか見えない仮作成イベント
+  const draftFuture = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 28);
+  const draftAttendees = users
+    .filter(u => u.role === 'viewer')
+    .slice(0, 10)
+    .map(u => ({ userId: u.id, status: 'pending', afterStatus: null, checkedInAt: null, afterPaidAt: null }));
+
+  const events = [
+    {
+      id: 'e_000',
+      title: '新人歓迎会',
+      date: past.toISOString(),
+      endDate: new Date(past.getTime() + 1000 * 60 * 60 * 2).toISOString(),
+      responseDeadline: new Date(now.getTime() - 1000 * 60 * 60 * 24).toISOString(),
+      location: '本社 多目的ホール',
+      description: '会場の予約都合により、回答期限を過ぎての変更はできません。',
+      createdBy: 'u_admin',
+      published: true,
+      attendees: closedAttendees,
+    },
+    {
+      id: 'e_001',
+      title: '春の全社総会',
+      date: future.toISOString(),
+      endDate: new Date(future.getTime() + 1000 * 60 * 60 * 3).toISOString(),
+      responseDeadline: new Date(future.getTime() - 1000 * 60 * 60 * 24).toISOString(),
+      location: '本社 大会議室',
+      description: '総会本編のあと、同会場で懇親会を予定しています。',
+      createdBy: 'u_admin',
+      published: true,
+      hasAfterparty: true,
+      afterpartyTitle: '懇親会',
+      afterpartyLocation: '居酒屋 旬彩(本社から徒歩3分)',
+      afterpartyDescription: '会費 4,000円(現地支払)。\n会場地図: https://maps.example.com/shunsai\n予約状況確認: https://example.com/reserve/abc123',
+      receptionists: ['u_002', 'u_003'],
+      attendees: partyAttendees,
+    },
+    {
+      id: 'e_002',
+      title: '月次定例ミーティング',
+      date: future2.toISOString(),
+      endDate: new Date(future2.getTime() + 1000 * 60 * 60).toISOString(),
+      responseDeadline: new Date(future2.getTime() - 1000 * 60 * 60 * 24).toISOString(),
+      location: 'オンライン',
+      description: '',
+      createdBy: 'u_admin',
+      published: true,
+      attendees: meetingAttendees,
+    },
+    {
+      id: 'e_003',
+      title: '夏の研修会(調整中)',
+      date: draftFuture.toISOString(),
+      endDate: null,
+      responseDeadline: new Date(draftFuture.getTime() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+      location: '未定',
+      description: '会場と日程を調整中です。確定したら公開します。',
+      createdBy: 'u_admin',
+      published: false,
+      attendees: draftAttendees,
+    },
+  ];
+  return {
+    users, events,
+    departments: [...DEFAULT_DEPARTMENTS],
+    titles: [...DEFAULT_TITLES],
+    attendeeLists: [],
+    currentUserId: 'u_admin', currentEventId: null,
+  };
+};
+
+// =================================================
+// Persistence (localStorage)
+// =================================================
+async function loadState() {
+  try {
+    const raw = localStorage.getItem('attendance_app_state');
+    if (raw) {
+      state = JSON.parse(raw);
+      // 後方互換: 既存データに departments / titles が無ければデフォルトで埋める
+      if (!Array.isArray(state.departments)) state.departments = [...DEFAULT_DEPARTMENTS];
+      if (!Array.isArray(state.titles)) state.titles = [...DEFAULT_TITLES];
+      if (!Array.isArray(state.attendeeLists)) state.attendeeLists = [];
+      // 後方互換: status='checked' は status='yes' + checkedInAt に分離
+      (state.events || []).forEach(ev => {
+        (ev.attendees || []).forEach(a => {
+          if (a.status === 'checked') {
+            a.status = 'yes';
+            if (!a.checkedInAt) a.checkedInAt = new Date().toISOString();
+          }
+          // 懇親会会費の受領日時(未設定なら null)
+          if (a.afterPaidAt === undefined) a.afterPaidAt = null;
+        });
+        // 後方互換: published 未設定 = 公開済み扱い
+        if (typeof ev.published !== 'boolean') ev.published = true;
+        if (!Array.isArray(ev.receptionists)) ev.receptionists = [];
+      });
+      // 後方互換: ユーザの status (アクティブ/休会/退会) が無ければ active 扱い
+      // 旧 role 'admin' → 'sysadmin'、'user' → 'viewer'
+      // 旧 name 単一フィールド → lastName/firstName を補完
+      (state.users || []).forEach(u => {
+        if (!u.status) u.status = 'active';
+        if (u.role === 'admin') u.role = 'sysadmin';
+        else if (u.role === 'user') u.role = 'viewer';
+        if (!u.lastName && !u.firstName && u.name) {
+          const parts = splitFullName(u.name);
+          u.lastName = parts.lastName;
+          u.firstName = parts.firstName;
+        }
+        // 本番(認証導入)で email が必須キーになる予定。未設定なら null で揃える
+        if (u.email === undefined) u.email = null;
+      });
+      // 起動時はイベント詳細を開かない(URL ?event=... があれば別途処理)
+      state.currentEventId = null;
+      return;
+    }
+  } catch (e) { /* parse failure, fall through to seed */ }
+  state = SEED();
+  await saveState();
+}
+async function saveState({ skipCloud = false } = {}) {
+  // ローカル保存ごとに updatedAt を更新(クラウド同期の競合解決に使用)
+  state.updatedAt = new Date().toISOString();
+  try {
+    localStorage.setItem('attendance_app_state', JSON.stringify(state));
+  } catch (e) { console.warn('save failed', e); }
+  // クラウド自動同期: 失敗してもローカル動作は止めない
+  if (!skipCloud && syncConfig.autoSync && syncConfig.binId && syncConfig.masterKey) {
+    cloudPush().catch(e => {
+      console.warn('cloud push failed', e);
+      setSyncStatus('error', 'プッシュ失敗: ' + (e.message || e));
+    });
+  }
+}
+
+// =================================================
+// Cloud sync (jsonbin.io v3)
+// =================================================
+const SYNC_CONFIG_KEY = 'attendance_sync_config';
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b';
+let syncConfig = loadSyncConfig();
+let syncStatus = { kind: 'idle', message: '' };
+let cloudPollTimer = null;
+
+function loadSyncConfig() {
+  try {
+    const raw = localStorage.getItem(SYNC_CONFIG_KEY);
+    return raw ? JSON.parse(raw) : { autoSync: false };
+  } catch { return { autoSync: false }; }
+}
+function saveSyncConfig() {
+  try { localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(syncConfig)); } catch (e) { console.warn(e); }
+}
+function setSyncStatus(kind, message) {
+  syncStatus = { kind, message: message || '' };
+  if ($('sync-status')) renderSyncSection();
+}
+
+async function cloudCreate() {
+  if (!syncConfig.masterKey) throw new Error('Master Key が未設定です');
+  setSyncStatus('busy', '同期グループを作成中…');
+  state.updatedAt = new Date().toISOString();
+  const r = await fetch(JSONBIN_BASE, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': syncConfig.masterKey,
+      'X-Bin-Private': 'true',
+      'X-Bin-Name': 'attendance-app',
+    },
+    body: JSON.stringify({ state }),
+  });
+  if (!r.ok) throw new Error(`Create失敗: HTTP ${r.status}`);
+  const data = await r.json();
+  syncConfig.binId = (data.metadata && data.metadata.id) || data.id;
+  syncConfig.autoSync = true;
+  syncConfig.lastSyncAt = new Date().toISOString();
+  saveSyncConfig();
+  await saveState({ skipCloud: true }); // updatedAt保持しつつ再保存
+  setSyncStatus('ok', '同期グループを作成しました');
+  startCloudPolling();
+}
+
+async function cloudPush() {
+  if (!syncConfig.binId || !syncConfig.masterKey) return;
+  const r = await fetch(`${JSONBIN_BASE}/${syncConfig.binId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': syncConfig.masterKey,
+    },
+    body: JSON.stringify({ state }),
+  });
+  if (!r.ok) throw new Error(`Push失敗: HTTP ${r.status}`);
+  syncConfig.lastSyncAt = new Date().toISOString();
+  saveSyncConfig();
+  setSyncStatus('ok', '最終同期 ' + new Date().toLocaleTimeString());
+}
+
+async function cloudPull({ force = false } = {}) {
+  if (!syncConfig.binId || !syncConfig.masterKey) return;
+  const r = await fetch(`${JSONBIN_BASE}/${syncConfig.binId}/latest`, {
+    headers: { 'X-Master-Key': syncConfig.masterKey },
+  });
+  if (!r.ok) throw new Error(`Pull失敗: HTTP ${r.status}`);
+  const data = await r.json();
+  const remoteState = data.record && (data.record.state || data.record);
+  if (!remoteState || !Array.isArray(remoteState.users)) throw new Error('クラウドのデータ形式が不正です');
+  const localTs = state.updatedAt || '';
+  const remoteTs = remoteState.updatedAt || '';
+  let replaced = false;
+  if (force || remoteTs > localTs) {
+    // 端末固有のビュー状態(どのイベント詳細を開いているか)はクラウドから引き継がない
+    const keepEventId = state.currentEventId;
+    state = remoteState;
+    state.currentEventId = keepEventId;
+    if (!Array.isArray(state.departments)) state.departments = [...DEFAULT_DEPARTMENTS];
+    if (!Array.isArray(state.titles)) state.titles = [...DEFAULT_TITLES];
+    if (!Array.isArray(state.attendeeLists)) state.attendeeLists = [];
+    (state.users || []).forEach(u => { if (!u.status) u.status = 'active'; });
+    if (!state.users.find(u => u.id === state.currentUserId)) {
+      const admin = state.users.find(u => u.role === 'sysadmin' && (u.status || 'active') === 'active');
+      state.currentUserId = admin ? admin.id : (state.users[0] && state.users[0].id);
+      state.currentEventId = null;
+    }
+    // 既に存在しないイベントを参照していたらクリア
+    if (state.currentEventId && !state.events.find(e => e.id === state.currentEventId)) {
+      state.currentEventId = null;
+    }
+    await saveState({ skipCloud: true });
+    renderAll();
+    replaced = true;
+  }
+  syncConfig.lastSyncAt = new Date().toISOString();
+  saveSyncConfig();
+  setSyncStatus('ok', (replaced ? '取り込み完了 ' : 'ローカルが最新 ') + new Date().toLocaleTimeString());
+  return replaced;
+}
+
+async function cloudJoin(binId) {
+  if (!syncConfig.masterKey) throw new Error('Master Key が未設定です');
+  if (!binId) throw new Error('Bin ID を入力してください');
+  syncConfig.binId = binId.trim();
+  syncConfig.autoSync = true;
+  saveSyncConfig();
+  setSyncStatus('busy', '参加中…');
+  await cloudPull({ force: true });
+  startCloudPolling();
+}
+
+function cloudDisconnect() {
+  syncConfig = { autoSync: false };
+  saveSyncConfig();
+  stopCloudPolling();
+  setSyncStatus('idle', '');
+}
+
+function startCloudPolling() {
+  stopCloudPolling();
+  if (!syncConfig.autoSync || !syncConfig.binId || !syncConfig.masterKey) return;
+  cloudPollTimer = setInterval(() => {
+    if (document.hidden) return; // タブ非表示中はスキップ
+    cloudPull().catch(e => {
+      console.warn('cloud pull failed', e);
+      setSyncStatus('error', 'プル失敗: ' + (e.message || e));
+    });
+  }, 7000);
+}
+function stopCloudPolling() {
+  if (cloudPollTimer) { clearInterval(cloudPollTimer); cloudPollTimer = null; }
+}
+
+// =================================================
+// Helpers
+// =================================================
+const $ = id => document.getElementById(id);
+const fmtDate = iso => {
+  const d = new Date(iso);
+  const days = ['日','月','火','水','木','金','土'];
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${d.getFullYear()}.${mm}.${dd}(${days[d.getDay()]}) ${hh}:${mi}`;
+};
+const fmtDateShort = iso => {
+  const d = new Date(iso);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${mm}/${dd}`;
+};
+// 開始-終了の範囲表示。同日なら終了は時刻だけ。
+const fmtDateRange = (startIso, endIso) => {
+  if (!endIso) return fmtDate(startIso);
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const sameDay = start.getFullYear() === end.getFullYear()
+    && start.getMonth() === end.getMonth()
+    && start.getDate() === end.getDate();
+  const pad = n => String(n).padStart(2, '0');
+  const endHHMM = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
+  if (sameDay) return `${fmtDate(startIso)} – ${endHHMM}`;
+  return `${fmtDate(startIso)}\n  – ${fmtDate(endIso)}`;
+};
+const escapeHtml = s => (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// テキスト中の http(s):// URL を a タグに置換(HTMLは先にエスケープ)。改行は <br>。
+const linkify = s => {
+  if (!s) return '';
+  return escapeHtml(s)
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:underline;word-break:break-all">$1</a>')
+    .replace(/\n/g, '<br>');
+};
+const initial = name => (name || '?').trim().charAt(0);
+const userById = id => state.users.find(u => u.id === id);
+// 「姓 名」を分割。区切りは半角/全角空白。
+function splitFullName(full) {
+  const parts = String(full || '').trim().split(/[\s　]+/);
+  return { lastName: parts[0] || '', firstName: parts.slice(1).join(' ') || '' };
+}
+function joinFullName(lastName, firstName) {
+  const a = (lastName || '').trim();
+  const b = (firstName || '').trim();
+  if (!a && !b) return '';
+  if (!a) return b;
+  if (!b) return a;
+  return a + ' ' + b;
+}
+// datetime-local 入力欄用に Date をローカルタイムで YYYY-MM-DDTHH:mm 形式に変換
+const toLocalInputValue = d => {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const isDeadlinePassed = ev => !!ev.responseDeadline && new Date(ev.responseDeadline) < new Date();
+const currentUser = () => userById(state.currentUserId);
+// 役割: sysadmin > editor > viewer
+const ROLE_LABEL = {
+  sysadmin: 'システム管理者',
+  editor: '編集者',
+  viewer: '閲覧者',
+};
+const ROLE_ORDER = { sysadmin: 3, editor: 2, viewer: 1 };
+const isSysadmin = () => currentUser()?.role === 'sysadmin';
+const isEditor = () => currentUser()?.role === 'editor';
+const isViewer = () => currentUser()?.role === 'viewer';
+const canAccessAdminDashboard = () => isSysadmin() || isEditor();
+const canManageMaster = () => isSysadmin();
+const canManageUsers = () => isSysadmin() || isEditor();
+const canManageData = () => isSysadmin();
+const canEditAnyEvent = () => isSysadmin() || isEditor();
+const canEditEvent = ev => !!ev && (canEditAnyEvent() || ev.createdBy === state.currentUserId);
+
+// 表示モード: 管理者・編集者は user / admin を切替できる。デフォルトは user(QRなどを確認しやすくするため)。
+const VIEW_MODE_KEY = 'attendance_view_mode';
+let viewMode = (() => {
+  try { return localStorage.getItem(VIEW_MODE_KEY) || 'user'; } catch { return 'user'; }
+})();
+function saveViewMode() {
+  try { localStorage.setItem(VIEW_MODE_KEY, viewMode); } catch {}
+}
+const isAdminMode = () => canAccessAdminDashboard() && viewMode === 'admin';
+
+const STATUS_LABEL = {
+  pending: '未回答',
+  yes: '出席',
+  no: '欠席',
+};
+
+function statusBadge(status) {
+  const cls = {
+    pending: 'badge-pending',
+    yes: 'badge-yes',
+    no: 'badge-no',
+  }[status] || 'badge-pending';
+  const label = STATUS_LABEL[status] || STATUS_LABEL.pending;
+  return `<span class="status-badge ${cls}">${label}</span>`;
+}
+
+// =================================================
+// Screen routing
+// =================================================
+function showScreen(name) {
+  ['admin-list','admin-users','admin-detail','user-list','user-detail'].forEach(n => {
+    const el = $('screen-' + n);
+    if (el) el.classList.add('screen-hidden');
+  });
+  const target = $('screen-' + name);
+  if (target) target.classList.remove('screen-hidden');
+  // ユーザー一覧画面を開いたタイミングで描画(検索/フィルタの状態はモジュール変数に保持)
+  if (name === 'admin-users') renderAdminUserList();
+  window.scrollTo(0, 0);
+}
+
+function renderRoleSwitcher() {
+  const u = currentUser();
+  $('topbar-avatar').textContent = initial(u.name);
+  $('topbar-avatar').style.background = roleAvatarColor(u.role);
+  $('topbar-name').textContent = u.name;
+  $('topbar-role').textContent = ROLE_LABEL[u.role] || u.role;
+}
+
+function roleAvatarColor(role) {
+  if (role === 'sysadmin') return 'var(--text)';
+  if (role === 'editor') return 'var(--primary)';
+  return 'var(--accent)';
+}
+
+function renderAll() {
+  renderRoleSwitcher();
+  renderModeToggleBar();
+  if (isAdminMode()) {
+    renderAdminEventList();
+    if (state.currentEventId) {
+      renderAdminEventDetail();
+      showScreen('admin-detail');
+    } else {
+      showScreen('admin-list');
+    }
+  } else {
+    renderUserEventList();
+    if (state.currentEventId) {
+      const ev = state.events.find(e => e.id === state.currentEventId);
+      // 受付担当が「受付」モードを選んでいる場合は管理者風の詳細にする
+      if (ev && receptionMode === 'reception' && isReceptionist(ev)) {
+        renderAdminEventDetail();
+        showScreen('admin-detail');
+      } else {
+        // ユーザー画面では基本ユーザRSVP画面。自作イベントの編集は user-detail 右上の歯車から。
+        renderUserEventDetail();
+        showScreen('user-detail');
+      }
+    } else {
+      showScreen('user-list');
+    }
+  }
+}
+
+function renderModeToggleBar() {
+  const bar = $('mode-toggle-bar');
+  if (!bar) return;
+  if (!canAccessAdminDashboard()) {
+    bar.style.display = 'none';
+    bar.innerHTML = '';
+    return;
+  }
+  bar.style.display = '';
+  bar.innerHTML = `
+    <div class="mode-toggle">
+      <button type="button" class="${viewMode === 'user' ? 'active' : ''}" onclick="setViewMode('user')">ユーザー画面</button>
+      <button type="button" class="${viewMode === 'admin' ? 'active' : ''}" onclick="setViewMode('admin')">管理者画面</button>
+    </div>
+  `;
+}
+
+function openUserMenu() {
+  const me = currentUser();
+  const summary = $('user-menu-summary');
+  if (summary && me) {
+    const dept = me.department || '委員会未設定';
+    const title = me.title || 'メンバー';
+    const roleLabel = ROLE_LABEL[me.role] || me.role;
+    summary.innerHTML = `
+      <div style="font-size:14px;color:var(--text);font-weight:500">${escapeHtml(me.name)} <span class="role-pill-mini ${me.role}" style="font-size:10px">${escapeHtml(roleLabel)}</span></div>
+      <div style="margin-top:4px">${escapeHtml(dept)} · ${escapeHtml(title)}</div>
+    `;
+  }
+  openModal('modal-user-menu');
+}
+
+function setViewMode(mode) {
+  if (mode !== 'user' && mode !== 'admin') return;
+  if (mode === viewMode) return;
+  viewMode = mode;
+  saveViewMode();
+  state.currentEventId = null;
+  renderAll();
+}
+
+// =================================================
+// ADMIN: User list
+// =================================================
+const USER_STATUS_LABEL = { active: 'アクティブ', inactive: '休会', left: '退会' };
+let adminUserFilter = { query: '', departments: [], title: '', userStatus: 'active' };
+
+function getFilteredAdminUsers() {
+  const q = adminUserFilter.query.trim().toLowerCase();
+  // sysadmin は全ロール表示、editor は viewer のみ管理対象
+  const baseRoleFilter = isSysadmin()
+    ? (u => u.role === 'viewer' || u.role === 'editor' || u.role === 'sysadmin')
+    : (u => u.role === 'viewer');
+  const depts = adminUserFilter.departments || [];
+  return state.users
+    .filter(baseRoleFilter)
+    .filter(u => adminUserFilter.userStatus === 'all' || (u.status || 'active') === adminUserFilter.userStatus)
+    .filter(u => !q || u.name.toLowerCase().includes(q))
+    .filter(u => !depts.length || depts.includes(u.department))
+    .filter(u => !adminUserFilter.title || u.title === adminUserFilter.title);
+}
+
+function renderAdminUserList() {
+  const totalUsers = state.users.filter(u => isSysadmin() ? (u.role === 'viewer' || u.role === 'editor' || u.role === 'sysadmin') : u.role === 'viewer').length;
+  // ヘッダのアクションボタンを権限に応じて出し分け
+  const actions = $('admin-users-actions');
+  if (actions) {
+    actions.innerHTML = canManageUsers() ? '<button class="btn btn-primary btn-sm" onclick="openUserEditModal(null)">+ ユーザー登録</button>' : '';
+  }
+  const gear = $('admin-users-gear');
+  if (gear) gear.style.display = (canManageMaster() || canManageUsers()) ? '' : 'none';
+  const filterTarget = $('admin-user-filter');
+  const statusChip = (key, label) => `
+    <button class="chip ${adminUserFilter.userStatus === key ? 'active' : ''}" onclick="setAdminUserStatus('${key}')">${label}</button>
+  `;
+  if (filterTarget) {
+    filterTarget.innerHTML = `
+      <input class="search-input" type="search" placeholder="名前で検索"
+             value="${escapeHtml(adminUserFilter.query)}"
+             oninput="onAdminUserSearch(this.value)">
+      <div class="filter-chips" style="margin-top:8px">
+        ${statusChip('active', 'アクティブ')}
+        ${statusChip('inactive', '休会')}
+        ${statusChip('left', '退会')}
+        ${statusChip('all', '全て')}
+      </div>
+      ${getDepartments().length ? `
+        <div class="filter-section-label">委員会(複数選択可)</div>
+        <div class="multiselect-chips">
+          ${getDepartments().map(d => `
+            <button class="chip ${(adminUserFilter.departments || []).includes(d) ? 'active' : ''}" onclick="toggleAdminUserDept('${escapeHtml(d).replace(/'/g, "\\'")}')">${escapeHtml(d)}</button>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${getTitles().length ? `
+        <div class="filter-section-label">役職</div>
+        <div class="filter-selects" style="margin-top:4px">
+          <select onchange="setAdminUserFilter('title', this.value)">
+            <option value="">役職(全て)</option>
+            ${getTitles().map(t => `<option value="${escapeHtml(t)}" ${adminUserFilter.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
+          </select>
+        </div>
+      ` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--text-mute)">
+        <span id="admin-user-count">${totalUsers} 件</span>
+        <button class="btn btn-outline btn-sm" onclick="resetAdminUserFilter()">フィルタをリセット</button>
+      </div>
+    `;
+  }
+  renderAdminUserRows();
+}
+
+// 複数選択(一括変更)の状態
+let adminUserSelection = new Set();
+
+function clampUserSelection() {
+  // 表示中のユーザに合わせて、不正なIDを除去
+  const visibleIds = new Set(getFilteredAdminUsers().map(u => u.id));
+  adminUserSelection.forEach(id => { if (!visibleIds.has(id)) adminUserSelection.delete(id); });
+}
+
+function toggleUserSelection(id) {
+  if (adminUserSelection.has(id)) adminUserSelection.delete(id);
+  else adminUserSelection.add(id);
+  renderAdminUserBulkBar();
+  // 行のチェック状態を反映するためにチェックボックスだけ更新(全件再描画は不要)
+  const cb = document.querySelector(`input.user-select[data-id="${id}"]`);
+  if (cb) cb.checked = adminUserSelection.has(id);
+}
+
+function selectAllVisibleUsers() {
+  getFilteredAdminUsers().forEach(u => adminUserSelection.add(u.id));
+  renderAdminUserList();
+}
+
+function clearUserSelection() {
+  adminUserSelection.clear();
+  renderAdminUserList();
+}
+
+function renderAdminUserBulkBar() {
+  const bar = $('admin-user-bulk-bar');
+  if (!bar) return;
+  const n = adminUserSelection.size;
+  if (!n) { bar.innerHTML = ''; return; }
+  bar.innerHTML = `
+    <div class="bulk-bar">
+      <div class="bulk-bar-left">
+        <strong>${n}件</strong>選択中
+      </div>
+      <div class="bulk-bar-actions">
+        <button class="btn btn-outline btn-sm" onclick="selectAllVisibleUsers()">全選択</button>
+        <button class="btn btn-outline btn-sm" onclick="clearUserSelection()">解除</button>
+      </div>
+      <div class="bulk-bar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openBulkEdit('status')">ステータス変更</button>
+        <button class="btn btn-primary btn-sm" onclick="openBulkEdit('department')">委員会変更</button>
+        <button class="btn btn-primary btn-sm" onclick="openBulkEdit('title')">役職変更</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderAdminUserRows() {
+  const target = $('admin-user-list');
+  if (!target) return;
+  clampUserSelection();
+  const users = getFilteredAdminUsers();
+  const baseRoleFilter = isSysadmin()
+    ? (u => u.role === 'viewer' || u.role === 'editor' || u.role === 'sysadmin')
+    : (u => u.role === 'viewer');
+  const totalUsers = state.users.filter(baseRoleFilter).length;
+  const countEl = $('admin-user-count');
+  if (countEl) {
+    countEl.textContent = users.length === totalUsers ? `${totalUsers} 件` : `${users.length} / ${totalUsers} 件`;
+  }
+  renderAdminUserBulkBar();
+  if (!users.length) {
+    target.innerHTML = `
+      <div class="empty-state" style="padding:32px 0">
+        <div class="hint">条件に一致するユーザはいません</div>
+      </div>`;
+    return;
+  }
+  target.innerHTML = users.map(u => {
+    const status = u.status || 'active';
+    const elevated = u.role === 'sysadmin' || u.role === 'editor';
+    const checked = adminUserSelection.has(u.id);
+    return `
+      <div class="user-row ${checked ? 'is-selected' : ''}" onclick="openUserEditModal('${u.id}')" style="cursor:pointer">
+        <input type="checkbox" class="user-select" data-id="${u.id}" ${checked ? 'checked' : ''} onclick="event.stopPropagation(); toggleUserSelection('${u.id}')">
+        <div class="avatar" style="background:${roleAvatarColor(u.role)};color:white">${initial(u.name)}</div>
+        <div class="info">
+          <div class="name">${escapeHtml(u.name)}${elevated ? ` <span class="role-pill-mini ${u.role}">${ROLE_LABEL[u.role]}</span>` : ''}${status !== 'active' ? ` <span class="user-status-pill ${status}">${USER_STATUS_LABEL[status]}</span>` : ''}</div>
+          <div class="meta">
+            <span class="${u.department ? '' : 'placeholder'}">${escapeHtml(u.department || '委員会未設定')}</span>
+            <span>·</span>
+            <span>${escapeHtml(u.title || 'メンバー')}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function onAdminUserSearch(v) {
+  adminUserFilter.query = v;
+  renderAdminUserRows();
+}
+
+function setAdminUserFilter(key, value) {
+  adminUserFilter[key] = value;
+  renderAdminUserRows();
+}
+
+function toggleAdminUserDept(d) {
+  const arr = adminUserFilter.departments || (adminUserFilter.departments = []);
+  const idx = arr.indexOf(d);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(d);
+  renderAdminUserList();
+}
+
+function setAdminUserStatus(key) {
+  adminUserFilter.userStatus = key;
+  renderAdminUserList();
+}
+
+function resetAdminUserFilter() {
+  adminUserFilter = { query: '', departments: [], title: '', userStatus: 'active' };
+  renderAdminUserList();
+}
+
+// ユーザ登録/編集
+let editingUserId = null;
+
+function openUserEditModal(userId) {
+  editingUserId = userId;
+  const u = userId ? userById(userId) : null;
+  $('user-edit-heading').textContent = u ? 'ユーザー編集' : 'ユーザー登録';
+  if (u) {
+    // lastName/firstName が無い旧データはここで補完
+    const fallback = (!u.lastName && !u.firstName) ? splitFullName(u.name) : { lastName: u.lastName || '', firstName: u.firstName || '' };
+    $('user-edit-last-name').value = fallback.lastName;
+    $('user-edit-first-name').value = fallback.firstName;
+    $('user-edit-email').value = u.email || '';
+  } else {
+    $('user-edit-last-name').value = '';
+    $('user-edit-first-name').value = '';
+    $('user-edit-email').value = '';
+  }
+  $('user-edit-status').value = (u && u.status) ? u.status : 'active';
+
+  // ロール選択肢: sysadminは全部、editorは viewer のみ
+  const roleSel = $('user-edit-role');
+  const note = $('user-edit-role-note');
+  const allowAllRoles = isSysadmin();
+  const currentRole = u ? u.role : 'viewer';
+  if (allowAllRoles) {
+    roleSel.innerHTML = `
+      <option value="sysadmin" ${currentRole === 'sysadmin' ? 'selected' : ''}>システム管理者</option>
+      <option value="editor" ${currentRole === 'editor' ? 'selected' : ''}>編集者</option>
+      <option value="viewer" ${currentRole === 'viewer' ? 'selected' : ''}>閲覧者</option>
+    `;
+    roleSel.disabled = false;
+    note.textContent = '';
+  } else {
+    // editor は viewer 固定。既存の上位ロールは表示するが変更不可。
+    const display = u && (u.role === 'sysadmin' || u.role === 'editor') ? u.role : 'viewer';
+    roleSel.innerHTML = `<option value="${display}" selected>${ROLE_LABEL[display] || display}</option>`;
+    roleSel.disabled = true;
+    note.textContent = '編集者は閲覧者のみ追加でき、上位ロールの変更はできません';
+  }
+
+  const deptSel = $('user-edit-department');
+  deptSel.innerHTML = `<option value="">(未設定)</option>` +
+    getDepartments().map(d => `<option value="${escapeHtml(d)}" ${u && u.department === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('');
+  const titleSel = $('user-edit-title');
+  titleSel.innerHTML = `<option value="">(未設定)</option>` +
+    getTitles().map(t => `<option value="${escapeHtml(t)}" ${u && u.title === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+  openModal('modal-user-edit');
+}
+
+// 一括変更モーダル
+function openBulkEdit(kind) {
+  if (!adminUserSelection.size) return;
+  const n = adminUserSelection.size;
+  let title, opts;
+  if (kind === 'status') {
+    title = 'ステータスを一括変更';
+    opts = [
+      { value: 'active', label: 'アクティブ' },
+      { value: 'inactive', label: '休会' },
+      { value: 'left', label: '退会' },
+    ];
+  } else if (kind === 'department') {
+    title = '委員会を一括変更';
+    opts = [{ value: '__null', label: '(未設定にする)' }]
+      .concat(getDepartments().map(d => ({ value: d, label: d })));
+  } else if (kind === 'title') {
+    title = '役職を一括変更';
+    opts = [{ value: '__null', label: '(未設定 / メンバー)' }]
+      .concat(getTitles().map(t => ({ value: t, label: t })));
+  } else {
+    return;
+  }
+  $('bulk-edit-heading').textContent = title;
+  $('bulk-edit-sub').textContent = `${n} 件のユーザーに適用します。新しい値を選択してください。`;
+  $('bulk-edit-options').innerHTML = opts.map(o => {
+    const safeVal = String(o.value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<button class="btn btn-outline btn-full" style="margin-bottom:6px" onclick="applyBulkEdit('${kind}', '${safeVal}')">${escapeHtml(o.label)}</button>`;
+  }).join('');
+  openModal('modal-bulk-edit');
+}
+
+async function applyBulkEdit(kind, value) {
+  if (!adminUserSelection.size) return;
+  const realValue = value === '__null' ? null : value;
+  const labelByKind = { status: 'ステータス', department: '委員会', title: '役職' };
+  const displayValue = (kind === 'status') ? (USER_STATUS_LABEL[realValue] || realValue) : (realValue || '(未設定)');
+  const n = adminUserSelection.size;
+  if (!confirm(`${n} 件のユーザーの${labelByKind[kind]}を「${displayValue}」に変更します。\nよろしいですか?`)) return;
+
+  let applied = 0;
+  let skipped = 0;
+  const ids = Array.from(adminUserSelection);
+  for (const id of ids) {
+    const u = userById(id);
+    if (!u) { skipped++; continue; }
+    // editor が sysadmin/editor の上位ロールを編集しようとするケースを防御
+    if (!isSysadmin() && (u.role === 'sysadmin' || u.role === 'editor')) { skipped++; continue; }
+    if (kind === 'status') u.status = realValue || 'active';
+    else if (kind === 'department') u.department = realValue;
+    else if (kind === 'title') u.title = realValue;
+    applied++;
+  }
+  await saveState();
+  closeModal('modal-bulk-edit');
+  clearUserSelection();
+  renderAdminUserList();
+  showToast(`${applied} 件を更新しました${skipped ? ` (スキップ ${skipped} 件)` : ''}`);
+}
+
+async function saveUserEdit() {
+  const lastName = $('user-edit-last-name').value.trim();
+  const firstName = $('user-edit-first-name').value.trim();
+  if (!lastName && !firstName) { alert('お名前(姓または名)は必須です'); return; }
+  const name = joinFullName(lastName, firstName);
+  const email = $('user-edit-email').value.trim() || null;
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    alert('メールアドレスの形式が正しくありません');
+    return;
+  }
+  const dept = $('user-edit-department').value || null;
+  const titleVal = $('user-edit-title').value || null;
+  const role = $('user-edit-role').value || 'viewer';
+  const status = $('user-edit-status').value;
+  if (editingUserId) {
+    const u = userById(editingUserId);
+    if (!u) return;
+    // editor が sysadmin/editor の上位ロールを編集しようとするケースを防御
+    if (!isSysadmin() && (u.role === 'sysadmin' || u.role === 'editor')) {
+      alert('編集者は上位ロールのユーザーを変更できません');
+      return;
+    }
+    u.lastName = lastName;
+    u.firstName = firstName;
+    u.name = name;
+    u.email = email;
+    u.department = dept;
+    u.title = titleVal;
+    if (isSysadmin()) u.role = role;
+    u.status = status;
+    // 自分自身を非アクティブ化したら、他のアクティブユーザに切り替え(ロール降格はそのまま許可)
+    if (u.id === state.currentUserId && status !== 'active') {
+      const fallback = state.users.find(x => x.id !== u.id && x.role === 'sysadmin' && (x.status || 'active') === 'active')
+        || state.users.find(x => x.id !== u.id && (x.status || 'active') === 'active');
+      if (fallback) state.currentUserId = fallback.id;
+    }
+  } else {
+    state.users.push({
+      id: 'u_' + Date.now(),
+      name, lastName, firstName, email,
+      role: isSysadmin() ? role : 'viewer',
+      department: dept, title: titleVal, status,
+    });
+  }
+  const wasEditing = !!editingUserId;
+  await saveState();
+  closeModal('modal-user-edit');
+  // 自分自身を編集してロールが変わっている可能性があるので renderAll で再評価
+  renderAll();
+  if (!wasEditing) showToast(`「${name}」を登録しました`);
+}
+
+// =================================================
+// ADMIN: Event list
+// =================================================
+// ===== 期間フィルタ(イベント一覧で共有) =====
+const toLocalDateValue = d => {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+};
+
+function computeDefaultEventRange() {
+  const now = new Date();
+  const lastNext = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+  return {
+    preset: 'today-and-next',
+    from: toLocalDateValue(now),
+    to: toLocalDateValue(lastNext),
+  };
+}
+
+let eventDateRange = computeDefaultEventRange();
+
+function filterEventsByRange(events) {
+  const from = eventDateRange.from ? new Date(eventDateRange.from + 'T00:00:00') : null;
+  const to = eventDateRange.to ? new Date(eventDateRange.to + 'T23:59:59') : null;
+  if (!from && !to) return events;
+  return events.filter(ev => {
+    const d = new Date(ev.date);
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  });
+}
+
+function setDateRangePreset(preset) {
+  const now = new Date();
+  if (preset === 'this-month') {
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    eventDateRange = { preset, from: toLocalDateValue(first), to: toLocalDateValue(last) };
+  } else if (preset === 'today-and-next') {
+    eventDateRange = computeDefaultEventRange();
+  } else if (preset === 'open-ended') {
+    // 期間指定: 開始日=本日、終了日=未指定(無期限)
+    eventDateRange = { preset, from: toLocalDateValue(now), to: '' };
+  }
+  reRenderEventLists();
+}
+
+function setDateRangeInput(which, value) {
+  eventDateRange[which] = value;
+  eventDateRange.preset = 'custom';
+  reRenderEventLists();
+}
+
+function reRenderEventLists() {
+  if (isAdminMode()) renderAdminEventList();
+  else renderUserEventList();
+}
+
+function renderDateRangeFilter(containerId) {
+  const target = $(containerId);
+  if (!target) return;
+  const presetBtn = (key, label) => `
+    <button class="chip ${eventDateRange.preset === key ? 'active' : ''}" onclick="setDateRangePreset('${key}')">${label}</button>
+  `;
+  target.innerHTML = `
+    <div class="date-range-filter">
+      <div class="filter-chips">
+        ${presetBtn('this-month','当月')}
+        ${presetBtn('today-and-next','本日以降+翌月')}
+        ${presetBtn('open-ended','期間指定')}
+      </div>
+      <div class="date-range-inputs">
+        <input type="date" value="${eventDateRange.from}" onchange="setDateRangeInput('from', this.value)">
+        <span class="sep">〜</span>
+        <input type="date" value="${eventDateRange.to}" onchange="setDateRangeInput('to', this.value)">
+      </div>
+    </div>
+  `;
+}
+
+function renderAdminEventList() {
+  renderDateRangeFilter('admin-event-filter');
+  const list = $('admin-event-list');
+  // 編集者は自分が招待されているか作成したイベントだけ表示。システム管理者は全て表示。
+  const me = currentUser();
+  const visibleEvents = isSysadmin()
+    ? state.events
+    : state.events.filter(ev => ev.createdBy === me.id || ev.attendees.some(a => a.userId === me.id));
+  const filtered = filterEventsByRange(visibleEvents).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (!visibleEvents.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="glyph">○</div>
+        <div class="hint">${isSysadmin() ? 'まだイベントがありません<br>右上のボタンから作成できます' : 'あなたが招待されているイベントはありません<br>右上のボタンから作成もできます'}</div>
+      </div>`;
+    return;
+  }
+  if (!filtered.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="glyph">○</div>
+        <div class="hint">指定期間に該当するイベントはありません</div>
+      </div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(ev => {
+    const total = ev.attendees.length;
+    const yesCount = ev.attendees.filter(a => a.status === 'yes').length;
+    const checkedCount = ev.attendees.filter(a => !!a.checkedInAt).length;
+    return `
+      <div class="event-card ${ev.published === false ? 'is-draft' : ''}" onclick="openAdminEventDetail('${ev.id}')">
+        <div class="date-row">
+          <span class="date-tag">${fmtDate(ev.date)}</span>
+          ${ev.hasAfterparty ? '<span class="badge-afterparty">🍻 懇親会</span>' : ''}
+        </div>
+        <div class="title">${escapeHtml(ev.title)}</div>
+        <div class="meta">
+          <span>${escapeHtml(ev.location || '場所未定')}</span>
+          <span>参加予定 ${yesCount}/${total}</span>
+          ${checkedCount > 0 ? `<span>受付済 ${checkedCount}</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+let adminFilter = { status: 'all', query: '', departments: [], kind: 'all' };
+// removeMaster からも参照する別名(同じオブジェクトを指す)
+let adminAttendeeFilter = adminFilter;
+
+function openAdminEventDetail(eventId) {
+  state.currentEventId = eventId;
+  adminFilter = { status: 'all', query: '', departments: [], kind: 'all' };
+  adminAttendeeFilter = adminFilter;
+  receptionMode = 'reception';
+  renderAdminEventDetail();
+  showScreen('admin-detail');
+}
+
+function getFilteredAttendees(ev) {
+  const q = adminFilter.query.trim().toLowerCase();
+  const deptFilter = adminFilter.departments || [];
+  return ev.attendees.filter(a => {
+    if (adminFilter.kind === 'member' && a.isObserver) return false;
+    if (adminFilter.kind === 'observer' && !a.isObserver) return false;
+    if (adminFilter.status === 'checked-in') {
+      if (!a.checkedInAt) return false;
+    } else if (adminFilter.status !== 'all' && a.status !== adminFilter.status) {
+      return false;
+    }
+    const u = a.isObserver ? null : userById(a.userId);
+    const name = a.isObserver ? (a.name || '') : (u ? u.name : '');
+    if (q) {
+      if (!name.toLowerCase().includes(q)) return false;
+    }
+    // 委員会フィルタはオブザーバーには適用しない(値を持たないので)
+    if (deptFilter.length) {
+      if (a.isObserver || !u || !deptFilter.includes(u.department)) return false;
+    }
+    return true;
+  });
+}
+
+function toggleAdminFilterDept(d) {
+  const arr = adminFilter.departments || (adminFilter.departments = []);
+  const idx = arr.indexOf(d);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(d);
+  renderAdminEventDetail();
+}
+
+function setAdminFilterKind(k) {
+  adminFilter.kind = k;
+  renderAdminEventDetail();
+}
+
+function clearAdminAttendeeFilter() {
+  adminFilter = { status: 'all', query: '', departments: [], kind: 'all' };
+  adminAttendeeFilter = adminFilter;
+  renderAdminEventDetail();
+}
+
+function renderAdminEventDetail() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  renderReceptionToggle(ev);
+  const total = ev.attendees.length;
+  const yesCount = ev.attendees.filter(a => a.status === 'yes').length;
+  const checkedCount = ev.attendees.filter(a => !!a.checkedInAt).length;
+  const noCount = ev.attendees.filter(a => a.status === 'no').length;
+  const pendingCount = ev.attendees.filter(a => a.status === 'pending').length;
+  const afterYes = ev.hasAfterparty ? ev.attendees.filter(a => a.afterStatus === 'yes').length : 0;
+  const afterNo = ev.hasAfterparty ? ev.attendees.filter(a => a.afterStatus === 'no').length : 0;
+  const afterPending = ev.hasAfterparty ? ev.attendees.filter(a => !a.afterStatus || a.afterStatus === 'pending').length : 0;
+
+  const chip = (key, label, n) => `
+    <button class="chip ${adminFilter.status === key ? 'active' : ''}" onclick="setAdminFilterStatus('${key}')">
+      ${label}<span class="num">${n}</span>
+    </button>`;
+
+  const html = `
+    <div class="event-hero">
+      <div class="date">${fmtDateRange(ev.date, ev.endDate)}</div>
+      <div class="title">${escapeHtml(ev.title)}${ev.published === false ? ' <span class="badge-draft">下書き</span>' : ''}</div>
+      ${ev.committee ? `<div class="info-row"><span class="ico">🏛️</span>担当: ${escapeHtml(ev.committee)}</div>` : ''}
+      <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
+      ${ev.description ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.description)}</span></div>` : ''}
+      ${ev.responseDeadline ? `
+        <div class="info-row"><span class="ico">⏰</span>回答期限 ${fmtDate(ev.responseDeadline)}${isDeadlinePassed(ev) ? ' <span class="badge-expired">締切</span>' : ''}</div>
+      ` : ''}
+      ${ev.hasAfterparty ? `
+        <div class="info-row"><span class="ico">🍻</span>${escapeHtml(ev.afterpartyTitle || '懇親会')}あり${ev.afterpartyLocation ? ' · ' + escapeHtml(ev.afterpartyLocation) : ''}</div>
+        ${ev.afterpartyDescription ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.afterpartyDescription)}</span></div>` : ''}
+      ` : ''}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px">
+      <div style="background:var(--success-soft);color:var(--success);padding:10px;border-radius:var(--radius-sm);text-align:center">
+        <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono'">${yesCount}</div>
+        <div style="font-size:10px">出席</div>
+      </div>
+      <div style="background:var(--accent-soft);color:var(--accent);padding:10px;border-radius:var(--radius-sm);text-align:center">
+        <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono'">${checkedCount}</div>
+        <div style="font-size:10px">受付済</div>
+      </div>
+      <div style="background:var(--danger-soft);color:var(--danger);padding:10px;border-radius:var(--radius-sm);text-align:center">
+        <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono'">${noCount}</div>
+        <div style="font-size:10px">欠席</div>
+      </div>
+      <div style="background:var(--surface-soft);color:var(--text-mute);padding:10px;border-radius:var(--radius-sm);text-align:center;border:1px solid var(--border)">
+        <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono'">${pendingCount}</div>
+        <div style="font-size:10px">未回答</div>
+      </div>
+    </div>
+
+    ${ev.hasAfterparty ? `
+      <div class="afterparty-stats">
+        <div class="afterparty-stats-label">${escapeHtml(ev.afterpartyTitle || '懇親会')}</div>
+        <div class="afterparty-stats-grid">
+          <div><span class="num">${afterYes}</span><span>出席</span></div>
+          <div><span class="num">${afterNo}</span><span>欠席</span></div>
+          <div><span class="num">${afterPending}</span><span>未回答</span></div>
+        </div>
+      </div>
+    ` : ''}
+
+    <button class="btn btn-accent btn-full" style="margin:14px 0" onclick="openScanner()">
+      📷 QRコードをスキャン
+    </button>
+
+    ${(() => {
+      const bd = computeAttendanceBreakdown(ev);
+      return `
+        <div class="breakdown-card">
+          <div class="breakdown-header">
+            <span>出席内訳</span>
+            <button class="btn btn-outline btn-sm" onclick="exportBreakdownCsv()">CSV書き出し</button>
+          </div>
+          <div class="breakdown-row breakdown-total">
+            <div class="bd-label">全体</div>
+            <div class="bd-count">${bd.total.attended} / ${bd.total.members}<div class="bd-sub">出席回答 ${bd.total.responded} 名</div></div>
+            <div class="bd-rate">${fmtRate(bd.total.rate)}</div>
+          </div>
+          ${bd.rows.map(r => `
+            <div class="breakdown-row">
+              <div class="bd-label">${escapeHtml(r.key)}</div>
+              <div class="bd-count">${r.attended} / ${r.members}<div class="bd-sub">出席回答 ${r.responded} 名</div></div>
+              <div class="bd-rate">${fmtRate(r.rate)}</div>
+            </div>
+          `).join('')}
+          ${bd.observerTotal > 0 ? `
+            <div class="breakdown-row breakdown-observer">
+              <div class="bd-label">オブザーバー</div>
+              <div class="bd-count">${bd.observerAttended} / ${bd.observerTotal}</div>
+              <div class="bd-rate">—</div>
+            </div>
+          ` : ''}
+          <div class="breakdown-note">参加率は委員会の総人数(アクティブ)から算出</div>
+        </div>
+        ${ev.hasAfterparty ? `
+          <div class="breakdown-card" style="margin-top:10px">
+            <div class="breakdown-header">
+              <span>🍻 懇親会会費</span>
+            </div>
+            <div class="breakdown-row breakdown-total">
+              <div class="bd-label">全体</div>
+              <div class="bd-count">${bd.total.afterPaid} / ${bd.total.afterYes}<div class="bd-sub">受領済 / 出席予定</div></div>
+              <div class="bd-rate">${bd.total.afterYes ? fmtRate(bd.total.afterPaid / bd.total.afterYes) : '—'}</div>
+            </div>
+            ${bd.rows.filter(r => r.afterYes > 0 || r.afterPaid > 0).map(r => `
+              <div class="breakdown-row">
+                <div class="bd-label">${escapeHtml(r.key)}</div>
+                <div class="bd-count">${r.afterPaid} / ${r.afterYes}</div>
+                <div class="bd-rate">${r.afterYes ? fmtRate(r.afterPaid / r.afterYes) : '—'}</div>
+              </div>
+            `).join('')}
+            ${bd.observerAfterYes > 0 ? `
+              <div class="breakdown-row breakdown-observer">
+                <div class="bd-label">オブザーバー</div>
+                <div class="bd-count">${bd.observerAfterPaid} / ${bd.observerAfterYes}</div>
+                <div class="bd-rate">${bd.observerAfterYes ? fmtRate(bd.observerAfterPaid / bd.observerAfterYes) : '—'}</div>
+              </div>
+            ` : ''}
+            <div class="breakdown-note">受領率は懇親会「出席予定」を母数として算出</div>
+          </div>
+        ` : ''}
+      `;
+    })()}
+
+    <div class="section-label">
+      参加者リスト <span class="count" id="admin-attendee-count">${total}</span>
+    </div>
+
+    <div class="filter-bar">
+      <input class="search-input" type="search" placeholder="名前で検索"
+             value="${escapeHtml(adminFilter.query)}"
+             oninput="onAdminSearch(this.value)">
+      <div class="filter-chips">
+        ${chip('all', '全て', total)}
+        ${chip('yes', '出席', yesCount)}
+        ${chip('checked-in', '受付済', checkedCount)}
+        ${chip('pending', '未回答', pendingCount)}
+        ${chip('no', '欠席', noCount)}
+      </div>
+      ${getDepartments().length ? `
+        <div class="filter-section-label">委員会(複数選択可)</div>
+        <div class="multiselect-chips">
+          ${getDepartments().map(d => `
+            <button type="button" class="chip ${(adminFilter.departments || []).includes(d) ? 'active' : ''}" onclick="toggleAdminFilterDept('${escapeHtml(d).replace(/'/g, "\\'")}')">${escapeHtml(d)}</button>
+          `).join('')}
+        </div>
+      ` : ''}
+      <div class="filter-section-label">区分</div>
+      <div class="filter-chips" style="margin-top:4px">
+        <button class="chip ${adminFilter.kind === 'all' ? 'active' : ''}" onclick="setAdminFilterKind('all')">全て</button>
+        <button class="chip ${adminFilter.kind === 'member' ? 'active' : ''}" onclick="setAdminFilterKind('member')">メンバー</button>
+        <button class="chip ${adminFilter.kind === 'observer' ? 'active' : ''}" onclick="setAdminFilterKind('observer')">オブザーバー</button>
+      </div>
+      ${((adminFilter.departments || []).length || adminFilter.status !== 'all' || adminFilter.query || adminFilter.kind !== 'all') ? `
+        <div style="margin-top:8px;text-align:right">
+          <button class="btn btn-outline btn-sm" onclick="clearAdminAttendeeFilter()">フィルタをリセット</button>
+        </div>
+      ` : ''}
+    </div>
+
+    <div id="admin-attendee-list"></div>
+  `;
+  $('admin-detail-content').innerHTML = html;
+  renderAdminAttendeeList();
+}
+
+function openEventMenu() {
+  if (!state.currentEventId) return;
+  renderEventMenu();
+  openModal('modal-event-menu');
+}
+
+function renderEventMenu() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  const body = $('event-menu-body');
+  if (!ev || !body) return;
+  const canEdit = canEditEvent(ev);
+  body.innerHTML = `
+    ${canEdit ? `<button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); openEditEventModal(state.currentEventId)">イベントを編集</button>` : ''}
+    <button class="btn btn-primary btn-full" onclick="copyEventLink()">共有リンクをコピー</button>
+    <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-menu'); exportBreakdownCsv()">出席内訳CSVを書き出す</button>
+    ${canEdit ? `<button class="btn btn-danger btn-full" style="margin-top:6px" onclick="closeModal('modal-event-menu'); deleteEvent()">このイベントを削除</button>` : ''}
+  `;
+}
+
+function backFromEventDetail() {
+  state.currentEventId = null;
+  if (isAdminMode()) showScreen('admin-list');
+  else showScreen('user-list');
+}
+
+function goHome() {
+  state.currentEventId = null;
+  if (isAdminMode()) showScreen('admin-list');
+  else showScreen('user-list');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderAdminAttendeeList() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const target = $('admin-attendee-list');
+  if (!target) return;
+  const filtered = getFilteredAttendees(ev);
+  const countEl = $('admin-attendee-count');
+  if (countEl) countEl.textContent = filtered.length === ev.attendees.length ? ev.attendees.length : `${filtered.length}/${ev.attendees.length}`;
+
+  if (!filtered.length) {
+    target.innerHTML = `
+      <div class="empty-state" style="padding:32px 0">
+        <div class="hint">該当する参加者はいません</div>
+      </div>`;
+    return;
+  }
+  const hasAP = !!ev.hasAfterparty;
+  target.innerHTML = filtered.map(a => {
+    const isObs = !!a.isObserver;
+    const u = isObs ? null : userById(a.userId);
+    if (!isObs && !u) return '';
+    const name = isObs ? (a.name || '(ゲスト)') : u.name;
+    const dept = isObs ? null : u.department;
+    const title = isObs ? null : u.title;
+    const af = a.afterStatus || 'pending';
+    const checkedIn = !!a.checkedInAt;
+    return `
+      <div class="attendee-row ${isObs ? 'is-observer' : ''}">
+        <div class="left">
+          <div class="avatar">${initial(name)}</div>
+          <div style="min-width:0">
+            <div class="name-row">
+              <span class="name">${escapeHtml(name)}</span>
+              ${isObs ? '<span class="badge-observer">ゲスト</span>' : ''}
+              ${checkedIn
+                ? `<button class="badge-checked-in" onclick="toggleCheckedIn('${a.userId}')" title="受付済を取消">✓受付済</button>`
+                : `<button class="badge-not-checked-in" onclick="toggleCheckedIn('${a.userId}')" title="受付済にする">受付未</button>`}
+              ${(hasAP && af === 'yes') ? (
+                a.afterPaidAt
+                  ? `<button class="badge-paid" onclick="toggleFeePaid('${a.userId}')" title="会費受領を取消">💰受領済</button>`
+                  : `<button class="badge-unpaid" onclick="toggleFeePaid('${a.userId}')" title="会費を受領済にする">💰未収</button>`
+              ) : ''}
+            </div>
+            ${(dept || title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(dept || '')}${dept && title ? ' · ' : ''}${escapeHtml(title || '')}</div>` : ''}
+            <div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+              ${statusBadge(a.status)}
+              ${hasAP ? `<span class="afterparty-mini-label">🍻</span>${statusBadge(af)}` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="actions-stack">
+          <div class="actions">
+            <button class="status-btn ${a.status === 'yes' ? 'active yes' : ''}" onclick="setStatus('${a.userId}','yes')">出</button>
+            <button class="status-btn ${a.status === 'no' ? 'active no' : ''}" onclick="setStatus('${a.userId}','no')">欠</button>
+          </div>
+          ${hasAP ? `
+            <div class="actions actions-secondary">
+              <span class="actions-prefix">懇</span>
+              <button class="status-btn ${af === 'yes' ? 'active yes' : ''}" onclick="setAfterStatus('${a.userId}','yes')">出</button>
+              <button class="status-btn ${af === 'no' ? 'active no' : ''}" onclick="setAfterStatus('${a.userId}','no')">欠</button>
+            </div>
+          ` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function onAdminSearch(v) {
+  adminFilter.query = v;
+  renderAdminAttendeeList();
+}
+
+function setAdminFilterStatus(s) {
+  adminFilter.status = s;
+  renderAdminEventDetail();
+}
+
+async function setStatus(userId, status) {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const att = ev.attendees.find(a => a.userId === userId);
+  if (!att) return;
+  if (att.status === status) return;
+  if (isDeadlinePassed(ev) && !canAccessAdminDashboard()) {
+    alert('回答期限を過ぎたため変更できません。期限を伸ばしてから再度お試しください。');
+    return;
+  }
+  const u = userById(userId);
+  const name = att.isObserver ? (att.name || '(ゲスト)') : (u ? u.name : '');
+  const before = STATUS_LABEL[att.status] || att.status;
+  const after = STATUS_LABEL[status] || status;
+  if (!confirm(`${name} の出欠を変更します\n\n  ${before}  →  ${after}\n\nよろしいですか?`)) return;
+  att.status = status;
+  await saveState();
+  renderAdminEventDetail();
+}
+
+async function toggleCheckedIn(userId) {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const att = ev.attendees.find(a => a.userId === userId);
+  if (!att) return;
+  const u = userById(userId);
+  const name = att.isObserver ? (att.name || '(ゲスト)') : (u ? u.name : '');
+  if (att.checkedInAt) {
+    if (!confirm(`${name} さんの受付済を取消します。\nよろしいですか?`)) return;
+    att.checkedInAt = null;
+  } else {
+    if (!confirm(`${name} さんを受付済にします。\nよろしいですか?`)) return;
+    att.checkedInAt = new Date().toISOString();
+    if (att.status !== 'yes') att.status = 'yes';
+  }
+  await saveState();
+  renderAdminEventDetail();
+}
+
+async function toggleFeePaid(userId) {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev || !ev.hasAfterparty) return;
+  const att = ev.attendees.find(a => a.userId === userId);
+  if (!att) return;
+  const u = userById(userId);
+  const name = att.isObserver ? (att.name || '(ゲスト)') : (u ? u.name : '');
+  if (att.afterPaidAt) {
+    if (!confirm(`${name} さんの懇親会会費「受領済」を取消します。\nよろしいですか?`)) return;
+    att.afterPaidAt = null;
+  } else {
+    if (!confirm(`${name} さんの懇親会会費を受領済にします。\nよろしいですか?`)) return;
+    att.afterPaidAt = new Date().toISOString();
+    if (att.afterStatus !== 'yes') att.afterStatus = 'yes';
+  }
+  await saveState();
+  renderAdminEventDetail();
+}
+
+async function setAfterStatus(userId, status) {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev || !ev.hasAfterparty) return;
+  const att = ev.attendees.find(a => a.userId === userId);
+  if (!att) return;
+  const current = att.afterStatus || 'pending';
+  if (current === status) return;
+  if (isDeadlinePassed(ev) && !canAccessAdminDashboard()) {
+    alert('回答期限を過ぎたため変更できません。期限を伸ばしてから再度お試しください。');
+    return;
+  }
+  const u = userById(userId);
+  const name = att.isObserver ? (att.name || '(ゲスト)') : (u ? u.name : '');
+  const before = STATUS_LABEL[current] || current;
+  const after = STATUS_LABEL[status] || status;
+  const apTitle = ev.afterpartyTitle || '懇親会';
+  if (!confirm(`${name} の${apTitle}を変更します\n\n  ${before}  →  ${after}\n\nよろしいですか?`)) return;
+  att.afterStatus = status;
+  await saveState();
+  renderAdminEventDetail();
+}
+
+async function deleteEvent() {
+  if (!confirm('このイベントを削除しますか?')) return;
+  state.events = state.events.filter(e => e.id !== state.currentEventId);
+  state.currentEventId = null;
+  await saveState();
+  renderAll();
+}
+
+// 表示中の詳細画面(admin-detail / user-detail)を再描画
+// 受付モード: 'normal'(ユーザRSVP表示) / 'reception'(管理者風表示)。イベントを開くたびに 'normal' へ。
+let receptionMode = 'normal';
+
+function isReceptionist(ev) {
+  return !!ev && Array.isArray(ev.receptionists) && ev.receptionists.includes(state.currentUserId);
+}
+
+function renderReceptionToggle(ev) {
+  const show = isReceptionist(ev);
+  ['reception-toggle-user', 'reception-toggle-admin'].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    if (!show) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = '';
+    el.innerHTML = `
+      <div class="reception-toggle">
+        <button type="button" class="${receptionMode === 'normal' ? 'active' : ''}" onclick="setReceptionMode('normal')">通常</button>
+        <button type="button" class="${receptionMode === 'reception' ? 'active' : ''}" onclick="setReceptionMode('reception')">受付</button>
+      </div>
+    `;
+  });
+}
+
+function setReceptionMode(mode) {
+  if (mode !== 'normal' && mode !== 'reception') return;
+  if (mode === receptionMode) return;
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  if (mode === 'reception' && !isReceptionist(ev) && !canEditEvent(ev)) return;
+  receptionMode = mode;
+  if (mode === 'reception') {
+    renderAdminEventDetail();
+    showScreen('admin-detail');
+  } else {
+    renderUserEventDetail();
+    showScreen('user-detail');
+  }
+}
+
+function renderCurrentEventDetail() {
+  if (isAdminMode()) renderAdminEventDetail();
+  else renderUserEventDetail();
+}
+
+// =================================================
+// ADMIN: Create event modal
+// =================================================
+let inviteSelection = new Set();
+let inviteQuery = '';
+
+let editingEventId = null;
+// オブザーバーの未保存リスト: { id: 既存ならattendeeのuserId, name }
+let pendingObservers = [];
+
+function toggleObserverFields(on) {
+  const wrap = $('observer-fields');
+  if (wrap) wrap.style.display = on ? '' : 'none';
+}
+
+function renderObserverList() {
+  const target = $('observer-list');
+  if (!target) return;
+  if (!pendingObservers.length) {
+    target.innerHTML = '<div style="font-size:12px;color:var(--text-mute);padding:6px">まだ追加されていません</div>';
+    return;
+  }
+  target.innerHTML = pendingObservers.map((o, i) => `
+    <div class="master-row">
+      <div class="label">${escapeHtml(o.name)}</div>
+      <button class="icon-btn danger" onclick="removeObserver(${i})" title="削除">✕</button>
+    </div>
+  `).join('');
+}
+
+function addObserver() {
+  const input = $('new-observer-name');
+  const name = (input.value || '').trim();
+  if (!name) return;
+  pendingObservers.push({ id: null, name });
+  input.value = '';
+  renderObserverList();
+}
+
+function removeObserver(idx) {
+  pendingObservers.splice(idx, 1);
+  renderObserverList();
+}
+
+function renderEventCommitteeOptions(selected) {
+  const sel = $('new-event-committee');
+  if (!sel) return;
+  const value = selected || '';
+  sel.innerHTML = `
+    <option value="" ${value === '' ? 'selected' : ''}>(未選択)</option>
+    ${getDepartments().map(d => `<option value="${escapeHtml(d)}" ${value === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
+    <option value="その他" ${value === 'その他' ? 'selected' : ''}>その他</option>
+  `;
+}
+
+function toggleAfterpartyFields(on) {
+  const wrap = $('afterparty-fields');
+  if (wrap) wrap.style.display = on ? '' : 'none';
+}
+
+function openCreateEventModal() {
+  editingEventId = null;
+  $('event-modal-heading').textContent = 'イベントを作成';
+  $('event-modal-save-publish').textContent = '公開して作成';
+  $('event-modal-save-draft').textContent = '下書きとして保存';
+  $('new-event-title').value = '';
+  $('new-event-location').value = '';
+  $('new-event-description').value = '';
+  renderEventCommitteeOptions(null);
+  $('new-event-has-afterparty').checked = false;
+  $('new-event-afterparty-location').value = '';
+  $('new-event-afterparty-description').value = '';
+  toggleAfterpartyFields(false);
+  $('new-event-has-observers').checked = false;
+  $('new-observer-name').value = '';
+  pendingObservers = [];
+  toggleObserverFields(false);
+  renderObserverList();
+  const tomorrow = new Date(Date.now() + 1000 * 60 * 60 * 24);
+  tomorrow.setHours(19, 0, 0, 0);
+  $('new-event-date').value = toLocalInputValue(tomorrow);
+  // デフォルト終了日時 = 開始の2時間後
+  $('new-event-end-date').value = toLocalInputValue(new Date(tomorrow.getTime() + 1000 * 60 * 60 * 2));
+  const defaultDeadline = new Date(tomorrow.getTime() - 1000 * 60 * 60 * 24);
+  $('new-event-deadline').value = toLocalInputValue(defaultDeadline);
+
+  // 招待対象はロールを問わず全アクティブユーザ(管理者・編集者自身も含む)
+  const userList = state.users.filter(u => (u.status || 'active') === 'active');
+  inviteSelection = new Set(userList.map(u => u.id));
+  inviteQuery = '';
+  inviteFilter = { departments: [], title: '' };
+  inviteListApplied = null;
+  renderInviteSection();
+  // 作成者(=現在のユーザ)は必ず受付担当に含まれる
+  receptionistSelection = new Set([state.currentUserId]);
+  receptionistQuery = '';
+  receptionistFilter = { departments: [] };
+  renderReceptionistSection();
+  openModal('modal-create-event');
+}
+
+function openEditEventModal(eventId) {
+  const ev = state.events.find(e => e.id === eventId);
+  if (!ev) return;
+  editingEventId = eventId;
+  $('event-modal-heading').textContent = 'イベントを編集';
+  $('event-modal-save-publish').textContent = ev.published ? '保存' : '公開して保存';
+  $('event-modal-save-draft').textContent = ev.published ? '下書きに戻す' : '下書きのまま保存';
+  $('new-event-title').value = ev.title || '';
+  $('new-event-location').value = ev.location || '';
+  $('new-event-description').value = ev.description || '';
+  renderEventCommitteeOptions(ev.committee || null);
+  $('new-event-has-afterparty').checked = !!ev.hasAfterparty;
+  $('new-event-afterparty-location').value = ev.afterpartyLocation || '';
+  $('new-event-afterparty-description').value = ev.afterpartyDescription || '';
+  toggleAfterpartyFields(!!ev.hasAfterparty);
+  // 既存のオブザーバーを読み込み
+  $('new-observer-name').value = '';
+  pendingObservers = ev.attendees
+    .filter(a => a.isObserver)
+    .map(a => ({ id: a.userId, name: a.name }));
+  const hasObs = pendingObservers.length > 0;
+  $('new-event-has-observers').checked = hasObs;
+  toggleObserverFields(hasObs);
+  renderObserverList();
+  $('new-event-date').value = toLocalInputValue(new Date(ev.date));
+  $('new-event-end-date').value = ev.endDate ? toLocalInputValue(new Date(ev.endDate)) : '';
+  $('new-event-deadline').value = ev.responseDeadline ? toLocalInputValue(new Date(ev.responseDeadline)) : '';
+
+  inviteSelection = new Set(ev.attendees.filter(a => !a.isObserver).map(a => a.userId));
+  inviteQuery = '';
+  inviteFilter = { departments: [], title: '' };
+  inviteListApplied = null;
+  renderInviteSection();
+  receptionistSelection = new Set(ev.receptionists || []);
+  // 作成者は必ず含める(誤って外せたとしても保存時に再追加)
+  if (ev.createdBy) receptionistSelection.add(ev.createdBy);
+  receptionistQuery = '';
+  receptionistFilter = { departments: [] };
+  renderReceptionistSection();
+  openModal('modal-create-event');
+}
+
+let inviteFilter = { departments: [], title: '' };
+let inviteListApplied = null;
+let receptionistSelection = new Set();
+let receptionistQuery = '';
+let receptionistFilter = { departments: [] };
+
+function renderReceptionistSection() {
+  const target = $('new-event-receptionists');
+  if (!target) return;
+  target.innerHTML = `
+    <input class="search-input" type="search" placeholder="名前で検索"
+           value="${escapeHtml(receptionistQuery)}" oninput="onReceptionistSearch(this.value)">
+    ${getDepartments().length ? `
+      <div class="filter-section-label">委員会(複数選択可)</div>
+      <div class="multiselect-chips">
+        ${getDepartments().map(d => `
+          <button type="button" class="chip ${(receptionistFilter.departments || []).includes(d) ? 'active' : ''}" onclick="toggleReceptionistFilterDept('${escapeHtml(d).replace(/'/g, "\\'")}')">${escapeHtml(d)}</button>
+        `).join('')}
+      </div>
+    ` : ''}
+    <div class="bulk-actions">
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectReceptionists(true)">表示中を全選択</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectReceptionists(false)">表示中を全解除</button>
+    </div>
+    <div id="receptionist-list" style="max-height:180px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
+    <div style="font-size:11px;color:var(--text-mute);margin-top:4px">選択中: <strong id="receptionist-count" style="color:var(--text);font-family:'JetBrains Mono'">${receptionistSelection.size}</strong> <span style="color:var(--accent);margin-left:6px">※自分を含みます</span></div>
+  `;
+  renderReceptionistList();
+}
+
+function bulkSelectReceptionists(select) {
+  const lockedId = getReceptionistLockedId();
+  const q = receptionistQuery.trim().toLowerCase();
+  const depts = receptionistFilter.departments || [];
+  state.users
+    .filter(u => (u.status || 'active') === 'active')
+    .filter(u => !q || u.name.toLowerCase().includes(q))
+    .filter(u => !depts.length || depts.includes(u.department))
+    .forEach(u => {
+      if (u.id === lockedId) return; // 作成者は外せない
+      if (select) receptionistSelection.add(u.id);
+      else receptionistSelection.delete(u.id);
+    });
+  renderReceptionistList();
+  const el = $('receptionist-count');
+  if (el) el.textContent = receptionistSelection.size;
+}
+
+function toggleReceptionistFilterDept(d) {
+  const arr = receptionistFilter.departments || (receptionistFilter.departments = []);
+  const idx = arr.indexOf(d);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(d);
+  renderReceptionistSection();
+}
+
+function getReceptionistLockedId() {
+  // 作成者は受付担当から外せない。新規=現在のユーザ、編集=ev.createdBy
+  if (editingEventId) {
+    const ev = state.events.find(e => e.id === editingEventId);
+    return ev ? ev.createdBy : null;
+  }
+  return state.currentUserId;
+}
+
+function renderReceptionistList() {
+  const target = $('receptionist-list');
+  if (!target) return;
+  const q = receptionistQuery.trim().toLowerCase();
+  const depts = receptionistFilter.departments || [];
+  const rawList = state.users
+    .filter(u => (u.status || 'active') === 'active')
+    .filter(u => !q || u.name.toLowerCase().includes(q))
+    .filter(u => !depts.length || depts.includes(u.department));
+  const cmp = userOrderComparator();
+  const users = cmp ? rawList.slice().sort(cmp) : rawList;
+  if (!users.length) {
+    target.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-mute);font-size:12px">該当するユーザーはいません</div>';
+    return;
+  }
+  const lockedId = getReceptionistLockedId();
+  target.innerHTML = users.map(u => {
+    const isLocked = u.id === lockedId;
+    return `
+      <label class="checkbox-row">
+        <input type="checkbox" ${receptionistSelection.has(u.id) ? 'checked' : ''} ${isLocked ? 'disabled' : ''}
+               onchange="toggleReceptionist('${u.id}', this.checked)">
+        <div style="min-width:0">
+          <div class="name">${escapeHtml(u.name)}${isLocked ? ' <span class="badge-creator">作成者</span>' : ''}</div>
+          ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
+        </div>
+      </label>
+    `;
+  }).join('');
+}
+
+function onReceptionistSearch(v) {
+  receptionistQuery = v;
+  renderReceptionistList();
+}
+
+function toggleReceptionist(id, checked) {
+  // 作成者は外せない(チェックボックスは disabled だが念のため)
+  if (!checked && id === getReceptionistLockedId()) {
+    receptionistSelection.add(id);
+    renderReceptionistList();
+    return;
+  }
+  if (checked) receptionistSelection.add(id);
+  else receptionistSelection.delete(id);
+  const el = $('receptionist-count');
+  if (el) el.textContent = receptionistSelection.size;
+}
+
+function getFilteredInviteUsers() {
+  const q = inviteQuery.trim().toLowerCase();
+  const depts = inviteFilter.departments || [];
+  const list = state.users
+    .filter(u => (u.status || 'active') === 'active')
+    .filter(u => !q || u.name.toLowerCase().includes(q))
+    .filter(u => !depts.length || depts.includes(u.department))
+    .filter(u => !inviteFilter.title || u.title === inviteFilter.title);
+  const cmp = userOrderComparator();
+  return cmp ? list.slice().sort(cmp) : list;
+}
+
+function getActiveUserPoolSize() {
+  return state.users.filter(u => (u.status || 'active') === 'active').length;
+}
+
+function getEffectiveInviteSize() {
+  // 非アクティブ(休会/退会)になったユーザは画面の合計人数から外れているので、
+  // 選択中件数の表示でもアクティブのみ数える(過去の招待データは内部で保持)
+  if (!inviteSelection.size) return 0;
+  const activeIds = new Set(state.users.filter(u => (u.status || 'active') === 'active').map(u => u.id));
+  let n = 0;
+  inviteSelection.forEach(id => { if (activeIds.has(id)) n++; });
+  return n;
+}
+
+function renderInviteSection() {
+  const total = getActiveUserPoolSize();
+  const lists = state.attendeeLists || [];
+  const effSize = getEffectiveInviteSize();
+  $('new-event-attendees').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-mute);margin-bottom:6px">
+      <span>選択中 <strong id="invite-count" style="color:var(--text);font-family:'JetBrains Mono'">${effSize}</strong> / ${total}</span>
+    </div>
+    ${lists.length ? `
+      <div class="filter-selects" style="margin-bottom:8px">
+        <select id="invite-list-apply" onchange="applyAttendeeList(this.value)">
+          <option value="" ${!inviteListApplied ? 'selected' : ''}>リストから一括選択…</option>
+          ${lists.map(l => `<option value="${escapeHtml(l.id)}" ${inviteListApplied === l.id ? 'selected' : ''}>${escapeHtml(l.name)} (${(l.userIds || []).length} 名)</option>`).join('')}
+        </select>
+      </div>
+    ` : ''}
+    <input class="search-input" type="search" placeholder="名前で検索"
+           value="${escapeHtml(inviteQuery)}"
+           oninput="onInviteSearch(this.value)">
+    ${getDepartments().length ? `
+      <div class="filter-section-label">委員会(複数選択可)</div>
+      <div class="multiselect-chips">
+        ${getDepartments().map(d => `
+          <button type="button" class="chip ${(inviteFilter.departments || []).includes(d) ? 'active' : ''}" onclick="toggleInviteFilterDept('${escapeHtml(d).replace(/'/g, "\\'")}')">${escapeHtml(d)}</button>
+        `).join('')}
+      </div>
+    ` : ''}
+    <div class="bulk-actions">
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectInvites(true)">表示中を全選択</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectInvites(false)">表示中を全解除</button>
+    </div>
+    <div id="invite-list" style="max-height:280px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
+    <div style="font-size:11px;color:var(--text-mute);margin-top:4px">選択中: <strong id="invite-count-bottom" style="color:var(--text);font-family:'JetBrains Mono'">${effSize}</strong> / ${total}</div>
+  `;
+  renderInviteList();
+}
+
+function applyAttendeeList(listId) {
+  if (!listId) {
+    inviteListApplied = null;
+    renderInviteSection();
+    return;
+  }
+  const list = (state.attendeeLists || []).find(l => l.id === listId);
+  if (!list) return;
+  // アクティブユーザのみ対象に置換
+  const activeIds = new Set(state.users.filter(u => (u.status || 'active') === 'active').map(u => u.id));
+  const validIds = (list.userIds || []).filter(id => activeIds.has(id));
+  inviteSelection = new Set(validIds);
+  inviteListApplied = listId;
+  renderInviteSection();
+  showToast(`「${list.name}」を反映しました (${validIds.length} 名)`);
+}
+
+function toggleInviteFilterDept(d) {
+  const arr = inviteFilter.departments || (inviteFilter.departments = []);
+  const idx = arr.indexOf(d);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(d);
+  renderInviteSection();
+}
+
+function setInviteFilterTitle(v) {
+  inviteFilter.title = v;
+  renderInviteSection();
+}
+
+function renderInviteList() {
+  const target = $('invite-list');
+  if (!target) return;
+  const users = getFilteredInviteUsers();
+  if (!users.length) {
+    target.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text-mute);font-size:13px">該当するユーザーはいません</div>';
+    return;
+  }
+  target.innerHTML = users.map(u => `
+    <label class="checkbox-row">
+      <input type="checkbox" value="${u.id}" ${inviteSelection.has(u.id) ? 'checked' : ''}
+             onchange="toggleInvite('${u.id}', this.checked)">
+      <div style="min-width:0">
+        <div class="name">${escapeHtml(u.name)}</div>
+        ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
+      </div>
+    </label>
+  `).join('');
+}
+
+function onInviteSearch(v) {
+  inviteQuery = v;
+  renderInviteList();
+}
+
+function toggleInvite(id, checked) {
+  if (checked) inviteSelection.add(id);
+  else inviteSelection.delete(id);
+  updateInviteCount();
+}
+
+function bulkSelectInvites(select) {
+  getFilteredInviteUsers().forEach(u => {
+    if (select) inviteSelection.add(u.id);
+    else inviteSelection.delete(u.id);
+  });
+  renderInviteList();
+  updateInviteCount();
+}
+
+function updateInviteCount() {
+  const n = getEffectiveInviteSize();
+  const top = $('invite-count');
+  if (top) top.textContent = n;
+  const bottom = $('invite-count-bottom');
+  if (bottom) bottom.textContent = n;
+}
+
+function buildAttendeeSummary(selectionSet, observers) {
+  const byDept = new Map();
+  selectionSet.forEach(id => {
+    const u = state.users.find(x => x.id === id);
+    if (!u) return;
+    const key = u.department || '(未設定)';
+    byDept.set(key, (byDept.get(key) || 0) + 1);
+  });
+  // マスター順にしつつ、マスターに無い委員会も末尾に追加
+  const order = [];
+  getDepartments().forEach(d => { if (byDept.has(d)) order.push(d); });
+  byDept.forEach((_, key) => { if (!order.includes(key)) order.push(key); });
+
+  const memberCount = selectionSet.size;
+  const observerCount = observers.length;
+  const lines = [];
+  lines.push(`参加者 ${memberCount} 名(委員会別):`);
+  if (order.length === 0) {
+    lines.push('  (なし)');
+  } else {
+    order.forEach(key => { lines.push(`  ${key}: ${byDept.get(key)} 名`); });
+  }
+  if (observerCount > 0) lines.push(`オブザーバー: ${observerCount} 名`);
+  lines.push('');
+  lines.push(`合計: ${memberCount + observerCount} 名`);
+  return lines.join('\n');
+}
+
+async function saveEventForm({ publish = true } = {}) {
+  const title = $('new-event-title').value.trim();
+  const date = $('new-event-date').value;
+  const endDateRaw = $('new-event-end-date').value;
+  const deadlineRaw = $('new-event-deadline').value;
+  const committee = $('new-event-committee').value || null;
+  const location = $('new-event-location').value.trim();
+  const description = $('new-event-description').value.trim();
+  const hasAfterparty = $('new-event-has-afterparty').checked;
+  const afterpartyLocation = hasAfterparty ? $('new-event-afterparty-location').value.trim() : '';
+  const afterpartyDescription = hasAfterparty ? $('new-event-afterparty-description').value.trim() : '';
+  if (!title || !date) {
+    alert('タイトルと開始日時は必須です');
+    return;
+  }
+  const eventDateISO = new Date(date).toISOString();
+  const endDateISO = endDateRaw ? new Date(endDateRaw).toISOString() : null;
+  const deadlineISO = deadlineRaw ? new Date(deadlineRaw).toISOString() : null;
+  const nowISO = new Date().toISOString();
+  const warnings = [];
+  if (eventDateISO < nowISO) warnings.push('・開始日時が現在より過去になっています');
+  if (endDateISO && endDateISO < eventDateISO) warnings.push('・終了日時が開始日時より前になっています');
+  if (deadlineISO && deadlineISO < nowISO) warnings.push('・回答期限が現在より過去になっています');
+  if (deadlineISO && deadlineISO > eventDateISO) warnings.push('・回答期限が開始日時より後になっています');
+  if (warnings.length) {
+    if (!confirm('日時設定に問題がある可能性があります:\n\n' + warnings.join('\n') + '\n\nこのまま保存しますか?')) return;
+  }
+
+  // オブザーバーの最終リスト(チェックOFFなら空)
+  const useObservers = $('new-event-has-observers').checked;
+  const finalObservers = useObservers ? pendingObservers.slice() : [];
+
+  // 新規作成かつ公開: 参加者の委員会別内訳を確認
+  if (!editingEventId && publish) {
+    const summary = buildAttendeeSummary(inviteSelection, finalObservers);
+    if (!confirm(`このイベントを公開して作成します。\n\n${summary}\n\nよろしいですか?`)) return;
+  }
+
+  if (editingEventId) {
+    // 編集モード: 既存のRSVPは保持しつつフィールド更新+招待者の差分反映
+    const ev = state.events.find(e => e.id === editingEventId);
+    if (!ev) { editingEventId = null; return; }
+    ev.title = title;
+    ev.date = eventDateISO;
+    ev.endDate = endDateISO;
+    ev.responseDeadline = deadlineISO;
+    ev.committee = committee;
+    ev.location = location;
+    ev.description = description;
+    ev.hasAfterparty = hasAfterparty;
+    ev.afterpartyTitle = hasAfterparty ? (ev.afterpartyTitle || '懇親会') : null;
+    ev.afterpartyLocation = hasAfterparty ? (afterpartyLocation || null) : null;
+    ev.afterpartyDescription = hasAfterparty ? (afterpartyDescription || null) : null;
+    ev.published = publish;
+    // 作成者は必ず受付担当に含める
+    if (ev.createdBy) receptionistSelection.add(ev.createdBy);
+    ev.receptionists = Array.from(receptionistSelection);
+
+    // 通常ユーザの招待差分(オブザーバーには触らない)
+    const regulars = ev.attendees.filter(a => !a.isObserver);
+    const currentIds = new Set(regulars.map(a => a.userId));
+    const newIds = inviteSelection;
+    let newRegulars = regulars.filter(a => newIds.has(a.userId));
+    newIds.forEach(id => {
+      if (!currentIds.has(id)) {
+        newRegulars.push({
+          userId: id,
+          status: 'pending',
+          afterStatus: hasAfterparty ? 'pending' : null,
+          checkedInAt: null,
+          afterPaidAt: null,
+        });
+      }
+    });
+
+    // オブザーバーの差分: id があれば既存の attendee を再利用、なければ新規作成
+    const existingObservers = ev.attendees.filter(a => a.isObserver);
+    const newObservers = finalObservers.map((o, i) => {
+      if (o.id) {
+        const existing = existingObservers.find(a => a.userId === o.id);
+        if (existing) {
+          existing.name = o.name;
+          if (hasAfterparty && !existing.afterStatus) existing.afterStatus = 'yes';
+          if (!hasAfterparty) existing.afterStatus = null;
+          return existing;
+        }
+      }
+      return {
+        userId: 'obs_' + Date.now() + '_' + i,
+        isObserver: true,
+        name: o.name,
+        status: 'yes',
+        afterStatus: hasAfterparty ? 'yes' : null,
+        checkedInAt: null,
+        afterPaidAt: null,
+      };
+    });
+
+    ev.attendees = newRegulars.concat(newObservers);
+
+    // 懇親会フラグ切り替え時の afterStatus 補正
+    if (hasAfterparty) {
+      ev.attendees.forEach(a => { if (!a.afterStatus) a.afterStatus = a.isObserver ? 'yes' : 'pending'; });
+    } else {
+      ev.attendees.forEach(a => { a.afterStatus = null; });
+    }
+
+    await saveState();
+    closeModal('modal-create-event');
+    editingEventId = null;
+    renderCurrentEventDetail();
+    showToast(`「${title}」を${publish ? '公開しました' : '下書きとして保存しました'}`);
+  } else {
+    // 新規作成
+    const attendees = Array.from(inviteSelection).map(id => ({
+      userId: id,
+      status: 'pending',
+      afterStatus: hasAfterparty ? 'pending' : null,
+      checkedInAt: null,
+      afterPaidAt: null,
+    }));
+    finalObservers.forEach((o, i) => {
+      attendees.push({
+        userId: 'obs_' + Date.now() + '_' + i,
+        isObserver: true,
+        name: o.name,
+        status: 'yes',
+        afterStatus: hasAfterparty ? 'yes' : null,
+        checkedInAt: null,
+        afterPaidAt: null,
+      });
+    });
+    const newEvent = {
+      id: 'e_' + Date.now(),
+      title,
+      date: eventDateISO,
+      endDate: endDateISO,
+      responseDeadline: deadlineISO,
+      committee,
+      location, description,
+      createdBy: state.currentUserId,
+      published: publish,
+      hasAfterparty,
+      afterpartyTitle: hasAfterparty ? '懇親会' : null,
+      afterpartyLocation: hasAfterparty ? (afterpartyLocation || null) : null,
+      afterpartyDescription: hasAfterparty ? (afterpartyDescription || null) : null,
+      receptionists: Array.from(new Set([state.currentUserId, ...receptionistSelection])),
+      attendees,
+    };
+    state.events.unshift(newEvent);
+    await saveState();
+    closeModal('modal-create-event');
+    if (isAdminMode()) renderAdminEventList();
+    else renderUserEventList();
+    showToast(`「${title}」を${publish ? '公開しました' : '下書きとして保存しました'}`);
+  }
+}
+
+// =================================================
+// USER: Event list
+// =================================================
+function renderUserEventList() {
+  renderUserProfileCard();
+  renderDateRangeFilter('user-event-filter');
+  const me = currentUser();
+  // タイトルを「{姓}さんのイベント」に。姓が未設定なら名前全体、それもなければ既定の文言
+  const titleEl = $('user-list-title');
+  if (titleEl && me) {
+    const handle = (me.lastName || '').trim() || (me.name || '').trim();
+    titleEl.textContent = handle ? `${handle}さんのイベント` : 'あなたのイベント';
+  }
+  // ユーザー画面の表示対象:
+  // - 管理者/編集者: 「招待されているイベント」のみ(自作で未招待のものは管理者画面側で確認)
+  // - 閲覧者: 招待 + 自作(自作は下書き含む。他人の下書きは非表示)
+  const isAdminCapable = canAccessAdminDashboard();
+  const myEvents = state.events.filter(ev => {
+    const invited = ev.attendees.some(a => a.userId === me.id);
+    if (isAdminCapable) return invited && ev.published !== false;
+    const isOwn = ev.createdBy === me.id;
+    if (!isOwn && !invited) return false;
+    if (!isOwn && ev.published === false) return false; // 他人の下書きは非表示
+    return true;
+  });
+  const filtered = filterEventsByRange(myEvents).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+  const list = $('user-event-list');
+  if (!myEvents.length) {
+    const hint = isAdminCapable
+      ? '招待されているイベントはありません<br>主催側の操作は上部の「管理者画面」に切替えてください'
+      : '招待されているイベントはありません<br>右上の「+ 新規作成」から自分で作成もできます';
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="glyph">○</div>
+        <div class="hint">${hint}</div>
+      </div>`;
+    return;
+  }
+  if (!filtered.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="glyph">○</div>
+        <div class="hint">指定期間に該当するイベントはありません</div>
+      </div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(ev => {
+    const a = ev.attendees.find(x => x.userId === me.id);
+    const locked = isDeadlinePassed(ev);
+    const isOwn = ev.createdBy === me.id;
+    const isRecep = Array.isArray(ev.receptionists) && ev.receptionists.includes(me.id);
+    // ユーザー画面では常にユーザRSVP画面で開く。編集は user-detail 右上の歯車から。
+    const opener = `openUserEventDetail('${ev.id}')`;
+    return `
+      <div class="event-card ${ev.published === false ? 'is-draft' : ''}" onclick="${opener}">
+        <div class="date-row">
+          <span class="date-tag">${fmtDate(ev.date)}</span>
+          ${isOwn ? '<span class="badge-own">自作</span>' : ''}
+          ${isRecep ? '<span class="badge-reception">🛡️ 受付</span>' : ''}
+          ${ev.hasAfterparty ? '<span class="badge-afterparty">🍻 懇親会</span>' : ''}
+          ${locked ? '<span class="badge-expired">回答締切</span>' : ''}
+        </div>
+        <div class="title">${escapeHtml(ev.title)}</div>
+        <div class="meta"><span>${escapeHtml(ev.location || '場所未定')}</span></div>
+        ${a ? statusBadge(a.status) : ''}
+      </div>`;
+  }).join('');
+}
+
+function renderUserProfileCard() {
+  const target = $('user-profile-card');
+  if (!target) return;
+  const me = currentUser();
+  if (!me) { target.innerHTML = ''; return; }
+  const dept = me.department || '未設定';
+  const title = me.title || 'メンバー';
+  const empty = !me.department && !me.title;
+  target.innerHTML = `
+    <div class="profile-card">
+      <div class="profile-info">
+        <div class="profile-name">${escapeHtml(me.name)}</div>
+        <div class="profile-meta">
+          <span class="${me.department ? '' : 'placeholder'}">${escapeHtml(dept)}</span>
+          <span class="sep">·</span>
+          <span>${escapeHtml(title)}</span>
+        </div>
+        ${empty ? '<div class="profile-hint">委員会と役職を登録できます</div>' : ''}
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="openProfileModal()">編集</button>
+    </div>
+  `;
+}
+
+function openProfileModal() {
+  const me = currentUser();
+  if (!me) return;
+  // 既存データに lastName/firstName が無ければ name を分割して埋める
+  const fallback = (!me.lastName && !me.firstName) ? splitFullName(me.name) : { lastName: me.lastName || '', firstName: me.firstName || '' };
+  $('profile-last-name').value = fallback.lastName;
+  $('profile-first-name').value = fallback.firstName;
+  // 委員会・役職は読み取り専用表示(変更は管理者のユーザー編集から)
+  $('profile-department-display').textContent = me.department || '未設定';
+  $('profile-title-display').textContent = me.title || 'メンバー';
+  openModal('modal-profile');
+}
+
+async function saveProfile() {
+  const me = currentUser();
+  if (!me) return;
+  const lastName = $('profile-last-name').value.trim();
+  const firstName = $('profile-first-name').value.trim();
+  if (!lastName && !firstName) { alert('お名前(姓または名)は必須です'); return; }
+  me.lastName = lastName;
+  me.firstName = firstName;
+  me.name = joinFullName(lastName, firstName);
+  // 委員会・役職はこの画面からは変更不可
+  await saveState();
+  closeModal('modal-profile');
+  renderAll();
+  showToast('プロフィールを更新しました');
+}
+
+// =================================================
+// ADMIN: マスター(委員会/役職)編集
+// =================================================
+// =================================================
+// ADMIN: 出欠CSV 書き出し/読み込み
+// =================================================
+const STATUS_TO_JP = { yes: '出席', no: '欠席', pending: '未回答' };
+const JP_TO_STATUS = { '出席': 'yes', '欠席': 'no', '未回答': 'pending', '受付済': 'yes' };
+
+function csvEscape(v) {
+  const s = String(v == null ? '' : v);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+// シンプルなCSVパーサ(クォート対応)
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuote) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i++; }
+        else { inQuote = false; }
+      } else {
+        cell += c;
+      }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+      else if (c === '\r') { /* skip */ }
+      else { cell += c; }
+    }
+  }
+  if (cell.length || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(x => x !== ''));
+}
+
+function sanitizeFilenamePart(s) {
+  return String(s || '').replace(/[\\/:*?"<>|\n\r]/g, '_').trim() || 'event';
+}
+
+// 出席内訳: 委員会別の出席数/総数(アクティブユーザベース)、全体、オブザーバー出席数
+function computeAttendanceBreakdown(ev) {
+  // 出席数 = 受付済(checkedInAt が設定済) の人数
+  // 出席回答 = ステータスが「出席(yes)」の人数(回答ベース)
+  // 委員会人数 = アクティブユーザの委員会別総人数
+  // 参加率 = 出席数 / 委員会人数
+  const activeUsers = state.users.filter(u => (u.status || 'active') === 'active');
+  const totalMembers = activeUsers.length;
+  const order = [];
+  const seen = new Set();
+  getDepartments().forEach(d => { order.push(d); seen.add(d); });
+  const byCommittee = new Map();
+  const emptyEntry = () => ({ members: 0, responded: 0, attended: 0, afterYes: 0, afterPaid: 0 });
+  order.forEach(d => byCommittee.set(d, emptyEntry()));
+  activeUsers.forEach(u => {
+    // 委員会未設定のユーザは委員会別の集計には含めない(全体率には含む)
+    if (!u.department) return;
+    const key = u.department;
+    if (!byCommittee.has(key)) { byCommittee.set(key, emptyEntry()); order.push(key); }
+    byCommittee.get(key).members++;
+  });
+  let totalResponded = 0;
+  let totalAttended = 0;
+  let totalAfterYes = 0;
+  let totalAfterPaid = 0;
+  ev.attendees.forEach(a => {
+    if (a.isObserver) return;
+    const u = state.users.find(x => x.id === a.userId);
+    if (!u || (u.status || 'active') !== 'active') return;
+    // 全体カウントは委員会未設定の人も含む
+    if (a.status === 'yes') totalResponded++;
+    if (a.checkedInAt) totalAttended++;
+    if (a.afterStatus === 'yes') totalAfterYes++;
+    if (a.afterPaidAt) totalAfterPaid++;
+    // 委員会別は所属がある人だけ
+    if (!u.department) return;
+    const key = u.department;
+    if (!byCommittee.has(key)) { byCommittee.set(key, emptyEntry()); order.push(key); }
+    if (a.status === 'yes') byCommittee.get(key).responded++;
+    if (a.checkedInAt) byCommittee.get(key).attended++;
+    if (a.afterStatus === 'yes') byCommittee.get(key).afterYes++;
+    if (a.afterPaidAt) byCommittee.get(key).afterPaid++;
+  });
+  const observerTotal = ev.attendees.filter(a => a.isObserver).length;
+  const observerAttended = ev.attendees.filter(a => a.isObserver && a.checkedInAt).length;
+  const observerAfterYes = ev.attendees.filter(a => a.isObserver && a.afterStatus === 'yes').length;
+  const observerAfterPaid = ev.attendees.filter(a => a.isObserver && a.afterPaidAt).length;
+  const rows = order
+    .filter(key => byCommittee.get(key).members > 0 || byCommittee.get(key).attended > 0 || byCommittee.get(key).responded > 0)
+    .map(key => ({
+      key,
+      members: byCommittee.get(key).members,
+      responded: byCommittee.get(key).responded,
+      attended: byCommittee.get(key).attended,
+      afterYes: byCommittee.get(key).afterYes,
+      afterPaid: byCommittee.get(key).afterPaid,
+      rate: byCommittee.get(key).members ? byCommittee.get(key).attended / byCommittee.get(key).members : 0,
+    }));
+  return {
+    rows,
+    total: {
+      members: totalMembers,
+      responded: totalResponded,
+      attended: totalAttended,
+      afterYes: totalAfterYes,
+      afterPaid: totalAfterPaid,
+      rate: totalMembers ? totalAttended / totalMembers : 0,
+    },
+    observerAttended,
+    observerTotal,
+    observerAfterYes,
+    observerAfterPaid,
+  };
+}
+
+function fmtRate(r) { return (r * 100).toFixed(1) + '%'; }
+
+function exportBreakdownCsv() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const bd = computeAttendanceBreakdown(ev);
+  const hasAP = !!ev.hasAfterparty;
+  const header = ['区分', '委員会', '出席数', '出席回答数', '委員会人数', '参加率']
+    .concat(hasAP ? ['懇親会出席予定', '懇親会会費受領'] : []);
+  const apCols = (afterYes, afterPaid) => hasAP ? [afterYes, afterPaid] : [];
+  const rows = [];
+  rows.push(['全体', '', bd.total.attended, bd.total.responded, bd.total.members, fmtRate(bd.total.rate), ...apCols(bd.total.afterYes, bd.total.afterPaid)]);
+  bd.rows.forEach(r => {
+    rows.push(['委員会別', r.key, r.attended, r.responded, r.members, fmtRate(r.rate), ...apCols(r.afterYes, r.afterPaid)]);
+  });
+  rows.push(['オブザーバー', '', bd.observerAttended, '', bd.observerTotal, '', ...apCols(bd.observerAfterYes, bd.observerAfterPaid)]);
+  const csv = '﻿' + [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\r\n') + '\r\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = toLocalDateValue(new Date(ev.date)).replace(/-/g, '');
+  a.href = url;
+  a.download = `${sanitizeFilenamePart(ev.title)}-${ts}-内訳.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('出席内訳CSVを書き出しました');
+}
+
+function exportAttendeesCsv() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const hasAP = !!ev.hasAfterparty;
+  const header = ['ユーザーID', '名前', '委員会', '役職', '区分', '出欠', '懇親会']
+    .concat(hasAP ? ['懇親会会費'] : []);
+  const rows = ev.attendees.map(a => {
+    const main = STATUS_TO_JP[a.status] || '未回答';
+    const after = hasAP ? (STATUS_TO_JP[a.afterStatus] || '未回答') : '';
+    const fee = hasAP ? (a.afterPaidAt ? '受領済' : '未収') : '';
+    if (a.isObserver) {
+      return [a.userId, a.name || '', '', '', 'ゲスト', main, after].concat(hasAP ? [fee] : []);
+    }
+    const u = userById(a.userId) || {};
+    return [a.userId, u.name || '', u.department || '', u.title || '', 'メンバー', main, after].concat(hasAP ? [fee] : []);
+  });
+  const csv = '﻿' + [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\r\n') + '\r\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = toLocalDateValue(new Date(ev.date)).replace(/-/g, '');
+  a.href = url;
+  a.download = `${sanitizeFilenamePart(ev.title)}-${ts}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('CSVを書き出しました');
+}
+
+async function importAttendeesCsv(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  try {
+    const text = await file.text();
+    const rows = parseCsv(text.replace(/^﻿/, ''));
+    if (!rows.length) { alert('CSVが空です'); return; }
+    const header = rows[0].map(s => s.trim());
+    const idIdx = header.indexOf('ユーザーID');
+    const nameIdx = header.indexOf('名前');
+    const statusIdx = header.indexOf('出欠');
+    const afterIdx = header.indexOf('懇親会');
+    if (statusIdx < 0) { alert('「出欠」列が見つかりません'); return; }
+
+    // 名前→userId のフォールバック索引
+    const usersByName = new Map(state.users.map(u => [u.name, u]));
+    const updates = [];
+    const skipped = [];
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      let userId = idIdx >= 0 ? (row[idIdx] || '').trim() : '';
+      if (!userId && nameIdx >= 0) {
+        const u = usersByName.get((row[nameIdx] || '').trim());
+        if (u) userId = u.id;
+      }
+      const att = userId ? ev.attendees.find(a => a.userId === userId) : null;
+      if (!att) { skipped.push(row[nameIdx] || userId || `行${r+1}`); continue; }
+      const statusJp = (row[statusIdx] || '').trim();
+      const newStatus = JP_TO_STATUS[statusJp];
+      if (!newStatus) { skipped.push((row[nameIdx] || userId) + `(出欠 "${statusJp}" 不明)`); continue; }
+      const newAfter = (ev.hasAfterparty && afterIdx >= 0)
+        ? (JP_TO_STATUS[(row[afterIdx] || '').trim()] || null)
+        : null;
+      updates.push({ att, newStatus, newAfter, statusJp });
+    }
+    if (!updates.length) {
+      alert('反映できる行がありませんでした。' + (skipped.length ? '\nスキップ: ' + skipped.length + '件' : ''));
+      return;
+    }
+    const msg = `${updates.length} 件の出欠を更新します` +
+      (skipped.length ? `\n(スキップ ${skipped.length} 件: ${skipped.slice(0, 3).join(', ')}${skipped.length > 3 ? ' …' : ''})` : '') +
+      '\n\n出席はそのまま「受付済」として登録されます。よろしいですか?';
+    if (!confirm(msg)) return;
+
+    const now = new Date().toISOString();
+    updates.forEach(({ att, newStatus, newAfter, statusJp }) => {
+      att.status = newStatus;
+      if (newStatus === 'yes') {
+        // 出席 = 受付済として扱う(既存の受付時刻があれば保持)
+        if (!att.checkedInAt) att.checkedInAt = now;
+      } else {
+        att.checkedInAt = null;
+      }
+      if (ev.hasAfterparty) {
+        if (newAfter) att.afterStatus = newAfter;
+      }
+    });
+    await saveState();
+    renderCurrentEventDetail();
+    showToast(`${updates.length} 件を更新しました`);
+  } catch (e) {
+    console.error(e);
+    alert('CSVの読み込みに失敗しました: ' + (e.message || e));
+  }
+}
+
+// =================================================
+// ADMIN: データ書き出し/読み込み(JSON)
+// =================================================
+function openDataModal() {
+  renderSyncSection();
+  openModal('modal-data');
+}
+
+const SYNC_STATUS_COLOR = { idle: 'var(--text-mute)', busy: 'var(--warning)', ok: 'var(--success)', error: 'var(--danger)' };
+const SYNC_STATUS_ICON = { idle: '◯', busy: '…', ok: '✓', error: '✕' };
+
+function renderSyncSection() {
+  const target = $('sync-section');
+  if (!target) return;
+  const linked = !!(syncConfig.binId && syncConfig.masterKey);
+  const statusColor = SYNC_STATUS_COLOR[syncStatus.kind] || SYNC_STATUS_COLOR.idle;
+  const statusIcon = SYNC_STATUS_ICON[syncStatus.kind] || '';
+  const statusLabel = linked
+    ? `連携済${syncConfig.lastSyncAt ? ' · 最終同期 ' + new Date(syncConfig.lastSyncAt).toLocaleTimeString() : ''}`
+    : '未連携';
+  target.innerHTML = `
+    <p style="font-size:12px;color:var(--text-mute);margin-bottom:14px;line-height:1.6">
+      jsonbin.io 経由で端末間のデータを同期できます。<br>
+      <a href="https://jsonbin.io/" target="_blank" rel="noopener" style="color:var(--primary)">jsonbin.io</a> でアカウントを作り、Master Key を取得してください。
+    </p>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:14px">
+      <span style="color:${statusColor};font-size:14px">${statusIcon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px">${statusLabel}</div>
+        ${syncStatus.message ? `<div style="font-size:11px;color:${statusColor};margin-top:2px">${escapeHtml(syncStatus.message)}</div>` : ''}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Master Key</label>
+      <input type="password" class="form-input" id="sync-master-key" placeholder="$2a$10$..." value="${escapeHtml(syncConfig.masterKey || '')}" oninput="updateSyncMasterKey(this.value)">
+      <div style="font-size:11px;color:var(--text-mute);margin-top:4px">
+        jsonbin.io ダッシュボードの「API Keys」から取得した Master Key
+      </div>
+    </div>
+
+    ${linked ? `
+      <div class="form-group">
+        <label class="form-label">Bin ID(他の端末と共有)</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" class="form-input" id="sync-bin-id" value="${escapeHtml(syncConfig.binId)}" readonly style="font-family:'JetBrains Mono',monospace">
+          <button class="btn btn-outline btn-sm" onclick="copyBinId()">コピー</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-primary" style="flex:1" onclick="syncNow()">今すぐ同期</button>
+        <button class="btn btn-outline" style="flex:1" onclick="confirmDisconnect()">同期を解除</button>
+      </div>
+      <label class="checkbox-row" style="margin-top:10px;background:var(--surface-soft);border:1px solid var(--border)">
+        <input type="checkbox" ${syncConfig.autoSync ? 'checked' : ''} onchange="toggleAutoSync(this.checked)">
+        <div>
+          <div class="name">自動同期</div>
+          <div style="font-size:11px;color:var(--text-mute);margin-top:2px">変更時に自動でクラウドに反映し、約7秒ごとに他端末の変更を取り込む</div>
+        </div>
+      </label>
+    ` : `
+      <div class="form-group">
+        <label class="form-label">既存の同期グループに参加する場合は Bin ID を入力</label>
+        <input type="text" class="form-input" id="sync-join-bin-id" placeholder="他の端末で表示された Bin ID">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-primary" style="flex:1" onclick="createSyncGroup()">新規作成</button>
+        <button class="btn btn-outline" style="flex:1" onclick="joinSyncGroup()">参加する</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-mute);margin-top:8px;line-height:1.5">
+        新規作成: この端末の現在のデータをクラウドに保存して共有を開始<br>
+        参加する: Bin ID 先のデータをこの端末に取り込み(現在のデータは上書きされます)
+      </div>
+    `}
+  `;
+}
+
+function updateSyncMasterKey(v) {
+  syncConfig.masterKey = v.trim();
+  saveSyncConfig();
+}
+
+async function createSyncGroup() {
+  try {
+    await cloudCreate();
+    renderSyncSection();
+    showToast('同期グループを作成しました');
+  } catch (e) {
+    console.error(e);
+    setSyncStatus('error', e.message || String(e));
+    alert('同期グループの作成に失敗しました: ' + (e.message || e));
+  }
+}
+
+async function joinSyncGroup() {
+  const binId = ($('sync-join-bin-id') && $('sync-join-bin-id').value || '').trim();
+  if (!binId) { alert('Bin ID を入力してください'); return; }
+  if (!confirm('参加するとこの端末のデータはクラウド側の内容で上書きされます。よろしいですか?')) return;
+  try {
+    await cloudJoin(binId);
+    renderSyncSection();
+    showToast('同期グループに参加しました');
+  } catch (e) {
+    console.error(e);
+    setSyncStatus('error', e.message || String(e));
+    alert('参加に失敗しました: ' + (e.message || e));
+  }
+}
+
+async function syncNow() {
+  try {
+    setSyncStatus('busy', '同期中…');
+    await cloudPull();
+    await cloudPush();
+    renderSyncSection();
+  } catch (e) {
+    console.error(e);
+    setSyncStatus('error', e.message || String(e));
+  }
+}
+
+function toggleAutoSync(on) {
+  syncConfig.autoSync = !!on;
+  saveSyncConfig();
+  if (on) startCloudPolling();
+  else stopCloudPolling();
+}
+
+function confirmDisconnect() {
+  if (!confirm('この端末の同期設定を解除します(クラウド側のデータは残ります)。よろしいですか?')) return;
+  cloudDisconnect();
+  renderSyncSection();
+}
+
+async function copyBinId() {
+  try {
+    await navigator.clipboard.writeText(syncConfig.binId);
+    showToast('Bin ID をコピーしました');
+  } catch (e) {
+    // フォールバック: プロンプトで提示
+    const input = $('sync-bin-id');
+    if (input) { input.select(); input.setSelectionRange(0, input.value.length); }
+    showToast('コピーできませんでした。手動でコピーしてください');
+  }
+}
+
+function exportStateJson() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    state,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = toLocalDateValue(new Date()).replace(/-/g, '');
+  a.href = url;
+  a.download = `attendance-app-${ts}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('JSONを書き出しました');
+}
+
+async function importStateJson(input) {
+  const file = input.files && input.files[0];
+  input.value = ''; // 同じファイルを再度選んでも change が発火するように
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const newState = parsed && parsed.state ? parsed.state : parsed;
+    if (!newState || !Array.isArray(newState.users) || !Array.isArray(newState.events)) {
+      alert('JSONの形式が想定と異なります。users / events 配列を含む必要があります。');
+      return;
+    }
+    if (!confirm('現在のデータを読み込んだ内容で上書きします。よろしいですか?')) return;
+    state = newState;
+    if (!Array.isArray(state.departments)) state.departments = [...DEFAULT_DEPARTMENTS];
+    if (!Array.isArray(state.titles)) state.titles = [...DEFAULT_TITLES];
+    (state.users || []).forEach(u => { if (!u.status) u.status = 'active'; });
+    // 現在ログインしているユーザがインポート後の users に存在しなければ admin にフォールバック
+    if (!state.users.find(u => u.id === state.currentUserId)) {
+      const admin = state.users.find(u => u.role === 'sysadmin' && (u.status || 'active') === 'active');
+      state.currentUserId = admin ? admin.id : (state.users[0] && state.users[0].id);
+    }
+    state.currentEventId = null;
+    await saveState();
+    closeModal('modal-data');
+    renderAll();
+    showToast('JSONを読み込みました');
+  } catch (e) {
+    console.error(e);
+    alert('読み込みに失敗しました: ' + (e.message || e));
+  }
+}
+
+// =================================================
+// ADMIN: 参加者リスト(よく使うメンバーの組み合わせを保存)
+// =================================================
+let editingAttendeeListId = null;
+let attendeeListSelection = new Set();
+let attendeeListQuery = '';
+let attendeeListFilter = { departments: [] };
+
+function openAttendeeListsModal() {
+  renderAttendeeListsList();
+  openModal('modal-attendee-lists');
+}
+
+function renderAttendeeListsList() {
+  const target = $('attendee-lists-list');
+  if (!target) return;
+  const lists = state.attendeeLists || [];
+  if (!lists.length) {
+    target.innerHTML = '<div style="font-size:12px;color:var(--text-mute);padding:8px">未登録</div>';
+    return;
+  }
+  target.innerHTML = lists.map(list => `
+    <div class="master-row">
+      <div class="label" style="font-size:13px">
+        ${escapeHtml(list.name)}
+        <div style="font-size:11px;color:var(--text-mute);margin-top:2px">${(list.userIds || []).length} 名</div>
+      </div>
+      <button class="icon-btn" onclick="openAttendeeListEditor('${list.id}')" title="編集">✎</button>
+      <button class="icon-btn danger" onclick="deleteAttendeeList('${list.id}')" title="削除">✕</button>
+    </div>
+  `).join('');
+}
+
+function openAttendeeListEditor(listId) {
+  editingAttendeeListId = listId;
+  const list = listId ? (state.attendeeLists || []).find(l => l.id === listId) : null;
+  $('attendee-list-editor-heading').textContent = list ? 'リストを編集' : 'リストを新規作成';
+  $('attendee-list-name').value = list ? list.name : '';
+  attendeeListSelection = new Set(list ? (list.userIds || []) : []);
+  attendeeListQuery = '';
+  attendeeListFilter = { departments: [] };
+  renderAttendeeListUsers();
+  closeModal('modal-attendee-lists');
+  openModal('modal-attendee-list-editor');
+}
+
+function closeAttendeeListEditor() {
+  closeModal('modal-attendee-list-editor');
+  openAttendeeListsModal();
+}
+
+function renderAttendeeListUsers() {
+  const target = $('attendee-list-users');
+  if (!target) return;
+  target.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-mute);margin-bottom:6px">
+      <span>選択中 <strong id="attendee-list-count" style="color:var(--text);font-family:'JetBrains Mono'">${attendeeListSelection.size}</strong> 名</span>
+    </div>
+    <input class="search-input" type="search" placeholder="名前で検索"
+           value="${escapeHtml(attendeeListQuery)}" oninput="onAttendeeListSearch(this.value)">
+    ${getDepartments().length ? `
+      <div class="filter-section-label">委員会(複数選択可)</div>
+      <div class="multiselect-chips">
+        ${getDepartments().map(d => `
+          <button type="button" class="chip ${(attendeeListFilter.departments || []).includes(d) ? 'active' : ''}" onclick="toggleAttendeeListFilterDept('${escapeHtml(d).replace(/'/g, "\\'")}')">${escapeHtml(d)}</button>
+        `).join('')}
+      </div>
+    ` : ''}
+    <div class="bulk-actions">
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectAttendeeListUsers(true)">表示中を全選択</button>
+      <button type="button" class="btn btn-outline btn-sm" onclick="bulkSelectAttendeeListUsers(false)">表示中を全解除</button>
+    </div>
+    <div id="attendee-list-users-list" style="max-height:280px;overflow-y:auto;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px"></div>
+  `;
+  renderAttendeeListUsersList();
+}
+
+function getFilteredAttendeeListUsers() {
+  const q = attendeeListQuery.trim().toLowerCase();
+  const depts = attendeeListFilter.departments || [];
+  const list = state.users
+    .filter(u => (u.status || 'active') === 'active')
+    .filter(u => !q || u.name.toLowerCase().includes(q))
+    .filter(u => !depts.length || depts.includes(u.department));
+  const cmp = userOrderComparator();
+  return cmp ? list.slice().sort(cmp) : list;
+}
+
+function renderAttendeeListUsersList() {
+  const target = $('attendee-list-users-list');
+  if (!target) return;
+  const users = getFilteredAttendeeListUsers();
+  if (!users.length) {
+    target.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text-mute);font-size:13px">該当するユーザーはいません</div>';
+    return;
+  }
+  target.innerHTML = users.map(u => `
+    <label class="checkbox-row">
+      <input type="checkbox" ${attendeeListSelection.has(u.id) ? 'checked' : ''}
+             onchange="toggleAttendeeListUser('${u.id}', this.checked)">
+      <div style="min-width:0">
+        <div class="name">${escapeHtml(u.name)}</div>
+        ${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:1px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}
+      </div>
+    </label>
+  `).join('');
+}
+
+function onAttendeeListSearch(v) {
+  attendeeListQuery = v;
+  renderAttendeeListUsersList();
+}
+
+function toggleAttendeeListFilterDept(d) {
+  const arr = attendeeListFilter.departments || (attendeeListFilter.departments = []);
+  const idx = arr.indexOf(d);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(d);
+  renderAttendeeListUsers();
+}
+
+function toggleAttendeeListUser(id, checked) {
+  if (checked) attendeeListSelection.add(id);
+  else attendeeListSelection.delete(id);
+  const el = $('attendee-list-count');
+  if (el) el.textContent = attendeeListSelection.size;
+}
+
+function bulkSelectAttendeeListUsers(select) {
+  getFilteredAttendeeListUsers().forEach(u => {
+    if (select) attendeeListSelection.add(u.id);
+    else attendeeListSelection.delete(u.id);
+  });
+  renderAttendeeListUsersList();
+  const el = $('attendee-list-count');
+  if (el) el.textContent = attendeeListSelection.size;
+}
+
+async function saveAttendeeList() {
+  const name = $('attendee-list-name').value.trim();
+  if (!name) { alert('名称は必須です'); return; }
+  if (!Array.isArray(state.attendeeLists)) state.attendeeLists = [];
+  if (editingAttendeeListId) {
+    const list = state.attendeeLists.find(l => l.id === editingAttendeeListId);
+    if (!list) return;
+    list.name = name;
+    list.userIds = Array.from(attendeeListSelection);
+  } else {
+    state.attendeeLists.push({
+      id: 'list_' + Date.now(),
+      name,
+      userIds: Array.from(attendeeListSelection),
+    });
+  }
+  await saveState();
+  editingAttendeeListId = null;
+  closeModal('modal-attendee-list-editor');
+  openAttendeeListsModal();
+  showToast(`「${name}」を保存しました`);
+}
+
+async function deleteAttendeeList(listId) {
+  const list = (state.attendeeLists || []).find(l => l.id === listId);
+  if (!list) return;
+  if (!confirm(`「${list.name}」を削除します。よろしいですか?`)) return;
+  state.attendeeLists = state.attendeeLists.filter(l => l.id !== listId);
+  await saveState();
+  renderAttendeeListsList();
+}
+
+function openUserListMenu() {
+  const body = $('user-list-menu-body');
+  if (!body) return;
+  body.innerHTML = `
+    ${canManageMaster() ? '<button class="btn btn-outline btn-full" onclick="closeModal(\'modal-user-list-menu\'); openMasterModal()">マスター編集</button>' : ''}
+    ${canManageUsers() ? '<button class="btn btn-outline btn-full" onclick="closeModal(\'modal-user-list-menu\'); openUserOrderModal()">ユーザーの表示順</button>' : ''}
+    ${canManageUsers() ? '<button class="btn btn-outline btn-full" onclick="closeModal(\'modal-user-list-menu\'); openAttendeeListsModal()">参加者リスト</button>' : ''}
+  `;
+  openModal('modal-user-list-menu');
+}
+
+function getSortedActiveUsers() {
+  const list = state.users.filter(u => (u.status || 'active') === 'active');
+  const ids = state.userOrderIds || [];
+  const rank = new Map(ids.map((id, i) => [id, i]));
+  return list.slice().sort((a, b) => {
+    const ra = rank.has(a.id) ? rank.get(a.id) : Infinity;
+    const rb = rank.has(b.id) ? rank.get(b.id) : Infinity;
+    return ra - rb;
+  });
+}
+
+function openUserOrderModal() {
+  const target = $('user-order-options');
+  if (!target) return;
+  renderUserOrderList();
+  openModal('modal-user-order');
+}
+
+function renderUserOrderList() {
+  const target = $('user-order-options');
+  if (!target) return;
+  const sorted = getSortedActiveUsers();
+  if (!sorted.length) {
+    target.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-mute);font-size:12px">アクティブなユーザーがいません</div>';
+    return;
+  }
+  target.innerHTML = sorted.map((u, i) => `
+    <div class="master-row">
+      <div class="label" style="font-size:13px">${escapeHtml(u.name)}${(u.department || u.title) ? `<div style="font-size:10px;color:var(--text-mute);margin-top:2px">${escapeHtml(u.department || '')}${u.department && u.title ? ' · ' : ''}${escapeHtml(u.title || '')}</div>` : ''}</div>
+      <button class="icon-btn" onclick="moveUserOrder('${u.id}', -1)" ${i === 0 ? 'disabled' : ''} title="上へ">↑</button>
+      <button class="icon-btn" onclick="moveUserOrder('${u.id}', 1)" ${i === sorted.length - 1 ? 'disabled' : ''} title="下へ">↓</button>
+    </div>
+  `).join('');
+}
+
+async function moveUserOrder(userId, dir) {
+  const sorted = getSortedActiveUsers();
+  const idx = sorted.findIndex(u => u.id === userId);
+  if (idx < 0) return;
+  let newIdx;
+  if (dir === -1) newIdx = 0;
+  else if (dir === 1) newIdx = sorted.length - 1;
+  else newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= sorted.length || newIdx === idx) return;
+  const [moved] = sorted.splice(idx, 1);
+  sorted.splice(newIdx, 0, moved);
+  state.userOrderIds = sorted.map(u => u.id);
+  await saveState();
+  renderUserOrderList();
+}
+
+// state.userOrderIds に従ったコンパレータ(空ならソート無し)
+function userOrderComparator() {
+  const ids = state.userOrderIds || [];
+  if (!ids.length) return null;
+  const rank = new Map(ids.map((id, i) => [id, i]));
+  return (a, b) => {
+    const ra = rank.has(a.id) ? rank.get(a.id) : Infinity;
+    const rb = rank.has(b.id) ? rank.get(b.id) : Infinity;
+    return ra - rb;
+  };
+}
+
+function openMasterModal() {
+  renderMasterList('departments');
+  renderMasterList('titles');
+  openModal('modal-master');
+}
+
+function renderMasterList(kind) {
+  const target = $('master-' + kind);
+  if (!target) return;
+  const list = kind === 'departments' ? state.departments : state.titles;
+  if (!list.length) {
+    target.innerHTML = '<div style="font-size:12px;color:var(--text-mute);padding:8px">未登録</div>';
+    return;
+  }
+  target.innerHTML = list.map((v, i) => `
+    <div class="master-row">
+      <div class="label">${escapeHtml(v)}</div>
+      <button class="icon-btn" onclick="moveMaster('${kind}', ${i}, -1)" ${i === 0 ? 'disabled' : ''} title="上へ">↑</button>
+      <button class="icon-btn" onclick="moveMaster('${kind}', ${i}, 1)" ${i === list.length - 1 ? 'disabled' : ''} title="下へ">↓</button>
+      <button class="icon-btn danger" onclick="removeMaster('${kind}', ${i})" title="削除">✕</button>
+    </div>
+  `).join('');
+}
+
+async function addMaster(kind) {
+  const inputId = kind === 'departments' ? 'master-department-new' : 'master-title-new';
+  const input = $(inputId);
+  const v = input.value.trim();
+  if (!v) return;
+  const list = kind === 'departments' ? state.departments : state.titles;
+  if (list.includes(v)) {
+    alert('既に同じ名前が登録されています');
+    return;
+  }
+  list.push(v);
+  input.value = '';
+  await saveState();
+  renderMasterList(kind);
+  // 一覧フィルタも開いているなら再描画
+  if (!$('screen-admin-users').classList.contains('screen-hidden')) renderAdminUserList();
+}
+
+async function removeMaster(kind, index) {
+  const list = kind === 'departments' ? state.departments : state.titles;
+  const value = list[index];
+  if (!confirm(`「${value}」を選択肢から削除します。\n既に登録済のユーザの値は残り、選択肢からのみ消えます。\nよろしいですか?`)) return;
+  list.splice(index, 1);
+  // フィルタで選択中だったらクリア
+  if (kind === 'departments') {
+    adminUserFilter.departments = (adminUserFilter.departments || []).filter(d => d !== value);
+    if (adminAttendeeFilter) adminAttendeeFilter.departments = (adminAttendeeFilter.departments || []).filter(d => d !== value);
+  } else {
+    adminUserFilter.title = '';
+  }
+  await saveState();
+  renderMasterList(kind);
+  if (!$('screen-admin-users').classList.contains('screen-hidden')) renderAdminUserList();
+}
+
+async function moveMaster(kind, index, dir) {
+  const list = kind === 'departments' ? state.departments : state.titles;
+  const newIndex = index + dir;
+  if (newIndex < 0 || newIndex >= list.length) return;
+  [list[index], list[newIndex]] = [list[newIndex], list[index]];
+  await saveState();
+  renderMasterList(kind);
+  if (!$('screen-admin-users').classList.contains('screen-hidden')) renderAdminUserList();
+}
+
+// 未保存のRSVP変更を保持(画面遷移するとリセット)
+let pendingRsvp = { status: null, afterStatus: null };
+
+function openUserEventDetail(eventId) {
+  state.currentEventId = eventId;
+  const ev = state.events.find(e => e.id === eventId);
+  const me = currentUser();
+  const att = ev && me ? ev.attendees.find(a => a.userId === me.id) : null;
+  pendingRsvp = {
+    status: att ? att.status : null,
+    afterStatus: att ? (att.afterStatus || null) : null,
+  };
+  receptionMode = 'normal';
+  renderUserEventDetail();
+  showScreen('user-detail');
+}
+
+function renderUserEventDetail() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  renderReceptionToggle(ev);
+  const me = currentUser();
+  const att = ev.attendees.find(a => a.userId === me.id);
+  // 編集権限があれば右上に歯車ボタンを表示
+  const gear = $('user-detail-gear');
+  if (gear) gear.style.display = canEditEvent(ev) ? '' : 'none';
+  // 招待されていない参加者向けのフォールバック画面
+  if (!att) {
+    const locked0 = isDeadlinePassed(ev);
+    const isOwner = ev.createdBy === state.currentUserId;
+    const message = isOwner
+      ? 'あなたはこのイベントの参加者リストには含まれていません(主催のみ)'
+      : 'あなたはこのイベントに招待されていません';
+    const subMessage = isOwner
+      ? '参加者として登録するには、右上の歯車 → 「イベントを編集」から自分を追加してください'
+      : (canAccessAdminDashboard() ? '編集や受付を行う場合は上部の「管理者画面」に切替えてください' : '');
+    $('user-detail-content').innerHTML = `
+      <div class="event-hero">
+        <div class="date">${fmtDateRange(ev.date, ev.endDate)}</div>
+        <div class="title">${escapeHtml(ev.title)}</div>
+        ${ev.committee ? `<div class="info-row"><span class="ico">🏛️</span>担当: ${escapeHtml(ev.committee)}</div>` : ''}
+        <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
+        ${ev.description ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.description)}</span></div>` : ''}
+        ${ev.responseDeadline ? `<div class="info-row"><span class="ico">⏰</span>回答期限 ${fmtDate(ev.responseDeadline)}${locked0 ? ' <span class="badge-expired">締切</span>' : ''}</div>` : ''}
+      </div>
+      <div class="rsvp-card">
+        <div style="text-align:center;padding:14px 0;line-height:1.6">
+          <div style="font-size:14px;color:var(--text-mute);margin-bottom:6px">${escapeHtml(message)}</div>
+          ${subMessage ? `<div style="font-size:12px;color:var(--text-mute)">${escapeHtml(subMessage)}</div>` : ''}
+        </div>
+      </div>
+    `;
+    return;
+  }
+  const locked = isDeadlinePassed(ev);
+  const sel = pendingRsvp.status;
+  const aSel = pendingRsvp.afterStatus;
+  const hasMainChange = sel !== att.status;
+  const hasAfterChange = ev.hasAfterparty && aSel !== (att.afterStatus || null);
+  const dirty = hasMainChange || hasAfterChange;
+  // 出席として扱える: 確定 status または 未保存選択が 'yes'
+  const showQR = att.status === 'yes' || !!att.checkedInAt;
+
+  const html = `
+    <div class="event-hero">
+      <div class="date">${fmtDateRange(ev.date, ev.endDate)}</div>
+      <div class="title">${escapeHtml(ev.title)}</div>
+      ${ev.committee ? `<div class="info-row"><span class="ico">🏛️</span>担当: ${escapeHtml(ev.committee)}</div>` : ''}
+      <div class="info-row"><span class="ico">📍</span>${escapeHtml(ev.location || '場所未定')}</div>
+      ${ev.description ? `<div class="info-row"><span class="ico">📝</span><span>${linkify(ev.description)}</span></div>` : ''}
+      ${ev.responseDeadline ? `
+        <div class="info-row"><span class="ico">⏰</span>回答期限 ${fmtDate(ev.responseDeadline)}${locked ? ' <span class="badge-expired">締切</span>' : ''}</div>
+      ` : ''}
+    </div>
+
+    <div class="rsvp-card">
+      <div class="label">${escapeHtml(ev.title)} の出欠</div>
+      <div class="rsvp-buttons">
+        <button class="rsvp-btn ${sel === 'yes' ? 'active-yes' : ''}"
+                onclick="pickMyRsvp('yes')" ${locked ? 'disabled' : ''}>
+          出席する
+        </button>
+        <button class="rsvp-btn ${sel === 'no' ? 'active-no' : ''}"
+                onclick="pickMyRsvp('no')" ${locked ? 'disabled' : ''}>
+          欠席する
+        </button>
+      </div>
+      <div style="font-size:12px;color:var(--text-mute);margin-top:10px;text-align:center">
+        現在の回答: ${statusBadge(att.status)}${att.checkedInAt ? ' <span class="badge-checked-in">✓受付済</span>' : ''}${hasMainChange ? ' <span style="color:var(--accent);font-size:11px">(未保存)</span>' : ''}
+      </div>
+      ${locked ? `
+        <div style="margin-top:12px;padding:10px;background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-mute);text-align:center;line-height:1.6">
+          回答期限を過ぎたため、変更できません。<br>変更が必要な場合は管理者にご連絡ください。
+        </div>
+      ` : ''}
+    </div>
+
+    ${ev.hasAfterparty ? `
+      <div class="rsvp-card">
+        <div class="label">${escapeHtml(ev.afterpartyTitle || '懇親会')} の出欠</div>
+        ${(ev.afterpartyLocation || ev.afterpartyDescription) ? `
+          <div style="font-size:12px;color:var(--text-mute);margin:-2px 0 10px;line-height:1.6">
+            ${ev.afterpartyLocation ? `<div><span style="opacity:0.6">📍</span> ${escapeHtml(ev.afterpartyLocation)}</div>` : ''}
+            ${ev.afterpartyDescription ? `<div style="margin-top:4px"><span style="opacity:0.6">📝</span> ${linkify(ev.afterpartyDescription)}</div>` : ''}
+          </div>
+        ` : ''}
+        <div class="rsvp-buttons">
+          <button class="rsvp-btn ${aSel === 'yes' ? 'active-yes' : ''}"
+                  onclick="pickMyAfterparty('yes')" ${locked ? 'disabled' : ''}>
+            出席する
+          </button>
+          <button class="rsvp-btn ${aSel === 'no' ? 'active-no' : ''}"
+                  onclick="pickMyAfterparty('no')" ${locked ? 'disabled' : ''}>
+            欠席する
+          </button>
+        </div>
+        <div style="font-size:12px;color:var(--text-mute);margin-top:10px;text-align:center">
+          現在の回答: ${statusBadge(att.afterStatus || 'pending')}${hasAfterChange ? ' <span style="color:var(--accent);font-size:11px">(未保存)</span>' : ''}
+        </div>
+        ${locked ? `
+          <div style="margin-top:12px;padding:10px;background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-mute);text-align:center;line-height:1.6">
+            回答期限を過ぎたため、変更できません。<br>変更が必要な場合は管理者にご連絡ください。
+          </div>
+        ` : ''}
+      </div>
+    ` : ''}
+
+    ${!locked ? `
+      <button class="btn btn-primary btn-full" onclick="saveMyRsvp()" ${dirty ? '' : 'disabled'}>
+        ${dirty ? '保存する' : '変更はありません'}
+      </button>
+    ` : ''}
+
+    ${showQR ? `
+      <div style="margin-top:14px">
+        <button class="btn btn-accent btn-full" onclick="showMyQR()">
+          ${att.checkedInAt ? '✓ 受付済 (QRを再表示)' : '📱 受付用QRコードを表示'}
+        </button>
+        <p style="font-size:11px;color:var(--text-mute);text-align:center;margin-top:8px">
+          当日、このQRコードを受付で提示してください
+        </p>
+      </div>
+    ` : ''}
+  `;
+  $('user-detail-content').innerHTML = html;
+}
+
+function pickMyRsvp(answer) {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev || (isDeadlinePassed(ev) && !canAccessAdminDashboard())) return;
+  pendingRsvp.status = answer;
+  renderUserEventDetail();
+}
+
+function pickMyAfterparty(answer) {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev || (isDeadlinePassed(ev) && !canAccessAdminDashboard())) return;
+  pendingRsvp.afterStatus = answer;
+  renderUserEventDetail();
+}
+
+async function saveMyRsvp() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  if (!ev) return;
+  const att = ev.attendees.find(a => a.userId === state.currentUserId);
+  if (!att) return;
+  if (isDeadlinePassed(ev) && !canAccessAdminDashboard()) {
+    alert('回答期限を過ぎたため変更できません。管理者にご連絡ください。');
+    renderUserEventDetail();
+    return;
+  }
+  let changed = false;
+  if (pendingRsvp.status && pendingRsvp.status !== att.status) {
+    att.status = pendingRsvp.status;
+    changed = true;
+  }
+  if (ev.hasAfterparty && pendingRsvp.afterStatus !== (att.afterStatus || null)) {
+    att.afterStatus = pendingRsvp.afterStatus;
+    changed = true;
+  }
+  if (!changed) return;
+  await saveState();
+  showToast(`「${ev.title}」の出欠を回答しました`);
+  renderUserEventDetail();
+}
+
+function showMyQR() {
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  const me = currentUser();
+  const token = `attend:${ev.id}:${me.id}`;
+  $('qr-title').textContent = ev.title + ' - 受付用QR';
+  $('qr-code-target').innerHTML = '';
+  new QRCode($('qr-code-target'), {
+    text: token,
+    width: 200,
+    height: 200,
+    colorDark: '#1A1A1A',
+    colorLight: '#FFFFFF',
+  });
+  $('qr-token-label').textContent = me.name;
+  openModal('modal-qr');
+}
+
+// =================================================
+// Scanner
+// =================================================
+let html5QrScanner = null;
+async function openScanner() {
+  $('scan-result-box').innerHTML = '';
+  $('scanner-fallback-box').innerHTML = '';
+  lastScanToken = null;
+  lastScanTime = 0;
+  openModal('modal-scanner');
+
+  // Wait for modal to render
+  await new Promise(r => setTimeout(r, 100));
+
+  try {
+    html5QrScanner = new Html5Qrcode('scanner-region');
+    await html5QrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      onScanSuccess,
+      () => {}
+    );
+  } catch (err) {
+    console.warn('camera unavailable', err);
+    showScannerFallback();
+  }
+}
+
+function showScannerFallback() {
+  $('scanner-region').style.display = 'none';
+  const ev = state.events.find(e => e.id === state.currentEventId);
+  const candidates = ev ? ev.attendees.filter(a => a.status === 'yes' || a.status === 'pending') : [];
+  $('scanner-fallback-box').innerHTML = `
+    <div class="scanner-fallback">
+      カメラが使えない環境のようです。<br>
+      下のボタンで参加者をタップしてチェックインできます (デモ用)
+    </div>
+    <div class="user-grid">
+      ${candidates.map(a => {
+        const u = userById(a.userId);
+        return `<button class="btn btn-outline" style="justify-content:flex-start;padding:10px 14px"
+          onclick="onScanSuccess('attend:${ev.id}:${u.id}')">
+          <span style="display:inline-block;width:24px;height:24px;background:var(--accent);color:white;border-radius:50%;text-align:center;line-height:24px;font-size:11px;margin-right:8px">${initial(u.name)}</span>
+          ${escapeHtml(u.name)}
+        </button>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+// 連続スキャンで何度も同じ人を受付しないようクールダウン
+let lastScanToken = null;
+let lastScanTime = 0;
+
+function showToast(message, duration = 1800) {
+  const existing = document.getElementById('app-toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'app-toast';
+  el.className = 'toast';
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => { if (el.parentNode) el.remove(); }, duration);
+}
+
+function showScanToast({ ok, name, sub, error }) {
+  // 既存トーストを消す
+  const existing = document.getElementById('scan-toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'scan-toast';
+  el.className = 'scan-toast' + (ok ? '' : ' error');
+  el.innerHTML = ok
+    ? `<div class="icon">✓</div><div class="name">${escapeHtml(name)} さん</div><div class="sub">${escapeHtml(sub || '受付しました')}</div>`
+    : `<div class="icon">✕</div><div class="name">${escapeHtml(error || 'エラー')}</div>${name ? `<div class="sub">${escapeHtml(name)} さん</div>` : ''}`;
+  document.body.appendChild(el);
+  // バイブ(対応端末のみ)
+  if (navigator.vibrate) navigator.vibrate(ok ? 120 : [60, 50, 60]);
+  setTimeout(() => { if (el.parentNode) el.remove(); }, ok ? 1800 : 2200);
+}
+
+async function onScanSuccess(decoded) {
+  // 同じQRが連続スキャンされたらスキップ(2秒以内)
+  const now = Date.now();
+  if (decoded === lastScanToken && now - lastScanTime < 2000) return;
+  lastScanToken = decoded;
+  lastScanTime = now;
+
+  const match = /^attend:([^:]+):([^:]+)$/.exec(decoded);
+  if (!match) {
+    showScanToast({ ok: false, error: '無効なQRコードです' });
+    $('scan-result-box').innerHTML = `<div class="scan-result error">無効なQRコードです</div>`;
+    return;
+  }
+  const [, eventId, userId] = match;
+  const ev = state.events.find(e => e.id === eventId);
+  if (!ev) {
+    showScanToast({ ok: false, error: '該当するイベントが見つかりません' });
+    $('scan-result-box').innerHTML = `<div class="scan-result error">該当するイベントが見つかりません</div>`;
+    return;
+  }
+  const att = ev.attendees.find(a => a.userId === userId);
+  if (!att) {
+    showScanToast({ ok: false, error: '参加者リストにいません' });
+    $('scan-result-box').innerHTML = `<div class="scan-result error">このユーザーは参加者リストにいません</div>`;
+    return;
+  }
+  const u = userById(userId);
+  if (att.checkedInAt) {
+    showScanToast({ ok: false, name: u.name, error: '既に受付済です' });
+    $('scan-result-box').innerHTML = `<div class="scan-result error">${escapeHtml(u.name)} さんは既に受付済です</div>`;
+    return;
+  }
+  if (att.status !== 'yes') att.status = 'yes';
+  att.checkedInAt = new Date().toISOString();
+  await saveState();
+
+  // 懇親会あり&出席予定/未回答ならスキャン結果モーダルで会費の受領を確認
+  // (欠席の人 / 懇親会なしのイベントは従来通りトーストのみ)
+  const showFeeModal = ev.hasAfterparty && att.afterStatus !== 'no';
+  if (showFeeModal) {
+    openScanFeeModal(ev, att, u);
+  } else {
+    const deptTitle = [u.department, u.title].filter(Boolean).join(' · ');
+    showScanToast({ ok: true, name: u.name, sub: deptTitle ? `${deptTitle} · 受付完了` : '受付完了' });
+  }
+  $('scan-result-box').innerHTML = `<div class="scan-result">✓ ${escapeHtml(u.name)} さんを受付しました</div>`;
+
+  // refresh fallback list if shown
+  if ($('scanner-region').style.display === 'none') {
+    setTimeout(() => {
+      if ($('modal-scanner').classList.contains('show')) showScannerFallback();
+    }, 800);
+  }
+  // refresh detail view in background
+  renderAdminEventDetail();
+}
+
+// QRスキャン後の会費受領モーダル
+function openScanFeeModal(ev, att, u) {
+  const deptTitle = [u.department, u.title].filter(Boolean).join(' · ');
+  const afterLabel = att.afterStatus === 'yes' ? '出席予定' : (att.afterStatus === 'pending' ? '未回答' : '');
+  const afterClass = att.afterStatus === 'yes' ? 'badge-yes' : 'badge-pending';
+  const feeText = ev.afterpartyDescription ? escapeHtml(ev.afterpartyDescription) : '懇親会会費';
+  const body = `
+    <div style="text-align:center;padding:8px 0 4px">
+      <div style="font-size:36px;color:var(--success);line-height:1">✓</div>
+      <div style="font-size:13px;color:var(--text-mute);margin-top:4px">${escapeHtml(ev.title)} 受付完了</div>
+    </div>
+    <div style="background:var(--bg-elev);border-radius:10px;padding:12px;margin:12px 0 16px">
+      <div style="font-size:18px;font-weight:700">${escapeHtml(u.name)} さん</div>
+      ${deptTitle ? `<div style="font-size:12px;color:var(--text-mute);margin-top:2px">${escapeHtml(deptTitle)}</div>` : ''}
+      <div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span class="status-badge ${afterClass}">懇親会: ${afterLabel}</span>
+      </div>
+    </div>
+    <div style="font-size:14px;font-weight:600;margin-bottom:8px">懇親会会費を徴収しますか?</div>
+    <div style="font-size:12px;color:var(--text-mute);margin-bottom:12px;white-space:pre-line">${feeText}</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-primary btn-full" onclick="scanFeeAction('paid')">会費を受領しました</button>
+      <button class="btn btn-outline btn-full" onclick="scanFeeAction('defer')">後払い (今は受領しない)</button>
+    </div>
+  `;
+  $('scan-fee-body').innerHTML = body;
+  scanFeeContext = { eventId: ev.id, userId: att.userId };
+  openModal('modal-scan-fee');
+}
+
+let scanFeeContext = null;
+async function scanFeeAction(action) {
+  if (!scanFeeContext) { closeModal('modal-scan-fee'); return; }
+  const { eventId, userId } = scanFeeContext;
+  const ev = state.events.find(e => e.id === eventId);
+  const att = ev && ev.attendees.find(a => a.userId === userId);
+  const u = att ? userById(att.userId) : null;
+  const name = att ? (att.isObserver ? att.name : (u ? u.name : '')) : '';
+  if (att) {
+    if (action === 'paid') {
+      att.afterPaidAt = new Date().toISOString();
+      // 未回答だった場合は出席に寄せる(受領するということは参加するので)
+      if (att.afterStatus !== 'yes') att.afterStatus = 'yes';
+      await saveState();
+      showScanToast({ ok: true, name, sub: '受付 + 会費受領' });
+    } else {
+      // defer: 受領済にしない。後から行のトグルで補正可能
+      await saveState();
+      showScanToast({ ok: true, name, sub: '受付完了 (会費は後払い)' });
+    }
+  }
+  scanFeeContext = null;
+  closeModal('modal-scan-fee');
+  renderAdminEventDetail();
+}
+
+function closeScanner() {
+  if (html5QrScanner) {
+    html5QrScanner.stop().catch(() => {});
+    html5QrScanner = null;
+  }
+  $('scanner-region').style.display = 'block';
+  closeModal('modal-scanner');
+}
+
+// =================================================
+// Modals
+// =================================================
+function openModal(id) {
+  const el = $(id);
+  if (!el) return;
+  el.classList.add('show');
+  // モーダル本体は前回のスクロール位置を保持してしまうので、毎回先頭に戻す
+  const body = el.querySelector('.modal');
+  if (body) body.scrollTop = 0;
+}
+function closeModal(id) { $(id).classList.remove('show'); }
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => {
+    if (e.target === o) {
+      if (o.id === 'modal-scanner') closeScanner();
+      else o.classList.remove('show');
+    }
+  });
+});
+
+// =================================================
+// Role switcher
+// =================================================
+$('role-switch-btn').addEventListener('click', () => {
+  // デモ用切替はアクティブなユーザだけ
+  $('role-user-list').innerHTML = state.users
+    .filter(u => (u.status || 'active') === 'active')
+    .map(u => `
+      <div class="attendee-row" style="cursor:pointer" onclick="switchUser('${u.id}')">
+        <div class="left">
+          <div class="avatar" style="background:${roleAvatarColor(u.role)};color:white">${initial(u.name)}</div>
+          <div>
+            <div class="name">${escapeHtml(u.name)}</div>
+            <div style="font-size:11px;color:var(--text-mute)">${ROLE_LABEL[u.role] || u.role}</div>
+          </div>
+        </div>
+        ${state.currentUserId === u.id ? '<div style="color:var(--accent);font-size:13px">●</div>' : ''}
+      </div>
+    `).join('');
+  openModal('modal-role');
+});
+
+async function switchUser(userId) {
+  state.currentUserId = userId;
+  state.currentEventId = null;
+  await saveState();
+  closeModal('modal-role');
+  renderAll();
+}
+
+// Reset (utility - tap brand name 3x to reset)
+let brandTaps = 0;
+document.querySelector('.brand').addEventListener('click', async () => {
+  brandTaps++;
+  if (brandTaps >= 3) {
+    if (confirm('全データを初期状態に戻しますか?')) {
+      state = SEED();
+      await saveState();
+      renderAll();
+    }
+    brandTaps = 0;
+  }
+  setTimeout(() => { brandTaps = 0; }, 1500);
+});
+
+// =================================================
+// Init
+// =================================================
+// URL パラメータ ?event=ID で対象イベント詳細を直接開く
+function eventLink(eventId) {
+  return location.origin + location.pathname + '?event=' + encodeURIComponent(eventId);
+}
+
+function navigateToEventFromUrl() {
+  const params = new URLSearchParams(location.search);
+  const eventId = params.get('event');
+  if (!eventId) return false;
+  const ev = state.events.find(e => e.id === eventId);
+  if (!ev) return false; // クラウドプル後に再試行する余地を残す
+  const isOwner = ev.createdBy === state.currentUserId;
+  if (ev.published === false && !canAccessAdminDashboard() && !isOwner) {
+    alert('指定されたイベントは現在公開されていません');
+    return true;
+  }
+  state.currentEventId = eventId;
+  // 管理者画面のときだけ管理者詳細。それ以外(ユーザー画面・閲覧者)はユーザRSVP画面で開く。
+  if (isAdminMode()) {
+    receptionMode = 'reception';
+    renderAdminEventDetail();
+    showScreen('admin-detail');
+  } else {
+    const me = currentUser();
+    const att = me && ev.attendees.find(a => a.userId === me.id);
+    if (att) pendingRsvp = { status: att.status, afterStatus: att.afterStatus || null };
+    receptionMode = 'normal';
+    renderUserEventDetail();
+    showScreen('user-detail');
+  }
+  return true;
+}
+
+async function copyEventLink() {
+  if (!state.currentEventId) return;
+  const url = eventLink(state.currentEventId);
+  try {
+    await navigator.clipboard.writeText(url);
+    closeModal('modal-event-menu');
+    showToast('リンクをコピーしました');
+  } catch (e) {
+    // フォールバック: プロンプトで提示
+    prompt('このURLをコピーしてください:', url);
+  }
+}
+
+(async function init() {
+  await loadState();
+  renderAll();
+  // URLパラメータがあれば対象イベントを開く(ローカルにあれば即時)
+  const handled = navigateToEventFromUrl();
+  // クラウド同期が設定済 + 自動同期ON なら、起動時にプル + ポーリング開始
+  if (syncConfig.autoSync && syncConfig.binId && syncConfig.masterKey) {
+    cloudPull().then(() => {
+      if (!handled) navigateToEventFromUrl();
+    }).catch(e => {
+      console.warn('initial cloud pull failed', e);
+      setSyncStatus('error', 'プル失敗: ' + (e.message || e));
+    });
+    startCloudPolling();
+  }
+})();
+
+// タブが再表示されたら即プル(再ロードしなくても最新を取り込む)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && syncConfig.autoSync && syncConfig.binId && syncConfig.masterKey) {
+    cloudPull().catch(e => console.warn('visibility pull failed', e));
+  }
+});
+</script>
+</body>
+</html>
