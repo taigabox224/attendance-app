@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db } from '../db.js';
-import { signCheckinToken } from '../auth/jwt.js';
+import { signCheckinToken, verifyCheckinToken } from '../auth/jwt.js';
 import { hasMinimumRole, type Role } from '../auth/permissions.js';
 import { generateAttendeeId, generateEventId } from '../auth/tokens.js';
 import { requireAuth } from '../middleware/requireAuth.js';
@@ -394,7 +394,7 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // 受付用 QR トークン発行 (要認証 + 自分が attendee であること)。
-  // 中身は JWT。Chunk 3 の /checkin で検証する。
+  // 中身は JWT。/checkin で検証する。
   app.get<{ Params: { id: string } }>(
     '/api/events/:id/qr-token',
     { preHandler: requireAuth },
@@ -414,6 +414,92 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
         attendee_id: myRow.id,
       });
       return { token };
+    },
+  );
+
+  // 受付スキャン: QR から読み取った JWT を検証 → checked_in_at をセット。
+  // 重複は 409 (情報付き)、トークン無効は 400。
+  // 現状 editor+ のみ。受付担当 (event_receptionists) 限定の許可は別途追加可能。
+  const checkinSchema = z.object({ token: z.string().min(1) });
+
+  app.post<{ Params: { id: string } }>(
+    '/api/events/:id/checkin',
+    { preHandler: requireRole('editor') },
+    async (req, reply) => {
+      const parsed = checkinSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: 'token が必要です' });
+      }
+
+      let payload;
+      try {
+        payload = verifyCheckinToken(parsed.data.token);
+      } catch {
+        return reply
+          .code(400)
+          .send({ error: 'QR コードが無効か期限切れです' });
+      }
+
+      if (payload.event_id !== req.params.id) {
+        return reply
+          .code(400)
+          .send({ error: 'このイベントの QR コードではありません' });
+      }
+
+      const row = db
+        .prepare(
+          `SELECT a.id, a.checked_in_at, a.is_observer, a.observer_name,
+                  a.user_id, u.name AS user_name
+           FROM event_attendees a
+           LEFT JOIN users u ON u.id = a.user_id
+           WHERE a.id = ? AND a.event_id = ?`,
+        )
+        .get(payload.attendee_id, payload.event_id) as
+        | {
+            id: string;
+            checked_in_at: string | null;
+            is_observer: number;
+            observer_name: string | null;
+            user_id: string | null;
+            user_name: string | null;
+          }
+        | undefined;
+
+      if (!row) {
+        return reply.code(404).send({ error: '参加者が見つかりません' });
+      }
+
+      const displayName =
+        row.is_observer === 1
+          ? (row.observer_name ?? '(ゲスト)')
+          : (row.user_name ?? '(削除済)');
+
+      if (row.checked_in_at) {
+        return reply.code(409).send({
+          error: '既に受付済みです',
+          attendee: {
+            id: row.id,
+            name: displayName,
+            checked_in_at: row.checked_in_at,
+          },
+        });
+      }
+
+      const now = new Date().toISOString();
+      db.prepare(
+        `UPDATE event_attendees
+         SET checked_in_at = ?, updated_at = ?
+         WHERE id = ?`,
+      ).run(now, now, row.id);
+
+      return {
+        ok: true,
+        attendee: {
+          id: row.id,
+          name: displayName,
+          checked_in_at: now,
+        },
+      };
     },
   );
 }
