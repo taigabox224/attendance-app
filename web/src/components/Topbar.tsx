@@ -38,22 +38,20 @@ export function Topbar() {
 
         {user && (
           <div className="topbar-right">
-            {isAdminMode && (
-              <span
-                className="topbar-mode-badge"
-                title="管理者モードで表示中"
-              >
-                管理者
-              </span>
-            )}
             <div
-              className="role-pill"
-              aria-label={`${ROLE_LABEL[user.role]} としてログイン中`}
+              className={`role-pill ${isAdminMode ? 'is-admin' : ''}`}
+              aria-label={
+                isAdminMode
+                  ? `${user.name} (管理者モード)`
+                  : `${ROLE_LABEL[user.role]} としてログイン中`
+              }
             >
               <span className="avatar">{avatarInitial(user.name)}</span>
               <span className="label">
                 <span className="name">{user.name}</span>
-                <span className="role">{ROLE_LABEL[user.role]}</span>
+                <span className="role">
+                  {isAdminMode ? '管理者モード' : ROLE_LABEL[user.role]}
+                </span>
               </span>
             </div>
             <button

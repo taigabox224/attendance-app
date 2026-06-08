@@ -128,10 +128,6 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  /* 右側のバッジが増えた時に内部要素が改行されるより、
-     Topbar 全体が複数行になる方を許容する。アプリ名は決して改行しない */
-  flex-wrap: wrap;
-  row-gap: 8px;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -149,7 +145,6 @@ body {
   color: var(--text);
   text-align: left;
   text-decoration: none;
-  flex-shrink: 0;
   min-width: 0;
 }
 
@@ -192,10 +187,6 @@ body {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  /* 名前 + 「管理者」バッジ + ⚙ が収まらない時は右クラスタごと折り返す */
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  row-gap: 6px;
 }
 
 /* 管理者モードのとき Topbar の見た目を変えて気付きを与える */
@@ -208,17 +199,21 @@ body {
   color: var(--primary);
 }
 
-/* Topbar に出す「管理者」バッジ (viewMode='admin' のとき表示) */
-.topbar-mode-badge {
-  display: inline-block;
+/* 管理者モード時の role-pill: 「管理者モード」を強調するため色を寄せる */
+.role-pill.is-admin {
   background: var(--primary);
+  border-color: var(--primary);
   color: white;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 100px;
-  letter-spacing: 0.04em;
-  line-height: 1;
+}
+.role-pill.is-admin .name {
+  color: white;
+}
+.role-pill.is-admin .role {
+  color: rgba(255, 255, 255, 0.8);
+}
+.role-pill.is-admin .avatar {
+  background: white;
+  color: var(--primary);
 }
 
 .role-pill {
