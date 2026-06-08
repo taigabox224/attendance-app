@@ -193,7 +193,7 @@ JWT_EXPIRES_IN=7d
 AWS_REGION=ap-northeast-1
 AWS_ACCESS_KEY_ID=AKIA...
 AWS_SECRET_ACCESS_KEY=...
-MAIL_FROM=noreply@nagareyama-jc.jp
+MAIL_FROM=no-reply@nagareyama-jc.com
 MAIL_FROM_NAME=流山JC 出欠管理
 MAIL_DRIVER=ses                # 開発時は console
 ```
