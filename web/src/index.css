@@ -127,6 +127,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
+  /* 右側のバッジが増えた時に内部要素が改行されるより、
+     Topbar 全体が複数行になる方を許容する。アプリ名は決して改行しない */
+  flex-wrap: wrap;
+  row-gap: 8px;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -144,6 +149,8 @@ body {
   color: var(--text);
   text-align: left;
   text-decoration: none;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .topbar .brand-logo {
@@ -160,6 +167,7 @@ body {
   display: flex;
   flex-direction: column;
   line-height: 1.15;
+  min-width: 0;
 }
 
 .topbar .brand-text-line1 {
@@ -167,6 +175,7 @@ body {
   font-size: 13px;
   color: var(--text-mute);
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .topbar .brand-text-line2 {
@@ -175,12 +184,18 @@ body {
   font-weight: 700;
   color: var(--text);
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  /* 名前 + 「管理者」バッジ + ⚙ が収まらない時は右クラスタごと折り返す */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 6px;
 }
 
 /* 管理者モードのとき Topbar の見た目を変えて気付きを与える */
