@@ -17,7 +17,8 @@ export interface EditableUser {
 }
 
 interface Props {
-  user: EditableUser;
+  // user=null で「新規ユーザー登録」モーダル
+  user: EditableUser | null;
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }
@@ -36,15 +37,16 @@ const STATUS_OPTIONS: ReadonlyArray<{ value: UserStatus; label: string }> = [
 
 export function UserEditModal({ user, onClose, onSaved }: Props) {
   const { user: currentUser } = useAuth();
-  const isSelf = currentUser?.id === user.id;
+  const isCreate = user === null;
+  const isSelf = !isCreate && currentUser?.id === user.id;
 
-  const [familyName, setFamilyName] = useState(user.family_name ?? '');
-  const [givenName, setGivenName] = useState(user.given_name ?? '');
-  const [email, setEmail] = useState(user.email);
-  const [role, setRole] = useState<Role>(user.role);
-  const [department, setDepartment] = useState(user.department ?? '');
-  const [title, setTitle] = useState(user.title ?? '');
-  const [status, setStatus] = useState<UserStatus>(user.status);
+  const [familyName, setFamilyName] = useState(user?.family_name ?? '');
+  const [givenName, setGivenName] = useState(user?.given_name ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
+  const [role, setRole] = useState<Role>(user?.role ?? 'viewer');
+  const [department, setDepartment] = useState(user?.department ?? '');
+  const [title, setTitle] = useState(user?.title ?? '');
+  const [status, setStatus] = useState<UserStatus>(user?.status ?? 'active');
   const [departments, setDepartments] = useState<string[]>([]);
   const [titles, setTitles] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -67,26 +69,43 @@ export function UserEditModal({ user, onClose, onSaved }: Props) {
     setSaving(true);
     setError(null);
 
-    const body: Record<string, unknown> = {};
-    if (familyName !== (user.family_name ?? '')) body.family_name = familyName;
-    if (givenName !== (user.given_name ?? '')) body.given_name = givenName;
-    if (email !== user.email) body.email = email;
-    if (role !== user.role) body.role = role;
-    if ((department || null) !== (user.department || null))
-      body.department = department || null;
-    if ((title || null) !== (user.title || null)) body.title = title || null;
-    if (status !== user.status) body.status = status;
-
-    if (Object.keys(body).length === 0) {
-      onClose();
-      return;
-    }
-
     try {
-      await api(`/api/admin/users/${user.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      });
+      if (isCreate) {
+        // 新規作成: 仮パスワード発行 + メール送信
+        await api('/api/admin/users', {
+          method: 'POST',
+          body: JSON.stringify({
+            email,
+            family_name: familyName,
+            given_name: givenName,
+            role,
+            department: department || null,
+            title: title || null,
+          }),
+        });
+      } else {
+        const body: Record<string, unknown> = {};
+        if (familyName !== (user.family_name ?? ''))
+          body.family_name = familyName;
+        if (givenName !== (user.given_name ?? '')) body.given_name = givenName;
+        if (email !== user.email) body.email = email;
+        if (role !== user.role) body.role = role;
+        if ((department || null) !== (user.department || null))
+          body.department = department || null;
+        if ((title || null) !== (user.title || null))
+          body.title = title || null;
+        if (status !== user.status) body.status = status;
+
+        if (Object.keys(body).length === 0) {
+          onClose();
+          return;
+        }
+
+        await api(`/api/admin/users/${user.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        });
+      }
       await onSaved();
       onClose();
     } catch (e) {
@@ -113,7 +132,12 @@ export function UserEditModal({ user, onClose, onSaved }: Props) {
         >
           ×
         </button>
-        <h2>ユーザー編集</h2>
+        <h2>{isCreate ? 'ユーザー登録' : 'ユーザー編集'}</h2>
+        {isCreate && (
+          <p className="note" style={{ margin: '0 0 14px' }}>
+            仮パスワードを発行してメール送信します。
+          </p>
+        )}
 
         <form onSubmit={onSubmit} className="form-stack">
           <div className="field-row">
@@ -191,18 +215,20 @@ export function UserEditModal({ user, onClose, onSaved }: Props) {
             )}
           </div>
 
-          <div className="field">
-            <label htmlFor="ue-status">ステータス <span className="required-mark">*</span></label>
-            <select
-              id="ue-status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as UserStatus)}
-            >
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-          </div>
+          {!isCreate && (
+            <div className="field">
+              <label htmlFor="ue-status">ステータス <span className="required-mark">*</span></label>
+              <select
+                id="ue-status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value as UserStatus)}
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="field">
             <label htmlFor="ue-title">役職 <span className="optional-mark">任意</span></label>
@@ -234,7 +260,13 @@ export function UserEditModal({ user, onClose, onSaved }: Props) {
 
           <div className="action-row">
             <button type="submit" disabled={saving || deleting}>
-              {saving ? '保存中...' : '保存'}
+              {saving
+                ? isCreate
+                  ? '作成中...'
+                  : '保存中...'
+                : isCreate
+                  ? '作成してメール送信'
+                  : '保存'}
             </button>
             <button
               type="button"
@@ -247,7 +279,7 @@ export function UserEditModal({ user, onClose, onSaved }: Props) {
           </div>
         </form>
 
-        {!isSelf && (
+        {!isCreate && !isSelf && (
           <>
             <hr
               style={{
@@ -261,6 +293,7 @@ export function UserEditModal({ user, onClose, onSaved }: Props) {
               className="danger"
               disabled={saving || deleting}
               onClick={async () => {
+                if (isCreate) return;
                 const ok = window.confirm(
                   `${user.name} (${user.email}) を削除しますか?\n` +
                     `この操作は取り消せません。\n` +

@@ -4,6 +4,7 @@ import { ApiError, api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { AdminTabs } from '../components/AdminTabs';
 import { DateInput } from '../components/DateInput';
+import { ModeToggle } from '../components/ModeToggle';
 import { formatDateTime } from '../lib/format';
 import {
   applyPreset,
@@ -87,7 +88,9 @@ export function HomePage() {
   const displayName = user.family_name?.trim() || user.name?.trim() || '';
 
   return (
-    <div className="screen">
+    <>
+      <ModeToggle />
+      <div className="screen">
       <AdminTabs />
 
       <header className="screen-header row">
@@ -187,16 +190,12 @@ export function HomePage() {
                     </div>
                   )}
                 </Link>
-                {canEdit && (
-                  <Link to={`/events/${e.id}/edit`} className="card-edit-link">
-                    編集する →
-                  </Link>
-                )}
               </li>
             );
           })}
         </ul>
       )}
-    </div>
+      </div>
+    </>
   );
 }
