@@ -45,7 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewModeState] = useState<ViewMode>(() => {
     const saved = localStorage.getItem('viewMode');
-    return saved === 'user' ? 'user' : 'admin';
+    // 既存設定があればそれを優先、無ければユーザーモードで開く (legacy と同じ)
+    if (saved === 'admin' || saved === 'user') return saved;
+    return 'user';
   });
 
   const setViewMode = useCallback((m: ViewMode) => {
