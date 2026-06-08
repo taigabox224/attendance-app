@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import {
   EventForm,
-  isoToLocalInput,
+  isoToDate,
+  isoToTime,
   type EventFormPayload,
   type EventFormValues,
 } from '../components/EventForm';
@@ -27,9 +28,12 @@ interface EventDetail {
 function eventToForm(e: EventDetail): EventFormValues {
   return {
     title: e.title,
-    start_at: isoToLocalInput(e.start_at),
-    end_at: isoToLocalInput(e.end_at),
-    response_deadline: isoToLocalInput(e.response_deadline),
+    start_date: isoToDate(e.start_at),
+    start_time: isoToTime(e.start_at),
+    end_date: isoToDate(e.end_at),
+    end_time: isoToTime(e.end_at),
+    deadline_date: isoToDate(e.response_deadline),
+    deadline_time: isoToTime(e.response_deadline),
     committee: e.committee ?? '',
     location: e.location ?? '',
     description: e.description ?? '',

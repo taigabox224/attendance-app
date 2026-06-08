@@ -1,11 +1,18 @@
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../api/client';
 
+// datetime-local が macOS Safari 等で時刻入力しづらいので、
+// フォームでは date / time を別々に持ち、送信時にローカル日時として
+// 結合 → UTC ISO8601 に変換する。
+
 export interface EventFormValues {
   title: string;
-  start_at: string; // datetime-local 形式 (YYYY-MM-DDTHH:MM)
-  end_at: string;
-  response_deadline: string;
+  start_date: string; // YYYY-MM-DD
+  start_time: string; // HH:MM
+  end_date: string;
+  end_time: string;
+  deadline_date: string;
+  deadline_time: string;
   committee: string;
   location: string;
   description: string;
@@ -18,7 +25,7 @@ export interface EventFormValues {
 
 export interface EventFormPayload {
   title: string;
-  start_at: string; // ISO 8601 (UTC)
+  start_at: string;
   end_at: string | null;
   response_deadline: string | null;
   committee: string | null;
@@ -33,9 +40,12 @@ export interface EventFormPayload {
 
 export const emptyEventForm: EventFormValues = {
   title: '',
-  start_at: '',
-  end_at: '',
-  response_deadline: '',
+  start_date: '',
+  start_time: '',
+  end_date: '',
+  end_time: '',
+  deadline_date: '',
+  deadline_time: '',
   committee: '',
   location: '',
   description: '',
@@ -46,21 +56,31 @@ export const emptyEventForm: EventFormValues = {
   afterparty_description: '',
 };
 
-// "2026-06-08T15:00" (local) → ISO 8601 (UTC)
-function localInputToIso(local: string): string | null {
-  if (!local) return null;
-  const d = new Date(local);
+// date + time(ローカル) → UTC ISO8601。time 未入力なら 00:00 を補う。
+function combineToIso(date: string, time: string): string | null {
+  if (!date) return null;
+  const t = time || '00:00';
+  const d = new Date(`${date}T${t}`);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
 }
 
-// ISO 8601 → "2026-06-08T15:00" (local) for input
-export function isoToLocalInput(iso: string | null | undefined): string {
+// ISO8601 → ローカル "YYYY-MM-DD"
+export function isoToDate(iso: string | null | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// ISO8601 → ローカル "HH:MM"
+export function isoToTime(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function nullableTrim(s: string): string | null {
@@ -71,9 +91,9 @@ function nullableTrim(s: string): string | null {
 export function valuesToPayload(v: EventFormValues): EventFormPayload {
   return {
     title: v.title.trim(),
-    start_at: localInputToIso(v.start_at) ?? '',
-    end_at: localInputToIso(v.end_at),
-    response_deadline: localInputToIso(v.response_deadline),
+    start_at: combineToIso(v.start_date, v.start_time) ?? '',
+    end_at: combineToIso(v.end_date, v.end_time),
+    response_deadline: combineToIso(v.deadline_date, v.deadline_time),
     committee: nullableTrim(v.committee),
     location: nullableTrim(v.location),
     description: nullableTrim(v.description),
@@ -85,6 +105,51 @@ export function valuesToPayload(v: EventFormValues): EventFormPayload {
   };
 }
 
+interface DateTimeRowProps {
+  idPrefix: string;
+  labelPrefix: string;
+  dateValue: string;
+  timeValue: string;
+  onDateChange: (v: string) => void;
+  onTimeChange: (v: string) => void;
+  required?: boolean;
+}
+
+function DateTimeRow({
+  idPrefix,
+  labelPrefix,
+  dateValue,
+  timeValue,
+  onDateChange,
+  onTimeChange,
+  required,
+}: DateTimeRowProps) {
+  return (
+    <div className="field-row">
+      <div className="field" style={{ flex: 2 }}>
+        <label htmlFor={`${idPrefix}-date`}>{labelPrefix}(日付)</label>
+        <input
+          id={`${idPrefix}-date`}
+          type="date"
+          value={dateValue}
+          onChange={(e) => onDateChange(e.target.value)}
+          required={required}
+        />
+      </div>
+      <div className="field" style={{ flex: 1 }}>
+        <label htmlFor={`${idPrefix}-time`}>時刻</label>
+        <input
+          id={`${idPrefix}-time`}
+          type="time"
+          value={timeValue}
+          onChange={(e) => onTimeChange(e.target.value)}
+          required={required}
+        />
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   initialValues: EventFormValues;
   submitLabel: string;
@@ -93,7 +158,13 @@ interface Props {
   onCancel?: () => void;
 }
 
-export function EventForm({ initialValues, submitLabel, submittingLabel, onSubmit, onCancel }: Props) {
+export function EventForm({
+  initialValues,
+  submitLabel,
+  submittingLabel,
+  onSubmit,
+  onCancel,
+}: Props) {
   const [v, setV] = useState<EventFormValues>(initialValues);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,8 +181,8 @@ export function EventForm({ initialValues, submitLabel, submittingLabel, onSubmi
       setError('タイトルを入力してください');
       return;
     }
-    if (!v.start_at) {
-      setError('開始日時を入力してください');
+    if (!v.start_date || !v.start_time) {
+      setError('開始日と時刻を入力してください');
       return;
     }
 
@@ -139,36 +210,33 @@ export function EventForm({ initialValues, submitLabel, submittingLabel, onSubmi
         />
       </div>
 
-      <div className="field">
-        <label htmlFor="ev-start">開始日時</label>
-        <input
-          id="ev-start"
-          type="datetime-local"
-          value={v.start_at}
-          onChange={(e) => update('start_at', e.target.value)}
-          required
-        />
-      </div>
+      <DateTimeRow
+        idPrefix="ev-start"
+        labelPrefix="開始"
+        dateValue={v.start_date}
+        timeValue={v.start_time}
+        onDateChange={(x) => update('start_date', x)}
+        onTimeChange={(x) => update('start_time', x)}
+        required
+      />
 
-      <div className="field">
-        <label htmlFor="ev-end">終了日時(任意)</label>
-        <input
-          id="ev-end"
-          type="datetime-local"
-          value={v.end_at}
-          onChange={(e) => update('end_at', e.target.value)}
-        />
-      </div>
+      <DateTimeRow
+        idPrefix="ev-end"
+        labelPrefix="終了"
+        dateValue={v.end_date}
+        timeValue={v.end_time}
+        onDateChange={(x) => update('end_date', x)}
+        onTimeChange={(x) => update('end_time', x)}
+      />
 
-      <div className="field">
-        <label htmlFor="ev-deadline">回答期限(任意)</label>
-        <input
-          id="ev-deadline"
-          type="datetime-local"
-          value={v.response_deadline}
-          onChange={(e) => update('response_deadline', e.target.value)}
-        />
-      </div>
+      <DateTimeRow
+        idPrefix="ev-deadline"
+        labelPrefix="回答期限"
+        dateValue={v.deadline_date}
+        timeValue={v.deadline_time}
+        onDateChange={(x) => update('deadline_date', x)}
+        onTimeChange={(x) => update('deadline_time', x)}
+      />
 
       <div className="field">
         <label htmlFor="ev-committee">担当委員会(任意)</label>
