@@ -4,7 +4,7 @@
 web:
 	cd web && python3 -m http.server 8000
 
-# api: バックエンド開発サーバーを起動 (http://localhost:3001/health)
+# api: バックエンド開発サーバーを起動 (http://localhost:3000/health)
 api:
 	cd api && npm install && npm run dev
 
@@ -16,9 +16,9 @@ dev:
 	trap 'kill $$WEB_PID $$API_PID 2>/dev/null || true' INT TERM EXIT; \
 	wait
 
-# stop: フロントエンドサーバー:8000(web) と API開発サーバー:3001(api) を停止
+# stop: フロントエンドサーバー:8000(web) と API開発サーバー:3000(api) を停止
 stop:
-	@PIDS=$$(lsof -tiTCP:8000 -sTCP:LISTEN; lsof -tiTCP:3001 -sTCP:LISTEN); \
+	@PIDS=$$(lsof -tiTCP:8000 -sTCP:LISTEN; lsof -tiTCP:3000 -sTCP:LISTEN); \
 	if [ -n "$$PIDS" ]; then \
 		echo "Stopping: $$PIDS"; \
 		kill $$PIDS; \
