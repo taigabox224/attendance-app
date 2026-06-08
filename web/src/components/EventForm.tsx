@@ -41,7 +41,7 @@ export interface EventFormPayload {
 export const emptyEventForm: EventFormValues = {
   title: '',
   start_date: '',
-  start_time: '',
+  start_time: '18:00', // JC の例会は夕方開始が定番なのでデフォ値を入れる
   end_date: '',
   end_time: '',
   deadline_date: '',
@@ -205,6 +205,7 @@ export function EventForm({
           type="text"
           value={v.title}
           onChange={(e) => update('title', e.target.value)}
+          placeholder="例: 2026年6月度例会"
           maxLength={200}
           required
         />
@@ -245,6 +246,7 @@ export function EventForm({
           type="text"
           value={v.committee}
           onChange={(e) => update('committee', e.target.value)}
+          placeholder="例: 事業"
         />
       </div>
 
@@ -255,6 +257,7 @@ export function EventForm({
           type="text"
           value={v.location}
           onChange={(e) => update('location', e.target.value)}
+          placeholder="例: スターツおおたかの森ホール"
         />
       </div>
 
@@ -265,6 +268,7 @@ export function EventForm({
           rows={4}
           value={v.description}
           onChange={(e) => update('description', e.target.value)}
+          placeholder="服装、持ち物、注意事項など"
         />
       </div>
 
@@ -286,6 +290,7 @@ export function EventForm({
               type="text"
               value={v.afterparty_title}
               onChange={(e) => update('afterparty_title', e.target.value)}
+              placeholder="例: 懇親会"
             />
           </div>
           <div className="field">
@@ -295,6 +300,7 @@ export function EventForm({
               type="text"
               value={v.afterparty_location}
               onChange={(e) => update('afterparty_location', e.target.value)}
+              placeholder="例: 居酒屋 旬彩(本社から徒歩3分)"
             />
           </div>
           <div className="field">
@@ -304,6 +310,7 @@ export function EventForm({
               rows={3}
               value={v.afterparty_description}
               onChange={(e) => update('afterparty_description', e.target.value)}
+              placeholder="会費、地図URL、注意事項など"
             />
           </div>
         </div>
