@@ -1709,6 +1709,126 @@ textarea {
   font-size: 14px;
 }
 
+/* ========== Event create/edit form 補助 ========== */
+
+/* checkbox-row のサブテキスト付き (Phase 1 の懇親会 / オブザーバー風) */
+.check-with-sub {
+  align-items: flex-start;
+}
+
+.check-with-sub > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.check-with-sub .check-name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.check-with-sub .check-sub {
+  font-size: 11px;
+  color: var(--text-mute);
+  line-height: 1.4;
+}
+
+/* オブザーバー inline 展開セクション */
+.observer-fields {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.form-sub-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-mute);
+  margin-bottom: 6px;
+}
+
+/* picker-card 内のアイコン (👥 / 🛡️) */
+.picker-card-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* picker 内の bulk action ボタン群 */
+.bulk-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* picker 用のスクロール可能リスト */
+.picker-list {
+  max-height: 280px;
+  overflow-y: auto;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.picker-list-short {
+  max-height: 180px;
+}
+
+.picker-empty {
+  padding: 18px;
+  text-align: center;
+  color: var(--text-mute);
+  font-size: 13px;
+}
+
+.picker-row {
+  margin-bottom: 0;
+}
+
+.picker-row-name {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.picker-row-meta {
+  display: block;
+  font-size: 10px;
+  color: var(--text-mute);
+  margin-top: 1px;
+}
+
+.picker-count {
+  font-size: 11px;
+  color: var(--text-mute);
+  margin: 4px 0 0;
+}
+
+.filter-section-label {
+  font-size: 11px;
+  color: var(--text-mute);
+  margin-top: 8px;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.event-form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.event-form-actions > button {
+  width: 100%;
+}
+
 /* ========== Observer list (ゲスト追加モーダル + 新規イベント内表示) ========== */
 .observer-summary {
   padding: 10px 12px;
