@@ -99,7 +99,7 @@ export function EventDetailPage() {
     return (
       <div className="screen">
         <div className="detail-toolbar">
-          <Link to="/events" className="back-link">イベント一覧へ</Link>
+          <Link to="/" className="back-link">イベント一覧へ</Link>
         </div>
         <p className="error">{error}</p>
       </div>
@@ -119,7 +119,7 @@ export function EventDetailPage() {
   return (
     <div className="screen">
       <div className="detail-toolbar">
-        <Link to="/events" className="back-link">イベント一覧へ</Link>
+        <Link to="/" className="back-link">イベント一覧へ</Link>
         {canEdit && (
           <button
             className="gear-btn"

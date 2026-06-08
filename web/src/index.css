@@ -177,6 +177,12 @@ body {
   letter-spacing: 0.02em;
 }
 
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .role-pill {
   display: flex;
   align-items: center;
@@ -186,15 +192,32 @@ body {
   padding: 6px 12px 6px 6px;
   border-radius: 100px;
   font-size: 12px;
-  cursor: pointer;
-  text-decoration: none;
   color: var(--text);
-  transition: background 0.15s;
+  text-decoration: none;
 }
 
-.role-pill:hover {
-  background: var(--bg);
-  text-decoration: none;
+/* user-menu-btn (歯車): topbar 右 + イベント詳細 toolbar 等で再利用 */
+.user-menu-btn {
+  width: 36px;
+  height: 36px;
+  min-height: auto;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--text-mute);
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-menu-btn:hover:not(:disabled) {
+  background: var(--surface-soft);
+  border-color: var(--border);
+  color: var(--text);
 }
 
 .role-pill .avatar {
@@ -787,6 +810,94 @@ code,
 
 .user-info dd {
   margin: 4px 0 0;
+}
+
+/* ========== Date range filter (event list) ========== */
+.date-range-filter {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin-bottom: 8px;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-mute);
+  cursor: pointer;
+  min-height: auto;
+  font-family: inherit;
+}
+
+.chip:hover:not(.active) {
+  background: var(--surface-soft);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.chip.active {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--surface);
+}
+
+.date-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-range-inputs input[type='date'] {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.date-range-inputs .sep {
+  color: var(--text-mute);
+  font-size: 12px;
+}
+
+/* ========== Empty state ========== */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-mute);
+}
+
+.empty-state .glyph {
+  font-family: var(--font-serif);
+  font-size: 36px;
+  color: var(--border);
+  margin-bottom: 8px;
+}
+
+.empty-state .hint {
+  font-size: 13px;
 }
 
 /* ========== Event list (card) ========== */

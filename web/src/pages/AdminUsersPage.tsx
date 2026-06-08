@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import type { Role } from '../auth/AuthContext';
 import { AdminTabs } from '../components/AdminTabs';
@@ -74,7 +73,6 @@ export function AdminUsersPage() {
   return (
     <div className="screen">
       <AdminTabs />
-      <Link to="/" className="back-link">ホームへ</Link>
       <header className="screen-header">
         <h1 className="screen-title">ユーザー管理</h1>
       </header>

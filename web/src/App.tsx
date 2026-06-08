@@ -6,7 +6,6 @@ import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { EventCreatePage } from './pages/EventCreatePage';
 import { EventDetailPage } from './pages/EventDetailPage';
 import { EventEditPage } from './pages/EventEditPage';
-import { EventListPage } from './pages/EventListPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -45,7 +44,8 @@ export function App() {
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route element={<RequirePasswordChanged />}>
             <Route path="/" element={<HomePage />} />
-            <Route path="/events" element={<EventListPage />} />
+            {/* /events は HomePage と統合されたので / にリダイレクト */}
+            <Route path="/events" element={<Navigate to="/" replace />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route element={<RequireRole minimum="editor" />}>
               <Route path="/events/new" element={<EventCreatePage />} />

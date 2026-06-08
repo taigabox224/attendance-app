@@ -14,12 +14,12 @@ export function EventCreatePage() {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    navigate('/events', { replace: true });
+    navigate('/', { replace: true });
   }
 
   return (
     <div className="screen">
-      <Link to="/events" className="back-link">イベント一覧へ</Link>
+      <Link to="/" className="back-link">イベント一覧へ</Link>
       <header className="screen-header">
         <h1 className="screen-title">新規イベント</h1>
       </header>
@@ -28,7 +28,7 @@ export function EventCreatePage() {
         submitLabel="作成"
         submittingLabel="作成中..."
         onSubmit={onSubmit}
-        onCancel={() => navigate('/events')}
+        onCancel={() => navigate('/')}
       />
     </div>
   );
