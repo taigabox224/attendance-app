@@ -15,3 +15,7 @@ export function generateTempPassword(length = 12): string {
 export function generateToken(): string {
   return crypto.randomBytes(32).toString('hex'); // 64 文字 hex
 }
+
+export function generateUserId(): string {
+  return `u_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+}
