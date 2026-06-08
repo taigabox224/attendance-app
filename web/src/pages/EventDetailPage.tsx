@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
@@ -57,12 +57,15 @@ const STATUS_LABEL: Record<RsvpStatus, string> = {
 
 export function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
-  const canEdit = user?.role === 'sysadmin' || user?.role === 'editor';
+  const { user, viewMode } = useAuth();
+  const isPrivileged = user?.role === 'sysadmin' || user?.role === 'editor';
+  // ユーザー画面プレビュー中はビューアー扱い
+  const canEdit = isPrivileged && viewMode === 'admin';
 
   const [data, setData] = useState<DetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showQr, setShowQr] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -79,10 +82,25 @@ export function EventDetailPage() {
     load();
   }, [load]);
 
-  if (error) {
+  async function patchAttendee(attendeeId: string, body: Record<string, unknown>) {
+    if (!id) return;
+    try {
+      await api(`/api/events/${id}/attendees/${attendeeId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+      await load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : '通信エラー');
+    }
+  }
+
+  if (error && !data) {
     return (
       <div className="screen">
-        <Link to="/events" className="back-link">イベント一覧へ</Link>
+        <div className="detail-toolbar">
+          <Link to="/events" className="back-link">イベント一覧へ</Link>
+        </div>
         <p className="error">{error}</p>
       </div>
     );
@@ -100,7 +118,19 @@ export function EventDetailPage() {
 
   return (
     <div className="screen">
-      <Link to="/events" className="back-link">イベント一覧へ</Link>
+      <div className="detail-toolbar">
+        <Link to="/events" className="back-link">イベント一覧へ</Link>
+        {canEdit && (
+          <button
+            className="gear-btn"
+            onClick={() => setShowMenu(true)}
+            aria-label="このイベントの操作"
+            type="button"
+          >
+            ⚙
+          </button>
+        )}
+      </div>
 
       {canEdit && !ev.published && (
         <p className="note" style={{ marginBottom: 12 }}>
@@ -108,11 +138,26 @@ export function EventDetailPage() {
         </p>
       )}
 
+      {error && <p className="error">{error}</p>}
+
       <section className="event-hero">
-        <div className="date">{formatDateTime(ev.start_at)}{ev.end_at ? ` 〜 ${formatDateTime(ev.end_at)}` : ''}</div>
+        <div className="date">
+          {formatDateTime(ev.start_at)}
+          {ev.end_at ? ` 〜 ${formatDateTime(ev.end_at)}` : ''}
+        </div>
         <h1 className="title">{ev.title}</h1>
-        {ev.committee && <div className="info-row"><span className="ico">●</span><span>{ev.committee}</span></div>}
-        {ev.location && <div className="info-row"><span className="ico">●</span><span>{ev.location}</span></div>}
+        {ev.committee && (
+          <div className="info-row">
+            <span className="ico">●</span>
+            <span>{ev.committee}</span>
+          </div>
+        )}
+        {ev.location && (
+          <div className="info-row">
+            <span className="ico">●</span>
+            <span>{ev.location}</span>
+          </div>
+        )}
         {ev.response_deadline && (
           <div className="info-row">
             <span className="ico">●</span>
@@ -148,8 +193,16 @@ export function EventDetailPage() {
 
       <div className="section-label">
         参加者
-        <span className="count">{data.attendees.length}名</span>
+        <span className="count">
+          {data.attendees.filter((a) => a.checked_in_at).length} 受付 /{' '}
+          {data.attendees.length} 名
+        </span>
       </div>
+
+      {ev.has_afterparty && data.attendees.length > 0 && (
+        <AfterpartyStats attendees={data.attendees} />
+      )}
+
       {data.attendees.length === 0 ? (
         <p className="note">まだ参加者がいません。</p>
       ) : (
@@ -160,11 +213,48 @@ export function EventDetailPage() {
                 <span>{a.name}</span>
                 {a.is_observer && <span className="badge">ゲスト</span>}
                 {a.department && <span className="badge">{a.department}</span>}
-                {a.checked_in_at && <span className="status-badge badge-checked">受付済</span>}
               </div>
-              <span className={`status-badge badge-${a.status}`}>
-                {STATUS_LABEL[a.status]}
-              </span>
+              {canEdit ? (
+                <div className="actions-stack">
+                  <button
+                    type="button"
+                    className={`status-btn ${a.status === 'yes' ? 'active yes' : ''}`}
+                    onClick={() =>
+                      patchAttendee(a.id, {
+                        status: a.status === 'yes' ? 'pending' : 'yes',
+                      })
+                    }
+                  >
+                    出席
+                  </button>
+                  <button
+                    type="button"
+                    className={`status-btn ${a.status === 'no' ? 'active no' : ''}`}
+                    onClick={() =>
+                      patchAttendee(a.id, {
+                        status: a.status === 'no' ? 'pending' : 'no',
+                      })
+                    }
+                  >
+                    欠席
+                  </button>
+                  <button
+                    type="button"
+                    className={`status-btn ${a.checked_in_at ? 'active checked' : ''}`}
+                    onClick={() =>
+                      patchAttendee(a.id, {
+                        checked_in_at: a.checked_in_at ? null : 'now',
+                      })
+                    }
+                  >
+                    受付
+                  </button>
+                </div>
+              ) : (
+                <span className={`status-badge badge-${a.status}`}>
+                  {a.checked_in_at ? '受付済' : STATUS_LABEL[a.status]}
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -183,18 +273,88 @@ export function EventDetailPage() {
         />
       )}
 
-      {canEdit && (
-        <div className="action-stack" style={{ marginTop: 32 }}>
-          <Link to={`/events/${ev.id}/reception`} className="link-button">
+      {showQr && <QrModal eventId={ev.id} onClose={() => setShowQr(false)} />}
+
+      {showMenu && canEdit && (
+        <EventActionsMenu
+          eventId={ev.id}
+          onClose={() => setShowMenu(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function AfterpartyStats({ attendees }: { attendees: Attendee[] }) {
+  const counts = useMemo(() => {
+    let yes = 0;
+    let no = 0;
+    for (const a of attendees) {
+      if (a.after_status === 'yes') yes++;
+      else if (a.after_status === 'no') no++;
+    }
+    return {
+      yes,
+      no,
+      pending: attendees.length - yes - no,
+    };
+  }, [attendees]);
+
+  return (
+    <div className="afterparty-stats">
+      <span className="afterparty-stats-label">🍻 二次会</span>
+      <div className="afterparty-stats-grid">
+        <div>
+          <span className="num">{counts.yes}</span>
+          <span className="lab">参加</span>
+        </div>
+        <div>
+          <span className="num">{counts.no}</span>
+          <span className="lab">不参加</span>
+        </div>
+        <div>
+          <span className="num">{counts.pending}</span>
+          <span className="lab">未回答</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventActionsMenu({
+  eventId,
+  onClose,
+}: {
+  eventId: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-handle" aria-hidden="true" />
+        <button
+          type="button"
+          className="modal-close"
+          onClick={onClose}
+          aria-label="閉じる"
+        >
+          ×
+        </button>
+        <h2>イベント操作</h2>
+        <div className="action-stack" style={{ marginTop: 0 }}>
+          <Link to={`/events/${eventId}/reception`} className="link-button">
             受付モード(QR スキャン)
           </Link>
-          <Link to={`/events/${ev.id}/edit`} className="link-button">
-            イベントを編集
+          <Link to={`/events/${eventId}/edit`} className="link-button">
+            編集
           </Link>
         </div>
-      )}
-
-      {showQr && <QrModal eventId={ev.id} onClose={() => setShowQr(false)} />}
+      </div>
     </div>
   );
 }

@@ -357,6 +357,65 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  // 参加者のステータスを編集 (editor 以上)。手動で出/欠/受付を切り替える用途。
+  // checked_in_at は null を渡せば受付取消、ISO 文字列で受付済みにセット。
+  // 'now' を渡すとサーバー側で現在時刻に解決。
+  const patchAttendeeSchema = z.object({
+    status: z.enum(['pending', 'yes', 'no']).optional(),
+    after_status: z.enum(['pending', 'yes', 'no']).nullable().optional(),
+    checked_in_at: z
+      .union([z.string(), z.null(), z.literal('now')])
+      .optional(),
+  });
+
+  app.patch<{ Params: { id: string; attendee_id: string } }>(
+    '/api/events/:id/attendees/:attendee_id',
+    { preHandler: requireRole('editor') },
+    async (req, reply) => {
+      const parsed = patchAttendeeSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: '入力が不正です' });
+      }
+      const existing = db
+        .prepare(`SELECT id FROM event_attendees WHERE id = ? AND event_id = ?`)
+        .get(req.params.attendee_id, req.params.id) as
+        | { id: string }
+        | undefined;
+      if (!existing) return reply.code(404).send({ error: 'Attendee not found' });
+
+      const sets: string[] = [];
+      const params: unknown[] = [];
+      const d = parsed.data;
+      if (d.status !== undefined) {
+        sets.push('status = ?');
+        params.push(d.status);
+      }
+      if (d.after_status !== undefined) {
+        sets.push('after_status = ?');
+        params.push(d.after_status);
+      }
+      if (d.checked_in_at !== undefined) {
+        const v =
+          d.checked_in_at === 'now' ? new Date().toISOString() : d.checked_in_at;
+        sets.push('checked_in_at = ?');
+        params.push(v);
+      }
+      if (sets.length === 0) {
+        return reply.code(400).send({ error: '変更項目がありません' });
+      }
+      const now = new Date().toISOString();
+      sets.push('updated_at = ?');
+      params.push(now);
+      params.push(existing.id);
+
+      db.prepare(
+        `UPDATE event_attendees SET ${sets.join(', ')} WHERE id = ?`,
+      ).run(...params);
+
+      return { ok: true };
+    },
+  );
+
   // 自分の出欠回答 (要認証)。invite されていない人は 404。
   const rsvpSchema = z.object({
     status: z.enum(['pending', 'yes', 'no']),

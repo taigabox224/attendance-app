@@ -21,12 +21,18 @@ export interface AuthUser {
   must_change_password: boolean;
 }
 
+export type ViewMode = 'user' | 'admin';
+
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  // editor+ が「ユーザーから見た画面」「管理者画面」を切り替えるためのモード。
+  // viewer はモード概念がない (常に user 相当)。
+  viewMode: ViewMode;
+  setViewMode: (m: ViewMode) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -34,6 +40,15 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewModeState] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('viewMode');
+    return saved === 'user' ? 'user' : 'admin';
+  });
+
+  const setViewMode = useCallback((m: ViewMode) => {
+    setViewModeState(m);
+    localStorage.setItem('viewMode', m);
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -74,7 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, logout, refresh, viewMode, setViewMode }}
+    >
       {children}
     </AuthContext.Provider>
   );

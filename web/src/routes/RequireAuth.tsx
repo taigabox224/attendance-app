@@ -1,4 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { ModeToggle } from '../components/ModeToggle';
 import { Topbar } from '../components/Topbar';
 import { useAuth } from '../auth/AuthContext';
 
@@ -21,6 +22,7 @@ export function RequireAuth() {
   return (
     <div className="app-frame">
       <Topbar />
+      <ModeToggle />
       <Outlet />
     </div>
   );

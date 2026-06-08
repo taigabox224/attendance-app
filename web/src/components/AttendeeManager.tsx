@@ -112,63 +112,74 @@ export function AttendeeManager({ eventId, existing, onChange }: Props) {
 
   return (
     <section className="attendee-manager">
-      <h2>参加者を追加</h2>
       {error && <p className="error">{error}</p>}
 
-      <input
-        type="search"
-        className="search-input"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="名前で検索..."
-      />
+      <div className="picker-card picker-participants">
+        <div className="picker-card-header">
+          <span className="picker-card-title">参加者を追加</span>
+          <span className="picker-card-tag required">必須</span>
+        </div>
+        <p className="picker-card-help">
+          既存ユーザーから複数選択、またはゲスト名を直接入力できます。
+        </p>
 
-      <div className="user-picker">
-        {filtered.length === 0 ? (
-          <p className="note" style={{ margin: '8px 0' }}>
-            該当ユーザーがいません
-          </p>
-        ) : (
-          filtered.map((u) => (
-            <label key={u.id} className="user-pick">
-              <input
-                type="checkbox"
-                checked={selected.has(u.id)}
-                onChange={() => toggle(u.id)}
-              />
-              <span>{u.name}</span>
-              {u.department && <span className="badge">{u.department}</span>}
-              {u.title && <span className="badge">{u.title}</span>}
-            </label>
-          ))
-        )}
-      </div>
-
-      <div className="field" style={{ marginTop: 12 }}>
-        <label htmlFor="am-observer">ゲスト(オブザーバー)を追加</label>
         <input
-          id="am-observer"
-          type="text"
-          value={observerName}
-          onChange={(e) => setObserverName(e.target.value)}
-          placeholder="例: 山田 太郎(株式会社X)"
-          maxLength={80}
+          type="search"
+          className="search-input"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="名前で検索..."
         />
-      </div>
 
-      <button
-        onClick={add}
-        disabled={saving || (selected.size === 0 && !observerName.trim())}
-        style={{ marginTop: 12 }}
-      >
-        {saving
-          ? '追加中...'
-          : `${selected.size + (observerName.trim() ? 1 : 0)}名を追加`}
-      </button>
+        <div className="user-picker">
+          {filtered.length === 0 ? (
+            <p className="note" style={{ margin: '8px 0' }}>
+              該当ユーザーがいません
+            </p>
+          ) : (
+            filtered.map((u) => (
+              <label key={u.id} className="user-pick">
+                <input
+                  type="checkbox"
+                  checked={selected.has(u.id)}
+                  onChange={() => toggle(u.id)}
+                />
+                <span>{u.name}</span>
+                {u.department && <span className="badge">{u.department}</span>}
+                {u.title && <span className="badge">{u.title}</span>}
+              </label>
+            ))
+          )}
+        </div>
+
+        <div className="field" style={{ marginTop: 12 }}>
+          <label htmlFor="am-observer">
+            ゲスト(オブザーバー)を追加 <span className="optional-mark">任意</span>
+          </label>
+          <input
+            id="am-observer"
+            type="text"
+            value={observerName}
+            onChange={(e) => setObserverName(e.target.value)}
+            placeholder="例: 山田 太郎(株式会社X)"
+            maxLength={80}
+          />
+        </div>
+
+        <button
+          onClick={add}
+          disabled={saving || (selected.size === 0 && !observerName.trim())}
+          style={{ marginTop: 12 }}
+        >
+          {saving
+            ? '追加中...'
+            : `${selected.size + (observerName.trim() ? 1 : 0)}名を追加`}
+        </button>
+      </div>
 
       {existing.length > 0 && (
         <>
-          <h2 style={{ marginTop: 32 }}>現在の参加者を削除</h2>
+          <h2 style={{ marginTop: 8 }}>現在の参加者を削除</h2>
           <ul className="attendee-list">
             {existing.map((a) => (
               <li key={a.id} className="attendee-row">
@@ -177,9 +188,8 @@ export function AttendeeManager({ eventId, existing, onChange }: Props) {
                   {a.is_observer && <span className="badge">ゲスト</span>}
                 </div>
                 <button
-                  className="danger"
+                  className="danger btn-sm"
                   onClick={() => remove(a)}
-                  style={{ padding: '4px 12px', fontSize: 13, minHeight: 32 }}
                 >
                   削除
                 </button>

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { AdminTabs } from '../components/AdminTabs';
 import { formatDateTime } from '../lib/format';
 
 interface EventSummary {
@@ -14,12 +15,19 @@ interface EventSummary {
 }
 
 export function EventListPage() {
-  const { user } = useAuth();
-  const canEdit = user?.role === 'sysadmin' || user?.role === 'editor';
+  const { user, viewMode } = useAuth();
+  const isPrivileged = user?.role === 'sysadmin' || user?.role === 'editor';
+  // editor+ がユーザー画面プレビュー中はビューアー扱い
+  const canEdit = isPrivileged && viewMode === 'admin';
 
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const visibleEvents = useMemo(
+    () => (canEdit ? events : events.filter((e) => e.published)),
+    [events, canEdit],
+  );
 
   const load = useCallback(async () => {
     setError(null);
@@ -39,6 +47,7 @@ export function EventListPage() {
 
   return (
     <div className="screen">
+      <AdminTabs />
       <Link to="/" className="back-link">ホームへ</Link>
 
       <header className="screen-header row">
@@ -49,8 +58,8 @@ export function EventListPage() {
           </p>
         </div>
         {canEdit && (
-          <Link to="/events/new" className="link-button" style={{ flex: 'none', padding: '8px 14px' }}>
-            新規作成
+          <Link to="/events/new" className="btn-sm" style={{ flex: 'none', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '7px 12px', background: 'var(--primary)', color: 'white', border: '1px solid var(--primary)', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 500 }}>
+            + 新規作成
           </Link>
         )}
       </header>
@@ -59,11 +68,11 @@ export function EventListPage() {
 
       {loading ? (
         <p>読込中...</p>
-      ) : events.length === 0 ? (
+      ) : visibleEvents.length === 0 ? (
         <p className="note">表示できるイベントがありません。</p>
       ) : (
         <ul className="event-list">
-          {events.map((e) => (
+          {visibleEvents.map((e) => (
             <li key={e.id}>
               <Link to={`/events/${e.id}`} className="event-card">
                 <div className="date-row">
