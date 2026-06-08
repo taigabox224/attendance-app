@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, api } from '../api/client';
-import { ROLES, type Role } from '../auth/AuthContext';
+import { ROLES, useAuth, type Role } from '../auth/AuthContext';
+
+export type UserStatus = 'active' | 'inactive' | 'left';
 
 export interface EditableUser {
   id: string;
@@ -11,6 +13,7 @@ export interface EditableUser {
   role: Role;
   department: string | null;
   title: string | null;
+  status: UserStatus;
 }
 
 interface Props {
@@ -25,16 +28,27 @@ const ROLE_LABEL: Record<Role, string> = {
   viewer: '閲覧者',
 };
 
+const STATUS_OPTIONS: ReadonlyArray<{ value: UserStatus; label: string }> = [
+  { value: 'active', label: 'アクティブ' },
+  { value: 'inactive', label: '休会' },
+  { value: 'left', label: '退会' },
+];
+
 export function UserEditModal({ user, onClose, onSaved }: Props) {
+  const { user: currentUser } = useAuth();
+  const isSelf = currentUser?.id === user.id;
+
   const [familyName, setFamilyName] = useState(user.family_name ?? '');
   const [givenName, setGivenName] = useState(user.given_name ?? '');
   const [email, setEmail] = useState(user.email);
   const [role, setRole] = useState<Role>(user.role);
   const [department, setDepartment] = useState(user.department ?? '');
   const [title, setTitle] = useState(user.title ?? '');
+  const [status, setStatus] = useState<UserStatus>(user.status);
   const [departments, setDepartments] = useState<string[]>([]);
   const [titles, setTitles] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,6 +75,7 @@ export function UserEditModal({ user, onClose, onSaved }: Props) {
     if ((department || null) !== (user.department || null))
       body.department = department || null;
     if ((title || null) !== (user.title || null)) body.title = title || null;
+    if (status !== user.status) body.status = status;
 
     if (Object.keys(body).length === 0) {
       onClose();
@@ -177,6 +192,19 @@ export function UserEditModal({ user, onClose, onSaved }: Props) {
           </div>
 
           <div className="field">
+            <label htmlFor="ue-status">ステータス <span className="required-mark">*</span></label>
+            <select
+              id="ue-status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as UserStatus)}
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field">
             <label htmlFor="ue-title">役職 <span className="optional-mark">任意</span></label>
             {titles.length > 0 ? (
               <select
@@ -205,14 +233,57 @@ export function UserEditModal({ user, onClose, onSaved }: Props) {
           {error && <p className="error">{error}</p>}
 
           <div className="action-row">
-            <button type="submit" disabled={saving}>
+            <button type="submit" disabled={saving || deleting}>
               {saving ? '保存中...' : '保存'}
             </button>
-            <button type="button" className="secondary" onClick={onClose}>
+            <button
+              type="button"
+              className="secondary"
+              onClick={onClose}
+              disabled={saving || deleting}
+            >
               キャンセル
             </button>
           </div>
         </form>
+
+        {!isSelf && (
+          <>
+            <hr
+              style={{
+                margin: '24px 0 16px',
+                border: 'none',
+                borderTop: '1px solid var(--border)',
+              }}
+            />
+            <button
+              type="button"
+              className="danger"
+              disabled={saving || deleting}
+              onClick={async () => {
+                const ok = window.confirm(
+                  `${user.name} (${user.email}) を削除しますか?\n` +
+                    `この操作は取り消せません。\n` +
+                    `※ 一時的にアプリから外す場合は「ステータス: 休会/退会」を検討してください。`,
+                );
+                if (!ok) return;
+                setDeleting(true);
+                setError(null);
+                try {
+                  await api(`/api/admin/users/${user.id}`, { method: 'DELETE' });
+                  await onSaved();
+                  onClose();
+                } catch (e) {
+                  setError(e instanceof ApiError ? e.message : '通信エラー');
+                  setDeleting(false);
+                }
+              }}
+              style={{ width: '100%' }}
+            >
+              {deleting ? '削除中...' : 'このユーザーを削除'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

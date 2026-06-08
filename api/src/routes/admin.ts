@@ -10,6 +10,8 @@ import { tempPasswordEmail } from '../mail/templates.js';
 
 const nullableString = z.string().nullable().optional();
 
+const USER_STATUSES = ['active', 'inactive', 'left'] as const;
+
 const createUserSchema = z.object({
   email: z.string().email(),
   family_name: z.string().min(1).max(40),
@@ -17,6 +19,7 @@ const createUserSchema = z.object({
   role: z.enum(ROLES),
   department: nullableString,
   title: nullableString,
+  status: z.enum(USER_STATUSES).optional(),
 });
 
 const updateUserSchema = z.object({
@@ -26,6 +29,7 @@ const updateUserSchema = z.object({
   role: z.enum(ROLES).optional(),
   department: nullableString,
   title: nullableString,
+  status: z.enum(USER_STATUSES).optional(),
 });
 
 interface UserListRow {
@@ -37,6 +41,7 @@ interface UserListRow {
   role: string;
   department: string | null;
   title: string | null;
+  status: string;
   email_verified_at: string | null;
   must_change_password: number;
   created_at: string;
@@ -116,7 +121,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       const rows = db
         .prepare(
           `SELECT id, email, name, family_name, given_name, role, department, title,
-                  email_verified_at, must_change_password, created_at, updated_at
+                  status, email_verified_at, must_change_password, created_at, updated_at
            FROM users ORDER BY created_at DESC`,
         )
         .all() as UserListRow[];
@@ -130,6 +135,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           role: u.role,
           department: u.department,
           title: u.title,
+          status: u.status,
           email_verified_at: u.email_verified_at,
           must_change_password: u.must_change_password === 1,
           created_at: u.created_at,
@@ -211,6 +217,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       if (data.title !== undefined) {
         sets.push('title = ?');
         params.push(data.title);
+      }
+      if (data.status !== undefined) {
+        sets.push('status = ?');
+        params.push(data.status);
       }
       if (sets.length === 0) {
         return reply.code(400).send({ error: '変更項目がありません' });

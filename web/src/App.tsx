@@ -6,8 +6,10 @@ import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { EventCreatePage } from './pages/EventCreatePage';
 import { EventDetailPage } from './pages/EventDetailPage';
 import { EventEditPage } from './pages/EventEditPage';
+import { AttendeeListsPage } from './pages/AttendeeListsPage';
 import { HomePage } from './pages/HomePage';
 import { MastersPage } from './pages/MastersPage';
+import { UserOrderPage } from './pages/UserOrderPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { VerifyEmailPage } from './pages/VerifyEmailPage';
@@ -55,7 +57,9 @@ export function App() {
             </Route>
             <Route element={<RequireRole minimum="sysadmin" />}>
               <Route path="/admin/users" element={<AdminUsersPage />} />
+              <Route path="/admin/users/order" element={<UserOrderPage />} />
               <Route path="/admin/masters" element={<MastersPage />} />
+              <Route path="/admin/attendee-lists" element={<AttendeeListsPage />} />
             </Route>
           </Route>
         </Route>

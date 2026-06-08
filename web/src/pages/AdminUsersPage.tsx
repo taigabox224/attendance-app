@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { ApiError, api } from '../api/client';
 import { type Role } from '../auth/AuthContext';
+import { AdminSettingsMenu } from '../components/AdminSettingsMenu';
 import { AdminTabs } from '../components/AdminTabs';
-import { UserEditModal, type EditableUser } from '../components/UserEditModal';
+import {
+  UserEditModal,
+  type EditableUser,
+  type UserStatus,
+} from '../components/UserEditModal';
 
 interface AdminUser {
   id: string;
@@ -13,6 +18,7 @@ interface AdminUser {
   role: Role;
   department: string | null;
   title: string | null;
+  status: UserStatus;
   email_verified_at: string | null;
   must_change_password: boolean;
   created_at: string;
@@ -30,17 +36,32 @@ const ROLE_LABEL_MAP: Record<Role, string> = {
   viewer: '閲覧者',
 };
 
+const STATUS_OPTIONS: ReadonlyArray<{ value: UserStatus | 'all'; label: string }> = [
+  { value: 'active', label: 'アクティブ' },
+  { value: 'inactive', label: '休会' },
+  { value: 'left', label: '退会' },
+  { value: 'all', label: '全て' },
+];
+
+const STATUS_LABEL: Record<UserStatus, string> = {
+  active: 'アクティブ',
+  inactive: '休会',
+  left: '退会',
+};
+
 export function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [editing, setEditing] = useState<EditableUser | null>(null);
 
-  // フィルタ用 state
+  // フィルタ
   const [query, setQuery] = useState('');
   const [deptFilter, setDeptFilter] = useState<Set<string>>(new Set());
   const [roleFilter, setRoleFilter] = useState<Role | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<UserStatus | 'all'>('active');
 
   const [departments, setDepartments] = useState<string[]>([]);
 
@@ -61,13 +82,14 @@ export function AdminUsersPage() {
     api<{ departments: string[] }>('/api/masters')
       .then((d) => setDepartments(d.departments))
       .catch(() => {
-        /* フィルタは無効化 */
+        /* マスター未取得時はフィルタなし */
       });
   }, [loadUsers]);
 
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase();
     return users.filter((u) => {
+      if (statusFilter !== 'all' && u.status !== statusFilter) return false;
       if (roleFilter !== 'all' && u.role !== roleFilter) return false;
       if (deptFilter.size > 0) {
         if (!u.department || !deptFilter.has(u.department)) return false;
@@ -78,7 +100,7 @@ export function AdminUsersPage() {
       }
       return true;
     });
-  }, [users, query, deptFilter, roleFilter]);
+  }, [users, query, deptFilter, roleFilter, statusFilter]);
 
   function toggleDept(d: string) {
     setDeptFilter((prev) => {
@@ -93,24 +115,14 @@ export function AdminUsersPage() {
     setQuery('');
     setDeptFilter(new Set());
     setRoleFilter('all');
-  }
-
-  async function onDelete(user: AdminUser) {
-    const ok = window.confirm(
-      `${user.name} (${user.email}) を削除しますか?\nこの操作は取り消せません。`,
-    );
-    if (!ok) return;
-    setError(null);
-    try {
-      await api(`/api/admin/users/${user.id}`, { method: 'DELETE' });
-      await loadUsers();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : '通信エラー');
-    }
+    setStatusFilter('active');
   }
 
   const hasActiveFilter =
-    query !== '' || deptFilter.size > 0 || roleFilter !== 'all';
+    query !== '' ||
+    deptFilter.size > 0 ||
+    roleFilter !== 'all' ||
+    statusFilter !== 'active';
 
   return (
     <div className="screen">
@@ -124,14 +136,22 @@ export function AdminUsersPage() {
 
       {error && <p className="error">{error}</p>}
 
-      {!showForm && (
+      <div className="action-row" style={{ marginBottom: 12 }}>
         <button
           onClick={() => setShowForm(true)}
-          style={{ marginBottom: 16 }}
+          disabled={showForm}
+          style={{ flex: 1 }}
         >
           + 新規ユーザー作成
         </button>
-      )}
+        <button
+          className="btn-outline"
+          onClick={() => setShowSettings(true)}
+          type="button"
+        >
+          ⚙ 設定
+        </button>
+      </div>
 
       {showForm && (
         <CreateUserForm
@@ -144,7 +164,7 @@ export function AdminUsersPage() {
         />
       )}
 
-      {/* ===== フィルタ ===== */}
+      {/* フィルタ */}
       <div className="user-filter">
         <input
           type="search"
@@ -153,6 +173,20 @@ export function AdminUsersPage() {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="名前 / メールで検索..."
         />
+
+        <div className="filter-label">ステータス</div>
+        <div className="filter-chips">
+          {STATUS_OPTIONS.map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              className={`chip ${statusFilter === s.value ? 'active' : ''}`}
+              onClick={() => setStatusFilter(s.value)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
 
         <div className="filter-label">ロール</div>
         <div className="filter-chips">
@@ -215,53 +249,53 @@ export function AdminUsersPage() {
           <div className="hint">該当ユーザーがいません</div>
         </div>
       ) : (
-        <ul className="user-list">
+        <div className="compact-user-list">
           {filteredUsers.map((u) => (
-            <li key={u.id} className="user-row">
-              <div className="user-row-head">
-                <strong>{u.name}</strong>
-                <span className="mono muted">{u.email}</span>
-              </div>
-              <div className="user-row-meta">
-                <span>{ROLE_LABEL_MAP[u.role]}</span>
-                {u.department && <span>{u.department}</span>}
-                {u.title && <span>{u.title}</span>}
+            <button
+              key={u.id}
+              type="button"
+              className="user-row-compact"
+              onClick={() =>
+                setEditing({
+                  id: u.id,
+                  email: u.email,
+                  name: u.name,
+                  family_name: u.family_name,
+                  given_name: u.given_name,
+                  role: u.role,
+                  department: u.department,
+                  title: u.title,
+                  status: u.status,
+                })
+              }
+            >
+              <span className="user-row-avatar">{firstChar(u.name)}</span>
+              <span className="user-row-body">
+                <span className="user-row-name">{u.name}</span>
+                <span className="user-row-sub">
+                  <span>{ROLE_LABEL_MAP[u.role]}</span>
+                  {u.department && <span>· {u.department}</span>}
+                  {u.title && <span>· {u.title}</span>}
+                </span>
+              </span>
+              <span className="user-row-tags">
+                {u.status !== 'active' && (
+                  <span
+                    className={`status-badge ${u.status === 'left' ? 'badge-no' : 'badge-pending'}`}
+                  >
+                    {STATUS_LABEL[u.status]}
+                  </span>
+                )}
                 {u.must_change_password && (
-                  <span className="warn">仮PW未変更</span>
+                  <span className="badge warn">仮PW</span>
                 )}
                 {!u.email_verified_at && (
-                  <span className="warn">メール未認証</span>
+                  <span className="badge warn">未認証</span>
                 )}
-              </div>
-              <div className="user-row-actions">
-                <button
-                  className="btn-outline btn-sm"
-                  onClick={() =>
-                    setEditing({
-                      id: u.id,
-                      email: u.email,
-                      name: u.name,
-                      family_name: u.family_name,
-                      given_name: u.given_name,
-                      role: u.role,
-                      department: u.department,
-                      title: u.title,
-                    })
-                  }
-                  style={{ flex: 1 }}
-                >
-                  編集
-                </button>
-                <button
-                  className="danger btn-sm"
-                  onClick={() => onDelete(u)}
-                >
-                  削除
-                </button>
-              </div>
-            </li>
+              </span>
+            </button>
           ))}
-        </ul>
+        </div>
       )}
 
       {editing && (
@@ -271,8 +305,17 @@ export function AdminUsersPage() {
           onSaved={loadUsers}
         />
       )}
+
+      {showSettings && (
+        <AdminSettingsMenu onClose={() => setShowSettings(false)} />
+      )}
     </div>
   );
+}
+
+function firstChar(name: string): string {
+  if (!name) return '?';
+  return Array.from(name)[0] ?? '?';
 }
 
 interface CreateUserFormProps {
@@ -320,7 +363,7 @@ function CreateUserForm({ departments, onCreated, onCancel }: CreateUserFormProp
       onSubmit={onSubmit}
       className="form-stack"
       style={{
-        marginBottom: 24,
+        marginBottom: 16,
         padding: 16,
         border: '1px solid var(--border)',
         borderRadius: 'var(--radius-sm)',
