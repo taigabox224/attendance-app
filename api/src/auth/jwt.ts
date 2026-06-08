@@ -32,3 +32,33 @@ export const COOKIE_OPTIONS = {
   maxAge: 7 * 24 * 60 * 60, // 秒単位 (RFC 6265 の Max-Age)
   path: '/',
 };
+
+// ───── 受付用 QR トークン ─────
+// イベント当日に参加者が受付で見せる QR の中身は、ここで発行する JWT。
+// 認証用 JWT と区別するために kind='checkin' を必ず入れ、verify 側で
+// 突き合わせる。受付エンドポイント(Chunk 3)が用途。
+
+export interface CheckinTokenPayload {
+  kind: 'checkin';
+  event_id: string;
+  attendee_id: string;
+}
+
+export function signCheckinToken(
+  payload: Omit<CheckinTokenPayload, 'kind'>,
+  expiresIn: string = '24h',
+): string {
+  return jwt.sign(
+    { ...payload, kind: 'checkin' } as CheckinTokenPayload,
+    getSecret(),
+    { expiresIn } as SignOptions,
+  );
+}
+
+export function verifyCheckinToken(token: string): CheckinTokenPayload {
+  const decoded = jwt.verify(token, getSecret()) as Partial<CheckinTokenPayload>;
+  if (decoded.kind !== 'checkin' || !decoded.event_id || !decoded.attendee_id) {
+    throw new Error('Invalid checkin token payload');
+  }
+  return decoded as CheckinTokenPayload;
+}

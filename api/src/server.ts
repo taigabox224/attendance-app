@@ -6,6 +6,7 @@ import { runMigrations } from './db.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerEventRoutes } from './routes/events.js';
+import { registerUserRoutes } from './routes/users.js';
 
 const app = Fastify({ logger: true });
 
@@ -27,6 +28,7 @@ await app.register(cors, {
 await registerAuthRoutes(app);
 await registerAdminRoutes(app);
 await registerEventRoutes(app);
+await registerUserRoutes(app);
 
 app.get('/health', async () => ({ ok: true }));
 

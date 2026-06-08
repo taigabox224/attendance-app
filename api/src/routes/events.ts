@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db } from '../db.js';
+import { signCheckinToken } from '../auth/jwt.js';
 import { hasMinimumRole, type Role } from '../auth/permissions.js';
-import { generateEventId } from '../auth/tokens.js';
+import { generateAttendeeId, generateEventId } from '../auth/tokens.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { requireRole } from '../middleware/requireRole.js';
 
@@ -87,7 +88,8 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
     return { events: rows.map(rowToEvent) };
   });
 
-  // 詳細。viewer も公開済みなら閲覧可
+  // 詳細。viewer も公開済みなら閲覧可。
+  // 参加者一覧 (attendees) と自分自身の rsvp (your_rsvp) を同梱で返す。
   app.get<{ Params: { id: string } }>(
     '/api/events/:id',
     { preHandler: requireAuth },
@@ -101,7 +103,64 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
       if (row.published === 0 && !hasMinimumRole(userRole, 'editor')) {
         return reply.code(404).send({ error: 'Event not found' });
       }
-      return { event: rowToEvent(row) };
+
+      const attendees = db
+        .prepare(
+          `SELECT a.id, a.user_id, a.is_observer, a.observer_name,
+                  a.status, a.after_status, a.checked_in_at, a.created_at,
+                  u.name AS user_name,
+                  u.department AS user_department,
+                  u.title AS user_title
+           FROM event_attendees a
+           LEFT JOIN users u ON u.id = a.user_id
+           WHERE a.event_id = ?
+           ORDER BY a.created_at ASC`,
+        )
+        .all(req.params.id) as Array<{
+        id: string;
+        user_id: string | null;
+        is_observer: number;
+        observer_name: string | null;
+        status: string;
+        after_status: string | null;
+        checked_in_at: string | null;
+        created_at: string;
+        user_name: string | null;
+        user_department: string | null;
+        user_title: string | null;
+      }>;
+
+      const attendeesJson = attendees.map((a) => {
+        const isObs = a.is_observer === 1;
+        return {
+          id: a.id,
+          user_id: a.user_id,
+          is_observer: isObs,
+          name: isObs ? (a.observer_name ?? '(ゲスト)') : (a.user_name ?? '(削除済)'),
+          department: isObs ? null : a.user_department,
+          title: isObs ? null : a.user_title,
+          status: a.status,
+          after_status: a.after_status,
+          checked_in_at: a.checked_in_at,
+        };
+      });
+
+      const userId = req.user!.sub;
+      const myRow = attendees.find((a) => a.user_id === userId);
+      const your_rsvp = myRow
+        ? {
+            attendee_id: myRow.id,
+            status: myRow.status,
+            after_status: myRow.after_status,
+            checked_in_at: myRow.checked_in_at,
+          }
+        : null;
+
+      return {
+        event: rowToEvent(row),
+        attendees: attendeesJson,
+        your_rsvp,
+      };
     },
   );
 
@@ -228,6 +287,133 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(404).send({ error: 'Event not found' });
       }
       return { ok: true };
+    },
+  );
+
+  // 参加者を追加 (editor 以上)。既存ユーザー一括 + ゲスト (オブザーバー)。
+  // 同一 user_id が既に attendee なら INSERT OR IGNORE でスキップする。
+  const addAttendeesSchema = z.object({
+    user_ids: z.array(z.string()).default([]),
+    observers: z.array(z.object({ name: z.string().min(1).max(80) })).default([]),
+  });
+
+  app.post<{ Params: { id: string } }>(
+    '/api/events/:id/attendees',
+    { preHandler: requireRole('editor') },
+    async (req, reply) => {
+      const parsed = addAttendeesSchema.safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: '入力が不正です' });
+      const { user_ids, observers } = parsed.data;
+      if (user_ids.length === 0 && observers.length === 0) {
+        return reply.code(400).send({ error: '追加する参加者を選んでください' });
+      }
+
+      const eventRow = db
+        .prepare(`SELECT id FROM events WHERE id = ?`)
+        .get(req.params.id) as { id: string } | undefined;
+      if (!eventRow) return reply.code(404).send({ error: 'Event not found' });
+
+      const now = new Date().toISOString();
+      const addUser = db.prepare(
+        `INSERT OR IGNORE INTO event_attendees
+           (id, event_id, user_id, is_observer, status, created_at, updated_at)
+         VALUES (?, ?, ?, 0, 'pending', ?, ?)`,
+      );
+      const addObserver = db.prepare(
+        `INSERT INTO event_attendees
+           (id, event_id, user_id, is_observer, observer_name, status, created_at, updated_at)
+         VALUES (?, ?, NULL, 1, ?, 'pending', ?, ?)`,
+      );
+
+      let added = 0;
+      const txn = db.transaction(() => {
+        for (const uid of user_ids) {
+          const r = addUser.run(generateAttendeeId(), req.params.id, uid, now, now);
+          if (r.changes === 1) added++;
+        }
+        for (const obs of observers) {
+          const r = addObserver.run(generateAttendeeId(), req.params.id, obs.name, now, now);
+          if (r.changes === 1) added++;
+        }
+      });
+      txn();
+
+      return reply.code(201).send({ added });
+    },
+  );
+
+  // 参加者を削除 (editor 以上)
+  app.delete<{ Params: { id: string; attendee_id: string } }>(
+    '/api/events/:id/attendees/:attendee_id',
+    { preHandler: requireRole('editor') },
+    async (req, reply) => {
+      const result = db
+        .prepare(`DELETE FROM event_attendees WHERE id = ? AND event_id = ?`)
+        .run(req.params.attendee_id, req.params.id);
+      if (result.changes === 0) {
+        return reply.code(404).send({ error: 'Attendee not found' });
+      }
+      return { ok: true };
+    },
+  );
+
+  // 自分の出欠回答 (要認証)。invite されていない人は 404。
+  const rsvpSchema = z.object({
+    status: z.enum(['pending', 'yes', 'no']),
+    after_status: z.enum(['pending', 'yes', 'no']).nullable().optional(),
+  });
+
+  app.patch<{ Params: { id: string } }>(
+    '/api/events/:id/rsvp',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const parsed = rsvpSchema.safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: '入力が不正です' });
+      const { status, after_status } = parsed.data;
+
+      const myRow = db
+        .prepare(
+          `SELECT id FROM event_attendees WHERE event_id = ? AND user_id = ?`,
+        )
+        .get(req.params.id, req.user!.sub) as { id: string } | undefined;
+      if (!myRow) {
+        return reply
+          .code(404)
+          .send({ error: 'このイベントの参加者ではありません' });
+      }
+
+      const now = new Date().toISOString();
+      db.prepare(
+        `UPDATE event_attendees
+         SET status = ?, after_status = ?, updated_at = ?
+         WHERE id = ?`,
+      ).run(status, after_status ?? null, now, myRow.id);
+
+      return { ok: true };
+    },
+  );
+
+  // 受付用 QR トークン発行 (要認証 + 自分が attendee であること)。
+  // 中身は JWT。Chunk 3 の /checkin で検証する。
+  app.get<{ Params: { id: string } }>(
+    '/api/events/:id/qr-token',
+    { preHandler: requireAuth },
+    async (req, reply) => {
+      const myRow = db
+        .prepare(
+          `SELECT id FROM event_attendees WHERE event_id = ? AND user_id = ?`,
+        )
+        .get(req.params.id, req.user!.sub) as { id: string } | undefined;
+      if (!myRow) {
+        return reply
+          .code(404)
+          .send({ error: 'このイベントの参加者ではありません' });
+      }
+      const token = signCheckinToken({
+        event_id: req.params.id,
+        attendee_id: myRow.id,
+      });
+      return { token };
     },
   );
 }
