@@ -92,10 +92,16 @@ export function HomePage() {
 
       <header className="screen-header row">
         <div>
-          <h1 className="screen-title">
-            {displayName ? `${displayName}さんのイベント` : 'あなたのイベント'}
-          </h1>
-          <p className="screen-sub">招待または作成したイベントを表示</p>
+          {canEdit ? (
+            <h1 className="screen-title">登録されているイベント</h1>
+          ) : (
+            <>
+              <h1 className="screen-title">
+                {displayName ? `${displayName}さんのイベント` : 'あなたのイベント'}
+              </h1>
+              <p className="screen-sub">招待または作成したイベントを表示</p>
+            </>
+          )}
         </div>
         {canCreateEvent && (
           <Link

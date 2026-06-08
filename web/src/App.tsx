@@ -39,7 +39,7 @@ export function App() {
               path="/events/:id/reception"
               element={<Navigate to=".." relative="path" replace />}
             />
-            <Route element={<RequireRole minimum="sysadmin" />}>
+            <Route element={<RequireRole minimum="editor" />}>
               <Route path="/admin/users" element={<AdminUsersPage />} />
               <Route path="/admin/users/order" element={<UserOrderPage />} />
               <Route path="/admin/masters" element={<MastersPage />} />

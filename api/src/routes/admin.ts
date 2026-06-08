@@ -52,7 +52,7 @@ interface UserListRow {
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   app.post(
     '/api/admin/users',
-    { preHandler: requireRole('sysadmin') },
+    { preHandler: requireRole('editor') },
     async (req, reply) => {
       const parsed = createUserSchema.safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: '入力が不正です' });
@@ -117,7 +117,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.get(
     '/api/admin/users',
-    { preHandler: requireRole('sysadmin') },
+    { preHandler: requireRole('editor') },
     async () => {
       const rows = db
         .prepare(
@@ -150,7 +150,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.patch<{ Params: { id: string } }>(
     '/api/admin/users/:id',
-    { preHandler: requireRole('sysadmin') },
+    { preHandler: requireRole('editor') },
     async (req, reply) => {
       const parsed = updateUserSchema.safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: '入力が不正です' });
@@ -241,7 +241,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete<{ Params: { id: string } }>(
     '/api/admin/users/:id',
-    { preHandler: requireRole('sysadmin') },
+    { preHandler: requireRole('editor') },
     async (req, reply) => {
       // sysadmin が自分を消すと詰むので拒否
       if (req.user!.sub === req.params.id) {
@@ -267,7 +267,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.put(
     '/api/admin/users/order',
-    { preHandler: requireRole('sysadmin') },
+    { preHandler: requireRole('editor') },
     async (req, reply) => {
       const parsed = setOrderSchema.safeParse(req.body);
       if (!parsed.success) {

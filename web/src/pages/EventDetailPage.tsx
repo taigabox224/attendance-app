@@ -199,6 +199,10 @@ export function EventDetailPage() {
   const isReceptionist = data.receptionists.some(
     (r) => r.user_id === user?.id,
   );
+  // 受付 (QRスキャン / 受付済トグル / 会費トグル) は sysadmin と
+  // 「明示的に受付担当に指定された人」のみ可能。editor は admin モードでも
+  // 受付はできない (ユーザー指示: 「受付をできない」)。
+  const canDoReception = user?.role === 'sysadmin' || isReceptionist;
   // 管理者 (admin viewMode) は常に受付モードで開く → toggle 不要。
   // 受付担当 (一般ユーザ viewMode) のみが「通常/受付」を切替できる。
   const showToggle = !canEdit && isReceptionist;
@@ -263,6 +267,7 @@ export function EventDetailPage() {
           eventId={ev.id}
           ev={ev}
           attendees={data.attendees}
+          canDoReception={canDoReception}
           onReload={load}
           onShowToast={showToast}
           onOpenScanner={() => setShowScanner(true)}
@@ -295,7 +300,7 @@ export function EventDetailPage() {
       {showMenu && (
         <EventActionsMenu
           canManage={canEdit}
-          canScan={canEnterReception}
+          canScan={canDoReception}
           eventId={ev.id}
           onClose={() => setShowMenu(false)}
           onCopyLink={copyShareLink}
@@ -652,6 +657,7 @@ function ReceptionView({
   eventId,
   ev,
   attendees,
+  canDoReception,
   onReload,
   onShowToast,
   onOpenScanner,
@@ -659,6 +665,9 @@ function ReceptionView({
   eventId: string;
   ev: EventDetail;
   attendees: Attendee[];
+  // QRスキャン / 受付済トグル / 会費トグル が可能か
+  // (sysadmin or receptionist。editor の admin モードは false)
+  canDoReception: boolean;
   onReload: () => Promise<void>;
   onShowToast: (msg: string) => void;
   onOpenScanner: () => void;
@@ -775,9 +784,11 @@ function ReceptionView({
 
       {ev.has_afterparty && <AfterpartyStats attendees={attendees} />}
 
-      <button type="button" className="scan-cta" onClick={onOpenScanner}>
-        📷 QRコードをスキャン
-      </button>
+      {canDoReception && (
+        <button type="button" className="scan-cta" onClick={onOpenScanner}>
+          📷 QRコードをスキャン
+        </button>
+      )}
 
       <BreakdownSection
         eventTitle={ev.title}
@@ -892,6 +903,7 @@ function ReceptionView({
               key={a.id}
               attendee={a}
               hasAfterparty={ev.has_afterparty}
+              canDoReception={canDoReception}
               onPatch={(body) => patchAttendee(a.id, body)}
             />
           ))}
@@ -905,10 +917,12 @@ function ReceptionView({
 function AttendeeRow({
   attendee,
   hasAfterparty,
+  canDoReception,
   onPatch,
 }: {
   attendee: Attendee;
   hasAfterparty: boolean;
+  canDoReception: boolean;
   onPatch: (body: Record<string, unknown>) => Promise<void>;
 }) {
   const a = attendee;
@@ -924,26 +938,35 @@ function AttendeeRow({
           <div className="name-row">
             <span className="name">{name}</span>
             {a.is_observer && <span className="badge-observer">ゲスト</span>}
-            {a.checked_in_at ? (
-              <button
-                type="button"
-                className="badge-checked-in"
-                onClick={() => onPatch({ checked_in_at: null })}
-                title="受付済を取消"
-              >
-                ✓受付済
-              </button>
+            {canDoReception ? (
+              a.checked_in_at ? (
+                <button
+                  type="button"
+                  className="badge-checked-in"
+                  onClick={() => onPatch({ checked_in_at: null })}
+                  title="受付済を取消"
+                >
+                  ✓受付済
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="badge-not-checked-in"
+                  onClick={() => onPatch({ checked_in_at: 'now' })}
+                  title="受付済にする"
+                >
+                  受付未
+                </button>
+              )
             ) : (
-              <button
-                type="button"
-                className="badge-not-checked-in"
-                onClick={() => onPatch({ checked_in_at: 'now' })}
-                title="受付済にする"
-              >
-                受付未
-              </button>
+              // editor は受付できないので、現状の状態だけ表示 (クリック不可)
+              a.checked_in_at && (
+                <span className="badge-checked-in" style={{ cursor: 'default' }}>
+                  ✓受付済
+                </span>
+              )
             )}
-            {showFee &&
+            {showFee && canDoReception &&
               (a.fee_paid ? (
                 <button
                   type="button"
@@ -963,6 +986,11 @@ function AttendeeRow({
                   💰未収
                 </button>
               ))}
+            {showFee && !canDoReception && a.fee_paid && (
+              <span className="badge-paid" style={{ cursor: 'default' }}>
+                💰受領済
+              </span>
+            )}
           </div>
           {(a.department || a.title) && (
             <div

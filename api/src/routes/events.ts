@@ -72,22 +72,38 @@ function rowToEvent(r: EventRow) {
 }
 
 export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
-  // 一覧。viewer は公開済みのみ、editor 以上は全件 (下書き含む)
-  // 各イベントに「自分の出欠ステータス」と「受付担当フラグ」も同梱する
-  // (HomePage のバッジ表示用)
+  // 一覧。可視範囲はロール別:
+  //   sysadmin: 全件 (下書き含む)
+  //   editor:   自分が招待されている or 自分が作成した event のみ (下書き含む)
+  //   viewer:   公開済みのうち自分が招待されているもの (= 元 published-only)
+  // 各 event に「自分の出欠ステータス」と「受付担当フラグ」も同梱する。
   app.get('/api/events', { preHandler: requireAuth }, async (req) => {
     const userRole = req.user!.role as Role;
     const userId = req.user!.sub;
-    const includeAll = hasMinimumRole(userRole, 'editor');
-    const rows = includeAll
-      ? (db
-          .prepare(`SELECT * FROM events ORDER BY start_at DESC`)
-          .all() as EventRow[])
-      : (db
-          .prepare(
-            `SELECT * FROM events WHERE published = 1 ORDER BY start_at DESC`,
-          )
-          .all() as EventRow[]);
+
+    let rows: EventRow[];
+    if (userRole === 'sysadmin') {
+      rows = db
+        .prepare(`SELECT * FROM events ORDER BY start_at DESC`)
+        .all() as EventRow[];
+    } else if (userRole === 'editor') {
+      // editor は招待 (event_attendees) or 自作 (created_by) のみ
+      rows = db
+        .prepare(
+          `SELECT DISTINCT e.* FROM events e
+           LEFT JOIN event_attendees a
+             ON a.event_id = e.id AND a.user_id = ?
+           WHERE e.created_by = ? OR a.user_id IS NOT NULL
+           ORDER BY e.start_at DESC`,
+        )
+        .all(userId, userId) as EventRow[];
+    } else {
+      rows = db
+        .prepare(
+          `SELECT * FROM events WHERE published = 1 ORDER BY start_at DESC`,
+        )
+        .all() as EventRow[];
+    }
 
     const attendeeStmt = db.prepare(
       `SELECT status FROM event_attendees WHERE event_id = ? AND user_id = ?`,
@@ -563,15 +579,22 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
   // 受付スキャン: QR から読み取った JWT を検証 → checked_in_at をセット。
   // 重複は 409 (情報付き)、トークン無効は 400。
   // 権限: sysadmin もしくは event_receptionists に指定された user のみ。
-  // editor でも receptionists 未指定なら受付不可 (運用ミス防止)。
+  // 受付 (QRスキャン) 権限:
+  //   sysadmin: 常に可
+  //   editor:   不可 (運用ルール: editor は受付業務をしない)
+  //   viewer:   event_receptionists に明示登録されていれば可
   const checkinSchema = z.object({ token: z.string().min(1) });
 
   app.post<{ Params: { id: string } }>(
     '/api/events/:id/checkin',
     { preHandler: requireAuth },
     async (req, reply) => {
-      // 受付担当チェック
       const userRole = req.user!.role as Role;
+      if (userRole === 'editor') {
+        return reply
+          .code(403)
+          .send({ error: 'editor は受付を行えません' });
+      }
       if (userRole !== 'sysadmin') {
         const row = db
           .prepare(
