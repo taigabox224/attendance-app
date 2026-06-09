@@ -99,7 +99,14 @@ export function EventDetailPage() {
   const navigate = useNavigate();
   const { user, viewMode } = useAuth();
   const isPrivileged = user?.role === 'sysadmin' || user?.role === 'editor';
+  // canEdit: 「管理者画面 (受付モード) を出す」かどうかの UI 制御。
+  //          表示の切替なので viewMode を絡める。
   const canEdit = isPrivileged && viewMode === 'admin';
+  // canManage: 「このイベントを編集/削除する権限があるか」の機能判定。
+  //            役割そのもので決まる (viewMode に関係なく、editor/sysadmin なら可)。
+  //            これにより、user モードで受付モードに入っている時も歯車から
+  //            編集ボタンが出る (受付担当者が会場で内容修正したいケース対応)。
+  const canManage = isPrivileged;
 
   const [data, setData] = useState<DetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -299,7 +306,7 @@ export function EventDetailPage() {
 
       {showMenu && (
         <EventActionsMenu
-          canManage={canEdit}
+          canManage={canManage}
           canScan={canDoReception}
           eventId={ev.id}
           onClose={() => setShowMenu(false)}

@@ -80,6 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       // login レスポンスは部分情報なので /me を取り直して全フィールドを反映
       await refresh();
+      // ログイン直後は常にユーザーモードで開く。前回 admin で抜けても
+      // 次回ログインはユーザー画面から始めたい (運用ルール)。
+      setViewModeState('user');
+      localStorage.setItem('viewMode', 'user');
     },
     [refresh],
   );
@@ -91,6 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ネットワークエラーでも UI はログアウト扱いにする
     }
     setUser(null);
+    // 別ユーザーが同じ端末でログインしてくる可能性に備えて mode を初期化
+    setViewModeState('user');
+    localStorage.setItem('viewMode', 'user');
   }, []);
 
   return (
