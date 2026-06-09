@@ -44,15 +44,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewModeState] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem('viewMode');
-    // 既存設定があればそれを優先、無ければユーザーモードで開く (legacy と同じ)
+    // sessionStorage はタブごとに独立。新規タブで URL を開いた時は
+    // 既存タブが admin でも引き継がれず 'user' で開始するのが意図。
+    // 同タブ内のリロードでは保持される。
+    const saved = sessionStorage.getItem('viewMode');
     if (saved === 'admin' || saved === 'user') return saved;
     return 'user';
   });
 
   const setViewMode = useCallback((m: ViewMode) => {
     setViewModeState(m);
-    localStorage.setItem('viewMode', m);
+    sessionStorage.setItem('viewMode', m);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -83,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ログイン直後は常にユーザーモードで開く。前回 admin で抜けても
       // 次回ログインはユーザー画面から始めたい (運用ルール)。
       setViewModeState('user');
-      localStorage.setItem('viewMode', 'user');
+      sessionStorage.setItem('viewMode', 'user');
     },
     [refresh],
   );
@@ -97,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     // 別ユーザーが同じ端末でログインしてくる可能性に備えて mode を初期化
     setViewModeState('user');
-    localStorage.setItem('viewMode', 'user');
+    sessionStorage.setItem('viewMode', 'user');
   }, []);
 
   return (
