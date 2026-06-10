@@ -1,0 +1,24 @@
+# Vercel は web/dist だけを配信するので、それ以外のディレクトリは
+# デプロイ対象から除外する。特に /api 配下の .ts ファイルを Vercel が
+# 自動的に serverless function として認識してしまうので、明示的に外す。
+
+# バックエンド (Lightsail にデプロイする想定、Vercel は触らない)
+api/
+
+# ドキュメント類 (リポジトリ閲覧用、配信不要)
+docs/
+*.md
+
+# 開発スクリプト
+scripts/
+
+# Phase 1 プロトタイプ (web/dist には含めない、リファレンス用)
+web/legacy/
+
+# 開発専用パッケージ (root)
+node_modules/
+package.json
+package-lock.json
+
+# 環境変数 (念のため)
+.env*
