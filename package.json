@@ -1,0 +1,12 @@
+{
+  "name": "attendance-app-root",
+  "private": true,
+  "description": "Repo-level tooling. App code lives in /web (frontend) and /api (backend).",
+  "scripts": {
+    "manual:screenshots": "node scripts/take-screenshots.mjs",
+    "manual:pdf": "npx --yes md-to-pdf MANUAL.md --launch-options '{\"args\":[\"--no-sandbox\"]}'"
+  },
+  "devDependencies": {
+    "puppeteer": "^25.1.0"
+  }
+}
