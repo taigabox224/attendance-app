@@ -1,24 +1,35 @@
-# Vercel は web/dist だけを配信するので、それ以外のディレクトリは
-# デプロイ対象から除外する。特に /api 配下の .ts ファイルを Vercel が
-# 自動的に serverless function として認識してしまうので、明示的に外す。
+# Vercel は web/dist だけを配信する。それ以外を除外。
+# パターンは .gitignore と同じ — 先頭の `/` でリポジトリ root 限定にしないと、
+# `package.json` のような名前が web/package.json まで巻き込んでしまう。
 
-# バックエンド (Lightsail にデプロイする想定、Vercel は触らない)
-api/
+# バックエンド (Lightsail にデプロイ予定、Vercel は触らない)
+# 17 個の .ts を Vercel が serverless function と誤認識して 12 関数上限を
+# 超えてしまうのを防ぐ。
+/api/
 
 # ドキュメント類 (リポジトリ閲覧用、配信不要)
-docs/
-*.md
+/docs/
+/MANUAL.md
+/MANUAL.pdf
+/README.md
+/CLAUDE.md
+/PRODUCTION.md
+/AUTH_FEATURE.md
+/INFRA_REQUEST.md
+/DEPLOYMENT.md
 
-# 開発スクリプト
-scripts/
+# 開発スクリプト (puppeteer 等)
+/scripts/
 
-# Phase 1 プロトタイプ (web/dist には含めない、リファレンス用)
+# Phase 1 プロトタイプ (リファレンス用、配信しない)
 web/legacy/
 
-# 開発専用パッケージ (root)
-node_modules/
-package.json
-package-lock.json
+# 開発専用パッケージ (root だけ。web/package.json は build に必要なので残す)
+/node_modules/
+/package.json
+/package-lock.json
 
 # 環境変数 (念のため)
-.env*
+.env
+.env.local
+.env.production
