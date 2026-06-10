@@ -42,10 +42,10 @@ const PRESET_LABELS: { key: DateRangePreset; label: string }[] = [
 export function HomePage() {
   const { user, viewMode } = useAuth();
   const isPrivileged = user?.role === 'sysadmin' || user?.role === 'editor';
-  // 「新規作成」「下書き表示」「編集リンク」は admin モードのみ
+  // 「新規作成」「下書き表示」「編集リンク」は admin モードのみ。
+  // 新規作成も admin モードでのみ表示する (user モードでは隠す)。
   const canEdit = isPrivileged && viewMode === 'admin';
-  // editor+ なら user モードでも「新規作成」だけは出す
-  const canCreateEvent = isPrivileged;
+  const canCreateEvent = canEdit;
 
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(true);
