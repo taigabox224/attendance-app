@@ -157,6 +157,21 @@ export function EventDetailPage() {
     modeInitialized.current = false;
   }, [id]);
 
+  // 受付モード中は 5 秒間隔で event 詳細を再取得し、複数端末で
+  // 同時に受付作業しているときの「他端末で受付済になった」を反映する。
+  // - 通常モードでは不要 (自分の RSVP しか触らないので polling しない)
+  // - タブが非表示の時はスキップ (バッテリー / 通信節約)
+  // - scanner modal が開いていても data の reflect は問題ないのでそのまま続行
+  useEffect(() => {
+    if (mode !== 'reception') return;
+    const POLL_INTERVAL_MS = 5000;
+    const t = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void load();
+    }, POLL_INTERVAL_MS);
+    return () => window.clearInterval(t);
+  }, [mode, load]);
+
   async function copyShareLink() {
     if (!id) return;
     const url = `${window.location.origin}/events/${id}`;
