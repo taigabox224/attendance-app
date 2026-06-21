@@ -1,0 +1,43 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    working_dir: /app/api
+    volumes:
+      - ./api:/app/api
+      - api_node_modules:/app/api/node_modules
+      - api_data:/app/api/data
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: "3000"
+      DATABASE_URL: file:./data/app.db
+      APP_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173,http://localhost:8000
+      JWT_SECRET: dev-only-secret-change-me
+      JWT_EXPIRES_IN: 7d
+      MAIL_DRIVER: console
+      MAIL_FROM: no-reply@example.com
+      MAIL_FROM_NAME: attendance-app
+    command: sh -c "npm install && npm rebuild better-sqlite3 --build-from-source && npm run dev"
+    ports:
+      - "3000:3000"
+      - "5173:5173"
+      - "4173:4173"
+
+  web:
+    image: node:20-bookworm
+    working_dir: /app/web
+    volumes:
+      - ./web:/app/web
+      - web_node_modules:/app/web/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    depends_on:
+      - api
+    network_mode: "service:api"
+
+volumes:
+  api_node_modules:
+  web_node_modules:
+  api_data:

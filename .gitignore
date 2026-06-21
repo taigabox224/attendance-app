@@ -1,5 +1,4 @@
 .DS_Store
 node_modules/
 .vercel
-api/dist
 api/node_modules
