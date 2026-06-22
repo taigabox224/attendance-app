@@ -142,7 +142,7 @@ export function UserEditModal({ user, onClose, onSaved }: Props) {
         <form onSubmit={onSubmit} className="form-stack">
           <div className="field-row">
             <div className="field">
-              <label htmlFor="ue-family">苗字 <span className="required-mark">*</span></label>
+              <label htmlFor="ue-family">姓 <span className="required-mark">*</span></label>
               <input
                 id="ue-family"
                 type="text"
@@ -153,7 +153,7 @@ export function UserEditModal({ user, onClose, onSaved }: Props) {
               />
             </div>
             <div className="field">
-              <label htmlFor="ue-given">名前 <span className="required-mark">*</span></label>
+              <label htmlFor="ue-given">名 <span className="required-mark">*</span></label>
               <input
                 id="ue-given"
                 type="text"

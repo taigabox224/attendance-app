@@ -66,7 +66,7 @@ export function RegisterPage() {
         </div>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="family_name">苗字 <span className="required-mark">*</span></label>
+            <label htmlFor="family_name">姓 <span className="required-mark">*</span></label>
             <input
               id="family_name"
               type="text"
@@ -78,7 +78,7 @@ export function RegisterPage() {
             />
           </div>
           <div className="field">
-            <label htmlFor="given_name">名前 <span className="required-mark">*</span></label>
+            <label htmlFor="given_name">名 <span className="required-mark">*</span></label>
             <input
               id="given_name"
               type="text"
