@@ -49,7 +49,12 @@ export function LoginPage() {
           <span>SIGN&nbsp;IN</span>
         </div>
 
-        <form onSubmit={onSubmit} className="form-stack">
+        <form
+          onSubmit={onSubmit}
+          className="form-stack"
+          method="post"
+          action="/api/auth/login"
+        >
           <div className="field">
             <label htmlFor="email">メールアドレス</label>
             <input
