@@ -24,11 +24,31 @@ export function LoginPage() {
     setError(null);
     try {
       await login(email, password);
+      // Chrome 等で SPA の navigate 経由だと保存提案が出ないことがあるため、
+      // Credential Management API で明示的に保存依頼する (対応ブラウザのみ動く)。
+      await storeCredential(email, password);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '通信エラーが発生しました');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function storeCredential(id: string, password: string) {
+    const PasswordCredentialCtor = (
+      window as unknown as { PasswordCredential?: new (init: {
+        id: string;
+        password: string;
+        name?: string;
+      }) => Credential }
+    ).PasswordCredential;
+    if (!PasswordCredentialCtor || !navigator.credentials?.store) return;
+    try {
+      const cred = new PasswordCredentialCtor({ id, password, name: id });
+      await navigator.credentials.store(cred);
+    } catch {
+      // 非対応や拒否されたら黙って無視
     }
   }
 
