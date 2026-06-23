@@ -27,4 +27,13 @@ make legacy   # Phase 1 プロトタイプを 8000 番で配信 (web/legacy/)
 
 Phase 2 の本番化計画は [PRODUCTION.md](./PRODUCTION.md)、認証機能の仕様は [AUTH_FEATURE.md](./AUTH_FEATURE.md) を参照。
 
+## デプロイ手順
+
+```bash
+cd /var/www/jc-attendance
+git pull
+cd api && npm ci && npm run build && sudo systemctl restart jc-attendance-api
+cd ../web && npm ci && npm run build
+```
+
 
