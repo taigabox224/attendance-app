@@ -132,8 +132,8 @@ cd api && npm run typecheck && npm run build
 | ロール | 概要 |
 |---|---|
 | **sysadmin** | システム管理者。全機能 (ユーザー管理、イベント全表示、受付、設定) |
-| **editor** | 編集者。/admin/users + イベント編集可。**ただし受付 (QRスキャン + 受付済トグル) は不可**、/events は招待されたイベントのみ表示 |
-| **viewer** | 閲覧者。自分の RSVP のみ。受付担当に指定されていれば受付モード可 |
+| **editor** | 編集者。/admin/users + イベント作成・編集可。受付 (QRスキャン + 受付済トグル) は**受付担当に指定されている時 or 管理者モードの時のみ**可。/events は招待 or 自作イベントのみ表示 |
+| **viewer** | 閲覧者。自分の RSVP に加え、**イベント作成も可** (自作イベントの参加者/受付担当設定のみ可、他人のイベント編集は不可)。受付担当に指定されていれば受付モード可。/events は公開済み or 自作 (下書き含む) を表示 |
 
 ### システムアカウント (`is_system_account=1`)
 - 運用専用の sysadmin (`seed:defaults` で `SEED_SYSADMIN_*` 経由作成、名前のみ・姓名分割なし)
@@ -214,7 +214,8 @@ cd api && npm run typecheck && npm run build
 - Chrome DevTools のモバイルエミュレーションだと `<input type="date">` の picker が即閉じる (実機 Safari/Chrome は問題なし)
 - 仮パスワード状態のユーザーは `/change-password` 以外に行けない (`RequirePasswordChanged` でガード)
 - `/events/:id/reception` URL は `/events/:id` にリダイレクト (受付モードは詳細画面内の状態に統合済み)
-- viewer も受付担当に指定されていれば受付できる (editor は不可)
+- 受付の可否: sysadmin は常に可、editor は受付担当に指定されている時 or 管理者モードの時のみ可、viewer は受付担当に指定されていれば可 (UI 側で制御。API は editor を信頼ロールとして許可し、viewer は受付担当登録を要求)
+- viewer もイベント作成可。作成系 API (`POST /api/events`, `POST .../attendees`, `PUT .../receptionists`) は viewer まで開放しているが、viewer は自作イベント (`created_by` 一致) のみ操作可。`GET /api/users` `GET /api/attendee-lists` も作成フォーム用に viewer まで開放
 
 ## 作業ガイドライン
 

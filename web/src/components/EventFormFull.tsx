@@ -153,6 +153,7 @@ export function EventFormFull({ mode, eventId }: Props) {
   const [receptionistSelection, setReceptionistSelection] = useState<Set<string>>(new Set());
   const [receptionistQuery, setReceptionistQuery] = useState('');
   const [receptionistDeptFilter, setReceptionistDeptFilter] = useState<Set<string>>(new Set());
+  const [receptionistListApplied, setReceptionistListApplied] = useState<string>('');
 
   // ────── edit モード固有 ──────
   const [currentlyPublished, setCurrentlyPublished] = useState(false);
@@ -341,6 +342,28 @@ export function EventFormFull({ mode, eventId }: Props) {
     }
   }
 
+  async function applyReceptionistList(listId: string) {
+    if (!listId) {
+      setReceptionistListApplied('');
+      return;
+    }
+    try {
+      const d = await api<{ list: PresetDetail }>(`/api/attendee-lists/${listId}`);
+      const validIds = d.list.user_ids.filter((uid) =>
+        users.some((u) => u.id === uid),
+      );
+      const next = new Set(validIds);
+      // 作成者は受付担当から外せないため必ず含める
+      if (lockedReceptionistId) next.add(lockedReceptionistId);
+      setReceptionistSelection(next);
+      setReceptionistListApplied(listId);
+      const preset = presets.find((p) => p.id === listId);
+      if (preset) showToast(`受付担当に「${preset.name}」を反映 (${next.size}名)`);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function toggleReceptionist(id: string) {
     if (id === lockedReceptionistId) return;
     setReceptionistSelection((prev) => {
@@ -349,6 +372,7 @@ export function EventFormFull({ mode, eventId }: Props) {
       else next.add(id);
       return next;
     });
+    setReceptionistListApplied('');
   }
 
   function bulkSelectReceptionists(select: boolean) {
@@ -362,6 +386,7 @@ export function EventFormFull({ mode, eventId }: Props) {
       if (lockedReceptionistId) next.add(lockedReceptionistId);
       return next;
     });
+    setReceptionistListApplied('');
   }
 
   function toggleReceptionistDept(d: string) {
@@ -967,6 +992,24 @@ export function EventFormFull({ mode, eventId }: Props) {
           <p className="picker-card-help">
             当日「受付」モードに切替えて QR スキャンや出欠変更ができるメンバーです
           </p>
+
+          {presets.length > 0 && (
+            <div className="field" style={{ marginBottom: 8 }}>
+              <select
+                value={receptionistListApplied}
+                onChange={(e) => {
+                  void applyReceptionistList(e.target.value);
+                }}
+              >
+                <option value="">リストから一括選択…</option>
+                {presets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.member_count}名)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <input
             type="search"

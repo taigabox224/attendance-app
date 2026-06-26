@@ -29,9 +29,11 @@ const updateSchema = z.object({
 export async function registerAttendeeListRoutes(
   app: FastifyInstance,
 ): Promise<void> {
+  // 一覧の読み取りは viewer も可 (イベント作成フォームでプリセットを使うため)。
+  // 作成/更新/削除は editor 以上のまま。
   app.get(
     '/api/attendee-lists',
-    { preHandler: requireRole('editor') },
+    { preHandler: requireRole('viewer') },
     async () => {
       const rows = db
         .prepare(
@@ -49,7 +51,7 @@ export async function registerAttendeeListRoutes(
 
   app.get<{ Params: { id: string } }>(
     '/api/attendee-lists/:id',
-    { preHandler: requireRole('editor') },
+    { preHandler: requireRole('viewer') },
     async (req, reply) => {
       const list = db
         .prepare(`SELECT * FROM attendee_lists WHERE id = ?`)

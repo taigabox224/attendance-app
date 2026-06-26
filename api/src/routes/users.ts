@@ -6,8 +6,9 @@ import { requireRole } from '../middleware/requireRole.js';
 // /api/admin/users (sysadmin only) と違って email や role は返さない。
 // 退会 (status='left') は除外、休会 (inactive) は含める。
 // 並び順は display_order の昇順 → 同値は created_at の昇順。NULL は末尾。
+// viewer も取得可 (イベント作成フォームで参加者/受付担当を選ぶため)。
 export async function registerUserRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/api/users', { preHandler: requireRole('editor') }, async () => {
+  app.get('/api/users', { preHandler: requireRole('viewer') }, async () => {
     const rows = db
       .prepare(
         `SELECT id, name, family_name, given_name, department, title

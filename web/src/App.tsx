@@ -27,8 +27,11 @@ export function App() {
             <Route path="/" element={<Navigate to="/events" replace />} />
             <Route path="/events" element={<HomePage />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
-            <Route element={<RequireRole minimum="editor" />}>
+            {/* 新規作成は viewer 含む全ロール可。編集は editor 以上のまま */}
+            <Route element={<RequireRole minimum="viewer" />}>
               <Route path="/events/new" element={<EventCreatePage />} />
+            </Route>
+            <Route element={<RequireRole minimum="editor" />}>
               <Route path="/events/:id/edit" element={<EventEditPage />} />
             </Route>
             {/* legacy 互換: /events/:id/reception を踏んだら詳細にリダイレクト */}

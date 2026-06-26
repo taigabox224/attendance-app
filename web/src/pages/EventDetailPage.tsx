@@ -221,10 +221,14 @@ export function EventDetailPage() {
   const isReceptionist = data.receptionists.some(
     (r) => r.user_id === user?.id,
   );
-  // 受付 (QRスキャン / 受付済トグル / 会費トグル) は sysadmin と
-  // 「明示的に受付担当に指定された人」のみ可能。editor は admin モードでも
-  // 受付はできない (ユーザー指示: 「受付をできない」)。
-  const canDoReception = user?.role === 'sysadmin' || isReceptionist;
+  // 受付 (QRスキャン / 受付済トグル / 会費トグル) の可否:
+  //   sysadmin: 常に可
+  //   editor:   受付担当に指定されている時 or 管理者モードの時のみ可
+  //   viewer:   受付担当に指定されている時のみ可
+  const canDoReception =
+    user?.role === 'sysadmin' ||
+    isReceptionist ||
+    (user?.role === 'editor' && viewMode === 'admin');
   // 管理者 (admin viewMode) は常に受付モードで開く → toggle 不要。
   // 受付担当 (一般ユーザ viewMode) のみが「通常/受付」を切替できる。
   const showToggle = !canEdit && isReceptionist;
@@ -690,7 +694,7 @@ function ReceptionView({
   ev: EventDetail;
   attendees: Attendee[];
   // QRスキャン / 受付済トグル / 会費トグル が可能か
-  // (sysadmin or receptionist。editor の admin モードは false)
+  // (sysadmin / editor / receptionist)
   canDoReception: boolean;
   onReload: () => Promise<void>;
   onShowToast: (msg: string) => void;
@@ -1037,7 +1041,7 @@ function AttendeeRow({
                 </button>
               )
             ) : (
-              // editor は受付できないので、現状の状態だけ表示 (クリック不可)
+              // 受付権限がない場合は、現状の状態だけ表示 (クリック不可)
               a.checked_in_at && (
                 <span className="badge-checked-in" style={{ cursor: 'default' }}>
                   ✓受付済

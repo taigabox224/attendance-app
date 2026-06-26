@@ -98,11 +98,15 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
         )
         .all(userId, userId) as EventRow[];
     } else {
+      // viewer は公開済み or 自作 (下書き含む) を表示。
+      // 自分が作成したイベントは下書きでも見失わないようにする。
       rows = db
         .prepare(
-          `SELECT * FROM events WHERE published = 1 ORDER BY start_at DESC`,
+          `SELECT * FROM events
+           WHERE published = 1 OR created_by = ?
+           ORDER BY start_at DESC`,
         )
-        .all() as EventRow[];
+        .all(userId) as EventRow[];
     }
 
     const attendeeStmt = db.prepare(
@@ -218,10 +222,10 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // 作成 (editor 以上)
+  // 作成 (viewer 含む全ロール可。運用ルール: 閲覧者もイベントを作成できる)
   app.post(
     '/api/events',
-    { preHandler: requireRole('editor') },
+    { preHandler: requireRole('viewer') },
     async (req, reply) => {
       const parsed = createEventSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -353,7 +357,7 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
 
   app.post<{ Params: { id: string } }>(
     '/api/events/:id/attendees',
-    { preHandler: requireRole('editor') },
+    { preHandler: requireRole('viewer') },
     async (req, reply) => {
       const parsed = addAttendeesSchema.safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: '入力が不正です' });
@@ -363,11 +367,21 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const eventRow = db
-        .prepare(`SELECT id, has_afterparty FROM events WHERE id = ?`)
+        .prepare(`SELECT id, has_afterparty, created_by FROM events WHERE id = ?`)
         .get(req.params.id) as
-        | { id: string; has_afterparty: number }
+        | { id: string; has_afterparty: number; created_by: string }
         | undefined;
       if (!eventRow) return reply.code(404).send({ error: 'Event not found' });
+      // viewer は自分が作成したイベントにのみ参加者を追加できる
+      // (editor 以上は従来どおり全イベント可)。
+      if (
+        !hasMinimumRole(req.user!.role as Role, 'editor') &&
+        eventRow.created_by !== req.user!.sub
+      ) {
+        return reply
+          .code(403)
+          .send({ error: '自分が作成したイベントのみ編集できます' });
+      }
       const hasAP = eventRow.has_afterparty === 1;
 
       const now = new Date().toISOString();
@@ -566,16 +580,28 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
 
   app.put<{ Params: { id: string } }>(
     '/api/events/:id/receptionists',
-    { preHandler: requireRole('editor') },
+    { preHandler: requireRole('viewer') },
     async (req, reply) => {
       const parsed = setReceptionistsSchema.safeParse(req.body);
       if (!parsed.success) {
         return reply.code(400).send({ error: '入力が不正です' });
       }
       const eventRow = db
-        .prepare(`SELECT id FROM events WHERE id = ?`)
-        .get(req.params.id) as { id: string } | undefined;
+        .prepare(`SELECT id, created_by FROM events WHERE id = ?`)
+        .get(req.params.id) as
+        | { id: string; created_by: string }
+        | undefined;
       if (!eventRow) return reply.code(404).send({ error: 'Event not found' });
+      // viewer は自分が作成したイベントにのみ受付担当を設定できる
+      // (editor 以上は従来どおり全イベント可)。
+      if (
+        !hasMinimumRole(req.user!.role as Role, 'editor') &&
+        eventRow.created_by !== req.user!.sub
+      ) {
+        return reply
+          .code(403)
+          .send({ error: '自分が作成したイベントのみ編集できます' });
+      }
 
       // 重複除外
       const unique = Array.from(new Set(parsed.data.user_ids));
@@ -601,11 +627,11 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
 
   // 受付スキャン: QR から読み取った JWT を検証 → checked_in_at をセット。
   // 重複は 409 (情報付き)、トークン無効は 400。
-  // 権限: sysadmin もしくは event_receptionists に指定された user のみ。
-  // 受付 (QRスキャン) 権限:
-  //   sysadmin: 常に可
-  //   editor:   不可 (運用ルール: editor は受付業務をしない)
-  //   viewer:   event_receptionists に明示登録されていれば可
+  // 受付 (QRスキャン) 権限 (運用ルール変更: editor も受付可):
+  //   sysadmin / editor: 常に可 (editor を「管理者モード/受付担当の時のみ」に
+  //                      絞るのは UI 側の制御。viewMode はサーバーに来ないため
+  //                      API は信頼ロールの editor を許可する)
+  //   viewer:            event_receptionists に明示登録されていれば可
   const checkinSchema = z.object({ token: z.string().min(1) });
 
   app.post<{ Params: { id: string } }>(
@@ -613,12 +639,7 @@ export async function registerEventRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: requireAuth },
     async (req, reply) => {
       const userRole = req.user!.role as Role;
-      if (userRole === 'editor') {
-        return reply
-          .code(403)
-          .send({ error: 'editor は受付を行えません' });
-      }
-      if (userRole !== 'sysadmin') {
+      if (!hasMinimumRole(userRole, 'editor')) {
         const row = db
           .prepare(
             `SELECT 1 FROM event_receptionists WHERE event_id = ? AND user_id = ?`,

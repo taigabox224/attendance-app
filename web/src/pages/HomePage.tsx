@@ -44,9 +44,10 @@ export function HomePage() {
   const isPrivileged = user?.role === 'sysadmin' || user?.role === 'editor';
   // 「下書き表示」「編集リンク」 は admin モードのみ
   const canEdit = isPrivileged && viewMode === 'admin';
-  // 「+ 新規作成」 は逆。 user モード (普段使い) で出して、管理者モード
-  //  (一覧確認に集中するモード) では隠す
-  const canCreateEvent = isPrivileged && viewMode === 'user';
+  // 「+ 新規作成」 は viewer 含む全ロールで出す (運用ルール: 閲覧者もイベント作成可)。
+  // ただし editor/sysadmin の管理者モード (一覧確認に集中するモード) では隠す。
+  // viewer はモード概念がなく常に user モードなので、常に表示される。
+  const canCreateEvent = !!user && viewMode === 'user';
 
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,10 +71,14 @@ export function HomePage() {
   }, [load]);
 
   const visibleEvents = useMemo(() => {
-    const byVisibility = canEdit ? events : events.filter((e) => e.published);
+    // 管理者モードは全件。それ以外は「公開済み or 自作 (下書き含む)」を表示し、
+    // 自分が作成した下書きを見失わないようにする。
+    const byVisibility = canEdit
+      ? events
+      : events.filter((e) => e.published || e.created_by === user?.id);
     const byDate = filterByRange(byVisibility, range);
     return [...byDate].sort((a, b) => a.start_at.localeCompare(b.start_at));
-  }, [events, range, canEdit]);
+  }, [events, range, canEdit, user?.id]);
 
   function selectPreset(p: DateRangePreset) {
     setRange(applyPreset(p));
@@ -159,7 +164,7 @@ export function HomePage() {
       ) : (
         <ul className="event-list">
           {visibleEvents.map((e) => {
-            const isOwn = isPrivileged && e.created_by === user.id;
+            const isOwn = e.created_by === user.id;
             const deadlinePassed = !!(
               e.response_deadline && new Date(e.response_deadline) < new Date()
             );
@@ -181,7 +186,7 @@ export function HomePage() {
                     {deadlinePassed && (
                       <span className="event-badge expired">回答締切</span>
                     )}
-                    {canEdit && !e.published && (
+                    {(canEdit || isOwn) && !e.published && (
                       <span className="event-badge draft">下書き</span>
                     )}
                   </div>
